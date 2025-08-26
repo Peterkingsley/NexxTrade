@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NexxTrade — Blog</title>
+  <meta name="description" content="Insights, strategies, and market analysis from NexxTrade to help you trade smarter." />
+  <!-- Load Tailwind CSS for a clean, professional look and easy responsiveness -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons for a clean, professional look -->
+  <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
+  <style>
+    /* Custom CSS to match the existing NexxTrade site's theme */
+    :root{
+      --bg:#0b0f14;           /* deep navy/charcoal */
+      --bg-2:#0f141b;         /* card background */
+      --text:#e9edf3;         /* off-white */
+      --muted:#a8b3c7;        /* muted text */
+      --accent:#2ad678;       /* profit green */
+      --accent-2:#f0c75e;     /* gold for badges */
+      --danger:#ff5d5d;       /* soft red */
+      --line:#1b2330;         /* subtle borders */
+      --shadow:0 8px 24px rgba(0,0,0,.35);
+      --radius:16px;
+      --radius-lg:20px;
+      --max:1200px;
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial,sans-serif;overflow-x:hidden}
+    a{color:inherit;text-decoration:none}
+    img{max-width:100%;display:block}
+    button{font:inherit}
+
+    /* Utility classes from existing pages */
+    .container{width:100%;max-width:var(--max);margin-inline:auto;padding-inline:20px}
+    .grid{display:grid;gap:20px}
+    .btn{display:inline-flex;align-items:center;gap:.6rem;padding:.9rem .9rem;border-radius:999px;border:1px solid transparent;cursor:pointer;transition:.2s ease;white-space:nowrap}
+    .btn-primary{background:var(--accent);color:#04140a;font-weight:600}
+    .btn-primary:hover{filter:brightness(1.1);transform:translateY(-1px)}
+    .btn-ghost{background:transparent;border-color:var(--line);color:var(--text)}
+    .btn-ghost:hover{background:#0f151d}
+    .card{background:var(--bg-2);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+    .muted{color:var(--muted)}
+    .center{text-align:center}
+    .section-title { margin-top: 0; }
+
+    /* Input field styling from admin.html */
+    .input-field {
+      width: 100%;
+      padding: 12px 16px;
+      border-radius: 12px;
+      background: #0d1219;
+      border: 1px solid var(--line);
+      color: var(--text);
+      transition: border-color 0.2s ease;
+    }
+    
+    .input-field:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+    
+    /* Reveal animations */
+    .reveal{opacity:0;transform:translateY(12px);transition:opacity .5s ease, transform .5s ease}
+    .reveal.in{opacity:1;transform:none}
+
+    /* Header */
+    header{position:sticky;top:0;z-index:50;background:linear-gradient(180deg, rgba(11,15,20,.9), rgba(11,15,20,.6));backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+    .nav{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 20px;}
+    .brand{display:flex;align-items:center;gap:.6rem}
+    .logo{width:28px;height:28px;border-radius:7px;background:conic-gradient(from 30deg, #12b886, #2ad678, #8ef7bf);box-shadow:0 0 0 2px rgba(42,214,120,.15)}
+    nav a{opacity:.9}
+    nav a:hover{opacity:1}
+    .nav-links{display:flex;gap:18px;align-items:center}
+    .nav-toggle-btn { display: none; }
+    
+    /* Main Content Styling */
+    .main-content { padding: 48px 0; }
+    .blog-grid {
+      grid-template-columns: repeat(1, 1fr);
+    }
+    @media (min-width: 640px) {
+      .blog-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+    @media (min-width: 1024px) {
+      .blog-grid {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+
+    /* Blog card specific styles */
+    .blog-card {
+      padding: 0;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      height: 100%; /* Ensure all cards are the same height */
+      transition: transform 0.2s ease;
+    }
+    
+    .blog-card:hover {
+      transform: translateY(-2px);
+    }
+
+    .blog-card-img {
+      width: 100%;
+      height: 200px;
+      object-fit: cover;
+      border-radius: var(--radius) var(--radius) 0 0;
+    }
+
+    .blog-card-content {
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      flex-grow: 1; /* Pushes the button to the bottom */
+    }
+
+    .blog-card-content h3 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-top: 0;
+      margin-bottom: 8px;
+    }
+
+    .blog-card-content p {
+      color: var(--muted);
+      font-size: 0.95rem;
+      flex-grow: 1;
+      margin-bottom: 16px;
+    }
+
+    /* Footer */
+    footer{border-top:1px solid var(--line);background:#0b1017;padding:36px 20px 12px;}
+    .f-grid{display:grid;grid-template-columns:2fr 1fr 1fr 1.2fr;gap:20px;}
+    footer ul{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+    footer li a{color:var(--muted)}
+    footer li a:hover{color:var(--text)}
+    .subtle{font-size:.88rem;color:var(--muted)}
+
+    /* Sticky CTA (mobile) */
+    .sticky-cta{position:fixed;bottom:10px;left:10px;right:10px;z-index:60;display:none}
+    .sticky-cta .inner{display:flex;gap:10px;justify-content:space-between;align-items:center;background:#0e151e;border:1px solid var(--line);padding:10px 12px;border-radius:14px;box-shadow:var(--shadow)}
+    .sticky-cta .price{font-weight:800}
+
+    /* Responsive */
+    @media (max-width: 980px){
+      .container { padding-inline: 0; }
+      .f-grid{grid-template-columns:1fr;}
+      footer{ padding: 36px 20px 12px; }
+      .nav-links{display:none;}
+      .nav{padding:12px 16px;}
+      .nav-toggle-btn{display:block; cursor: pointer; background: transparent; border: none; font-size: 1.5rem; color: var(--text);}
+      header.mobile-nav-open .nav-links{
+        display:flex;
+        flex-direction: column;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        width: 100%;
+        background-color: var(--bg-2);
+        padding: 10px 0;
+        border-bottom: 1px solid var(--line);
+        box-shadow: var(--shadow);
+      }
+      header.mobile-nav-open .nav-links a{
+        padding: 10px 20px;
+        text-align: center;
+      }
+      .sticky-cta { display: block; }
+    }
+    
+    @media (max-width: 580px){
+      .f-grid{grid-template-columns:1fr;}
+      .main-content { padding: 32px 0; }
+      .blog-card-content { padding: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header>
+    <div class="container nav">
+      <a class="brand" href="index.html" aria-label="NexxTrade home">
+        <span class="logo" aria-hidden="true"></span>
+        <strong>NexxTrade</strong>
+      </a>
+      <button class="nav-toggle-btn" aria-label="Toggle navigation" aria-controls="nav-menu">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
+      </button>
+      <nav class="nav-links" id="nav-menu" aria-label="primary">
+        <!-- The following links have been updated to match the latest site navigation -->
+        <a href="performance.html">Performance</a>
+        <a href="index.html#pricing">Pricing</a>
+        <a href="index.html#faq">FAQ</a>
+        <a href="blog.html">Blog</a>
+        <a class="btn btn-primary" href="registration.html">Get Access</a>
+      </nav>
+    </div>
+  </header>
+  
+  <main class="main-content">
+    <div class="container space-y-12 md:space-y-16">
+      <div class="text-center reveal">
+        <h1 class="text-4xl md:text-5xl font-bold">NexxTrade Blog</h1>
+        <p class="text-lg md:text-xl text-muted max-w-2xl mx-auto mt-4">Insights, market analysis, and trading strategies to help you stay ahead of the curve.</p>
+      </div>
+
+      <!-- Search Bar -->
+      <div class="relative max-w-2xl mx-auto reveal">
+        <input type="text" id="blog-search" placeholder="Search articles..." class="input-field pl-12">
+        <div class="absolute inset-y-0 left-0 flex items-center pl-4 text-muted">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-search"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        </div>
+      </div>
+      
+      <div class="grid blog-grid gap-6 md:gap-8" id="blog-posts-container" style="padding: 20px;">
+        <!-- Blog Post 1 -->
+        <a href="#" class="blog-card card reveal">
+          <img src="https://greenpal-production.s3.amazonaws.com/nYRFsTucawhBnwwh2hm742w4" alt="Blog banner image of crypto charts" class="blog-card-img">
+          <div class="blog-card-content">
+            <h3 class="line-clamp-2">Understanding Market Cycles: A Trader's Guide</h3>
+            <p class="text-sm line-clamp-3">Navigating the volatile crypto landscape requires more than luck. Learn how to identify and capitalize on key market cycles and trends to improve your long-term success...</p>
+            <div class="flex items-center gap-2 text-sm text-accent font-semibold mt-auto">
+              Read More
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-right"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+            </div>
+          </div>
+        </a>
+        
+        <!-- Blog Post 2 -->
+        <a href="#" class="blog-card card reveal">
+          <img src="https://tse4.mm.bing.net/th/id/OIP.xP4150eQzWg7jSZfO6VE-wHaEK?r=0&w=1920&h=1080&rs=1&pid=ImgDetMain&o=7&rm=3" alt="Blog banner image of a balance scale" class="blog-card-img">
+          <div class="blog-card-content">
+            <h3 class="line-clamp-2">Top 5 Risk Management Strategies for Futures Trading</h3>
+            <p class="text-sm line-clamp-3">In futures trading, capital preservation is the first rule. We break down five essential strategies to help you protect your portfolio from unexpected market swings...</p>
+            <div class="flex items-center gap-2 text-sm text-accent font-semibold mt-auto">
+              Read More
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-right"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+            </div>
+          </div>
+        </a>
+
+        <!-- Blog Post 3 -->
+        <a href="#" class="blog-card card reveal">
+          <img src="https://cdn.slidesharecdn.com/ss_thumbnails/landscape-design-samples-condensed-1229641671674492-1-thumbnail.jpg?width=640&height=640&fit=bounds" alt="Blog banner image of a blueprint with a magnifying glass" class="blog-card-img">
+          <div class="blog-card-content">
+            <h3 class="line-clamp-2">The NexxTrade Trading Methodology: Signals with Structure</h3>
+            <p class="text-sm line-clamp-3">Discover the core principles behind our high-conviction signals. From technical analysis to on-chain metrics, we reveal our approach to finding profitable set-ups...</p>
+            <div class="flex items-center gap-2 text-sm text-accent font-semibold mt-auto">
+              Read More
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-right"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+            </div>
+          </div>
+        </a>
+        
+        <!-- Blog Post 4 -->
+        <a href="#" class="blog-card card reveal">
+          <img src="https://th.bing.com/th/id/R.848fe9f61bdd0a4e1db8d96f6577704f?rik=a67eCBq2H13w0w&riu=http%3a%2f%2fwww.trulandscape.com%2fwp-content%2fuploads%2f2014%2f06%2fOrange-County-Landscape-Design.png&ehk=sULj8qKOkeF14X%2b8wjiDORxsWsgljVu9WcMDkLtwXKk%3d&risl=&pid=ImgRaw&r=0" alt="Blog banner image of two intersecting graphs" class="blog-card-img">
+          <div class="blog-card-content">
+            <h3 class="line-clamp-2">Spot vs. Futures Trading: What's the Difference?</h3>
+            <p class="text-sm line-clamp-3">Confused about the differences between spot and futures trading? This article breaks down the key concepts, risks, and benefits to help you decide which is right for you...</p>
+            <div class="flex items-center gap-2 text-sm text-accent font-semibold mt-auto">
+              Read More
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-right"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+            </div>
+          </div>
+        </a>
+      </div>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer>
+    <div class="container grid f-grid">
+      <div>
+        <div class="brand" style="margin-bottom:10px"><span class="logo"></span><strong>NexxTrade</strong></div>
+        <p class="subtle">Signals with structure. Trade like the Banks.</p>
+      </div>
+      <div>
+        <h4>Links</h4>
+        <ul>
+          <li><a href="index.html">Home</a></li>
+          <li><a href="performance.html">Performance</a></li>
+          <li><a href="index.html#pricing">Pricing</a></li>
+          <li><a href="index.html#faq">FAQ</a></li>
+          <li><a href="blog.html">Blog</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Legal</h4>
+        <ul>
+          <li><a href="#">Terms</a></li>
+          <li><a href="#">Privacy</a></li>
+          <li><a href="#">Risk Disclaimer</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Payments & Social</h4>
+        <ul>
+          <li class="subtle">OPay • Crypto</li>
+          <li><a href="#">Telegram</a></li>
+          <li><a href="#">X (Twitter)</a></li>
+          <li><a href="#">Support Email</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="container" style="border-top:1px solid var(--line);margin-top:18px;padding-top:12px">
+      <div class="subtle">© <span id="year"></span> NexxTrade. All rights reserved.</div>
+    </div>
+  </footer>
+
+  <!-- Sticky CTA (mobile) -->
+  <div class="sticky-cta">
+    <div class="inner">
+      <div>
+        <div style="font-weight:700">Join NexxTrade</div>
+        <div class="subtle">Instant Telegram access</div>
+      </div>
+      <a class="btn btn-primary" href="index.html#pricing">Get Access</a>
+    </div>
+  </div>
+
+  <script>
+    // Current year
+    document.getElementById('year').textContent = new Date().getFullYear();
+
+    // Reveal on scroll
+    const io = new IntersectionObserver((entries)=>{
+      entries.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target);} });
+    },{threshold:.12});
+    document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+    
+    // Mobile navigation toggle
+    document.querySelector('.nav-toggle-btn').addEventListener('click', () => {
+        const header = document.querySelector('header');
+        header.classList.toggle('mobile-nav-open');
+    });
+
+    // Close mobile menu on link click
+    document.querySelectorAll('.nav-links a').forEach(link => {
+      link.addEventListener('click', () => {
+        const header = document.querySelector('header');
+        header.classList.remove('mobile-nav-open');
+      });
+    });
+
+    // New JavaScript for search functionality
+    document.addEventListener('DOMContentLoaded', () => {
+      const searchInput = document.getElementById('blog-search');
+      const blogPostsContainer = document.getElementById('blog-posts-container');
+      const blogPosts = blogPostsContainer.querySelectorAll('.blog-card');
+
+      searchInput.addEventListener('input', (e) => {
+        const query = e.target.value.toLowerCase();
+
+        blogPosts.forEach(post => {
+          const title = post.querySelector('h3').textContent.toLowerCase();
+          const teaser = post.querySelector('p').textContent.toLowerCase();
+          
+          if (title.includes(query) || teaser.includes(query)) {
+            post.style.display = 'flex'; // Use 'flex' because the original blog card has `display: flex;`
+          } else {
+            post.style.display = 'none';
+          }
+        });
+      });
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,382 @@
+<div class="space-y-8">
+    <h2 class="text-2xl font-semibold">Performance Analytics & Signal Management</h2>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div class="card p-6 flex flex-col items-center justify-center text-center space-y-2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent">
+                <polyline points="20 6 9 17 4 12"/>
+            </svg>
+            <div class="text-3xl font-bold" id="win-rate-stat">...</div>
+            <p class="text-muted">Current Win Rate</p>
+        </div>
+        <div class="card p-6 flex flex-col items-center justify-center text-center space-y-2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent-2">
+                <path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 1 0 0 7h5a3.5 3.5 0 1 1 0 7H6"/>
+            </svg>
+            <div class="text-3xl font-bold" id="avg-rr-stat">...</div>
+            <p class="text-muted">Avg. Risk:Reward</p>
+        </div>
+        <div class="card p-6 flex flex-col items-center justify-center text-center space-y-2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent">
+                <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+            </svg>
+            <div class="text-3xl font-bold" id="total-signals-stat">...</div>
+            <p class="text-muted">Total Signals Sent</p>
+        </div>
+    </div>
+    
+    <div class="message-box success">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17L4 12"/></svg>
+        <span>Use the form below to add a new signal entry to the public performance table.</span>
+    </div>
+
+    <div class="card p-6 space-y-4">
+        <h3 class="text-xl font-semibold flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            Add New Signal Entry
+        </h3>
+        <form id="add-signal-form" class="space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label for="signal-date" class="block text-sm font-medium mb-1 text-muted">Date</label>
+                    <input type="date" id="signal-date" class="input-field" required>
+                </div>
+                <div>
+                    <label for="signal-pair" class="block text-sm font-medium mb-1 text-muted">Pair (e.g., BTC/USDT)</label>
+                    <input type="text" id="signal-pair" placeholder="BTC/USDT" class="input-field" required>
+                </div>
+                <div>
+                    <label for="signal-leverage" class="block text-sm font-medium mb-1 text-muted">Leverage (e.g., 20X)</label>
+                    <input type="text" id="signal-leverage" placeholder="20X" class="input-field" required>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                    <label for="signal-entry" class="block text-sm font-medium mb-1 text-muted">Entry Price</label>
+                    <input type="number" step="any" id="signal-entry" placeholder="57240" class="input-field" required>
+                </div>
+                <div>
+                    <label for="signal-exit" class="block text-sm font-medium mb-1 text-muted">Exit Price</label>
+                    <input type="number" step="any" id="signal-exit" placeholder="59880" class="input-field" required>
+                </div>
+                <div>
+                    <label for="signal-pnl" class="block text-sm font-medium mb-1 text-muted">P/L % (e.g., +4.6%)</label>
+                    <input type="text" id="signal-pnl" placeholder="+4.6%" class="input-field" required>
+                </div>
+                <div>
+                    <label for="signal-type" class="block text-sm font-medium mb-1 text-muted">Position Type</label>
+                    <select id="signal-type" class="input-field" required>
+                        <option value="gain">LONG (Gain: Green)</option>
+                        <option value="loss">SHORT (Gain: Red)</option>
+                    </select>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary w-full">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                Add New Signal
+            </button>
+        </form>
+        <div id="signal-message" class="hidden"></div>
+    </div>
+    
+    <div class="card p-6 space-y-4">
+        <h3 class="text-xl font-semibold flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent-2"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m2 15 5 2 8-5 5 2"/></svg>
+            Upload New PNL Proof
+        </h3>
+        
+        <form id="add-pnl-form" class="space-y-4">
+            <div>
+                <label for="proof-description" class="block text-sm font-medium mb-1 text-muted">Description (e.g., BTC/USDT +4.6%)</label>
+                <input type="text" id="proof-description" placeholder="Add a short caption for the proof image" class="input-field" required>
+            </div>
+            <div class="flex items-center gap-4">
+                <div class="file-input-wrapper flex-grow">
+                    <input type="file" id="pnl-image" accept="image/*">
+                    <span id="file-label-pnl">Upload PNL Screenshot (must be blurred)</span>
+                </div>
+                <button type="submit" class="btn btn-primary flex-shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+                    Upload Proof
+                </button>
+            </div>
+        </form>
+        <div id="pnl-message" class="hidden"></div>
+    </div>
+    
+    <div class="card p-6">
+        <h3 class="text-xl font-semibold mb-4 flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent">
+                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 1 0 0 7h5a3.5 3.5 0 1 1 0 7H6"/>
+            </svg>
+            Signal History Management
+        </h3>
+
+        <div class="overflow-x-auto">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Pair</th>
+                        <th>Entry</th>
+                        <th>Exit</th>
+                        <th>P/L %</th>
+                        <th>Leverage</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="signals-table">
+                    <!-- Content will be loaded from the server -->
+                    <tr><td colspan="7" class="text-muted text-center py-4">Loading signal history...</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <p class="text-muted text-sm mt-4">Note: The data below will be dynamically loaded from the server.</p>
+    </div>
+
+    <div class="card p-6 space-y-4">
+        <h3 class="text-xl font-semibold flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent-2"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m2 15 5 2 8-5 5 2"/></svg>
+            PNL Proof Gallery
+        </h3>
+        
+        <div class="grid" style="grid-template-columns:repeat(2,1fr);gap:12px" id="pnl-gallery">
+            <!-- PNL proofs will be loaded here -->
+            <div class="text-muted text-center py-8 col-span-2">Loading PNL proofs...</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // This script handles the specific logic for the performance tab.
+    // It is wrapped in a function so it can be called by the main admin.html page.
+    window.initPageScripts = function() {
+        // --- Constants ---
+        const API_BASE_URL = 'http://localhost:3000/api';
+        const ADMIN_API_KEY = 'your_super_secret_admin_key_12345'; // Use the same key as in your routes/admin.js
+
+        // --- Helper Functions ---
+
+        /**
+         * Shows a temporary message box.
+         * @param {string} type - 'success' or 'error'
+         * @param {string} text - The message to display.
+         * @param {HTMLElement} container - The container to append the message to.
+         */
+        function showMessage(type, text, container) {
+          const messageBox = document.createElement('div');
+          messageBox.className = `message-box ${type}`;
+          const icon = type === 'success' 
+            ? `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17L4 12"/></svg>`
+            : `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/></svg>`;
+          messageBox.innerHTML = `${icon}<span>${text}</span>`;
+          container.innerHTML = ''; // Clear previous messages
+          container.appendChild(messageBox);
+          container.classList.remove('hidden');
+          setTimeout(() => container.classList.add('hidden'), 3000);
+        }
+        
+        /**
+         * Fetches signals from the backend API and populates the admin signals table.
+         */
+        async function fetchAdminSignals() {
+            const tableBody = document.getElementById('signals-table');
+            tableBody.innerHTML = '<tr><td colspan="7" class="text-muted text-center py-4">Loading signal history...</td></tr>';
+            try {
+                const response = await fetch(`${API_BASE_URL}/signals`);
+                const signals = await response.json();
+
+                tableBody.innerHTML = ''; // Clear loading state
+                if (signals.length === 0) {
+                    tableBody.innerHTML = '<tr><td colspan="7" class="text-muted text-center py-4">No signals available.</td></tr>';
+                    return;
+                }
+
+                signals.forEach(signal => {
+                    const row = document.createElement('tr');
+                    const pnlClass = signal.type === 'gain' ? 'gain' : 'loss';
+                    const pairColor = signal.isLong ? 'var(--accent)' : 'var(--danger)';
+                    row.innerHTML = `
+                        <td>${signal.date}</td>
+                        <td style="color: ${pairColor}">${signal.pair}</td>
+                        <td>${signal.entryPrice}</td>
+                        <td>${signal.exitPrice}</td>
+                        <td class="${pnlClass}">${signal.pnl}</td>
+                        <td>${signal.leverage}</td>
+                        <td>
+                            <button class="text-muted hover:text-text p-1">Edit</button>
+                            <button class="text-muted hover:text-danger p-1">Delete</button>
+                        </td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+            } catch (error) {
+                console.error('Error fetching signals:', error);
+                tableBody.innerHTML = '<tr><td colspan="7" class="text-danger text-center py-4">Error loading data.</td></tr>';
+            }
+        }
+
+        /**
+         * Fetches PNL proofs from the backend API and populates the PNL gallery.
+         */
+        async function fetchAdminPnlProofs() {
+            const gallery = document.getElementById('pnl-gallery');
+            gallery.innerHTML = '<div class="text-muted text-center py-8 col-span-2">Loading PNL proofs...</div>';
+            try {
+                const response = await fetch(`${API_BASE_URL}/pnl-proofs`);
+                const proofs = await response.json();
+                
+                gallery.innerHTML = ''; // Clear loading state
+                if (proofs.length === 0) {
+                    gallery.innerHTML = '<div class="text-muted text-center py-8 col-span-2">No PNL proofs available.</div>';
+                    return;
+                }
+
+                proofs.forEach(proof => {
+                    const panel = document.createElement('div');
+                    panel.className = 'panel';
+                    panel.style = 'aspect-ratio:16/10;background:#101722;border:1px solid var(--line);border-radius:12px;position:relative;overflow:hidden';
+                    panel.innerHTML = `
+                        <div class="blurbar"></div>
+                        <img src="${proof.imageUrl}" alt="${proof.description}" style="width:100%;height:100%;object-fit:cover; filter: blur(3px) brightness(0.8);">
+                    `;
+                    gallery.appendChild(panel);
+                });
+            } catch (error) {
+                console.error('Error fetching PNL proofs:', error);
+                gallery.innerHTML = '<div class="text-danger text-center py-8 col-span-2">Error loading proofs.</div>';
+            }
+        }
+        
+        // --- Event Listeners ---
+        
+        // File input label update for PNL proof
+        const fileInput = document.getElementById('pnl-image');
+        const fileLabel = document.getElementById('file-label-pnl');
+        if (fileInput && fileLabel) {
+          fileInput.addEventListener('change', () => {
+            if (fileInput.files.length > 0) {
+              fileLabel.textContent = fileInput.files[0].name;
+            } else {
+              fileLabel.textContent = 'Upload PNL Screenshot (must be blurred)';
+            }
+          });
+        }
+
+        // Handle "Add New Signal" form submission
+        document.getElementById('add-signal-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const signalMessage = document.getElementById('signal-message');
+            const submitBtn = e.submitter;
+            submitBtn.disabled = true;
+
+            const date = document.getElementById('signal-date').value;
+            const pair = document.getElementById('signal-pair').value;
+            const leverage = document.getElementById('signal-leverage').value;
+            const entryPrice = document.getElementById('signal-entry').value;
+            const exitPrice = document.getElementById('signal-exit').value;
+            const pnl = document.getElementById('signal-pnl').value;
+            const type = document.getElementById('signal-type').value;
+
+            // Determine if position is long or short based on prices
+            const isLong = parseFloat(exitPrice) > parseFloat(entryPrice);
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/admin/add-signal`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': ADMIN_API_KEY
+                    },
+                    body: JSON.stringify({
+                        date,
+                        pair,
+                        entryPrice,
+                        exitPrice,
+                        pnl,
+                        leverage,
+                        type,
+                        isLong
+                    })
+                });
+
+                const result = await response.json();
+                if (response.ok) {
+                    showMessage('success', 'Signal added successfully!', signalMessage);
+                    // Clear the form
+                    e.target.reset();
+                    // Refresh the signals table
+                    fetchAdminSignals();
+                } else {
+                    showMessage('error', `Error: ${result.error}`, signalMessage);
+                }
+            } catch (error) {
+                console.error('Submission error:', error);
+                showMessage('error', 'An error occurred. Please check the server status.', signalMessage);
+            } finally {
+                submitBtn.disabled = false;
+            }
+        });
+
+        // Handle "Upload New PNL Proof" form submission
+        document.getElementById('add-pnl-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const pnlMessage = document.getElementById('pnl-message');
+            const submitBtn = e.submitter;
+            submitBtn.disabled = true;
+
+            const description = document.getElementById('proof-description').value;
+            const file = document.getElementById('pnl-image').files[0];
+
+            if (!file) {
+                showMessage('error', 'Please select an image file.', pnlMessage);
+                submitBtn.disabled = false;
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                const base64Image = event.target.result.split(',')[1];
+                try {
+                    const response = await fetch(`${API_BASE_URL}/admin/add-pnl-proof`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-API-Key': ADMIN_API_KEY
+                        },
+                        body: JSON.stringify({
+                            description,
+                            imageData: base64Image
+                        })
+                    });
+
+                    const result = await response.json();
+                    if (response.ok) {
+                        showMessage('success', 'PNL proof uploaded successfully!', pnlMessage);
+                        // Clear the form and reset file label
+                        e.target.reset();
+                        document.getElementById('file-label-pnl').textContent = 'Upload PNL Screenshot (must be blurred)';
+                        // Refresh the PNL gallery
+                        fetchAdminPnlProofs();
+                    } else {
+                        showMessage('error', `Error: ${result.error}`, pnlMessage);
+                    }
+                } catch (error) {
+                    console.error('Submission error:', error);
+                    showMessage('error', 'An error occurred. Please check the server status.', pnlMessage);
+                } finally {
+                    submitBtn.disabled = false;
+                }
+            };
+            reader.readAsDataURL(file);
+        });
+        
+        // This is where we call our new functions to populate the data when the page loads
+        fetchAdminSignals();
+        fetchAdminPnlProofs();
+    };
+</script>

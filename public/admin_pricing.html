@@ -1,0 +1,77 @@
+<div class="space-y-8">
+    <h2 class="text-2xl font-semibold">Update Pricing Plans</h2>
+
+    <div class="message-box success">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17L4 12"/></svg>
+        <span>Changes made here would affect the checkout page and the public pricing section.</span>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        
+        <div class="card p-6 space-y-4">
+            <h3 class="text-xl font-semibold text-center">Monthly Plan</h3>
+            <form class="space-y-4">
+                <div>
+                    <label for="monthly-price" class="block text-sm font-medium mb-1 text-muted">Price ($)</label>
+                    <input type="number" id="monthly-price" value="39" class="input-field" required>
+                </div>
+                <div>
+                    <label for="monthly-description" class="block text-sm font-medium mb-1 text-muted">Description</label>
+                    <input type="text" id="monthly-description" value="Good to try us out" class="input-field" required>
+                </div>
+                <div class="space-y-2">
+                    <label class="block text-sm font-medium text-muted">Features (Max 3)</label>
+                    <input type="text" placeholder="Feature 1" value="Real‑time signals" class="input-field">
+                    <input type="text" placeholder="Feature 2" value="Automated Telegram access" class="input-field">
+                    <input type="text" placeholder="Feature 3" value="Risk framework on every call" class="input-field">
+                </div>
+                <button type="submit" class="btn btn-primary w-full">Update Monthly</button>
+            </form>
+        </div>
+
+        <div class="card p-6 space-y-4" style="outline:2px solid rgba(240,199,94,.25)">
+            <h3 class="text-xl font-semibold text-center">Quarterly Plan</h3>
+            <div class="text-center"><span class="badge" style="background:rgba(240,199,94,.15); color:var(--accent-2); border-color:rgba(240,199,94,.35)">Best Value</span></div>
+            <form class="space-y-4">
+                <div>
+                    <label for="quarterly-price" class="block text-sm font-medium mb-1 text-muted">Price ($)</label>
+                    <input type="number" id="quarterly-price" value="99" class="input-field" required>
+                </div>
+                <div>
+                    <label for="quarterly-description" class="block text-sm font-medium mb-1 text-muted">Description</label>
+                    <input type="text" id="quarterly-description" value="Commit and save" class="input-field" required>
+                </div>
+                <div class="space-y-2">
+                    <label class="block text-sm font-medium text-muted">Features (Max 3)</label>
+                    <input type="text" placeholder="Feature 1" value="Everything in Monthly" class="input-field">
+                    <input type="text" placeholder="Feature 2" value="Priority support" class="input-field">
+                    <input type="text" placeholder="Feature 3" value="Member‑only Q&As" class="input-field">
+                </div>
+                <button type="submit" class="btn btn-primary w-full">Update Quarterly</button>
+            </form>
+        </div>
+
+        <div class="card p-6 space-y-4">
+            <h3 class="text-xl font-semibold text-center">Yearly Plan</h3>
+            <form class="space-y-4">
+                <div>
+                    <label for="yearly-price" class="block text-sm font-medium mb-1 text-muted">Price ($)</label>
+                    <input type="number" id="yearly-price" value="299" class="input-field" required>
+                </div>
+                <div>
+                    <label for="yearly-description" class="block text-sm font-medium mb-1 text-muted">Description</label>
+                    <input type="text" id="yearly-description" value="Maximum savings" class="input-field" required>
+                </div>
+                <div class="space-y-2">
+                    <label class="block text-sm font-medium text-muted">Features (Max 3)</label>
+                    <input type="text" placeholder="Feature 1" value="Everything in Quarterly" class="input-field">
+                    <input type="text" placeholder="Feature 2" value="VIP role in community" class="input-field">
+                    <input type="text" placeholder="Feature 3" value="Bonus market notes" class="input-field">
+                </div>
+                <button type="submit" class="btn btn-primary w-full">Update Yearly</button>
+            </form>
+        </div>
+    </div>
+    
+    <p class="text-muted text-sm text-center pt-4">Note: The input fields are pre-populated with values from your current `index.html` file. Backend logic is required to save and apply changes.</p>
+</div>

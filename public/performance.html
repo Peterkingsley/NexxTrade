@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NexxTrade — Performance</title>
+  <meta name="description" content="View the full performance history of NexxTrade's futures signals." />
+  <!-- Lucide Icons for a clean, professional look -->
+  <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
+  <!-- html-to-image library for capturing the panel as an image -->
+  <script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.0/dist/html-to-image.min.js"></script>
+  <style>
+    :root{
+      --bg:#0b0f14;           /* deep navy/charcoal */
+      --bg-2:#0f141b;         /* card background */
+      --text:#e9edf3;         /* off-white */
+      --muted:#a8b3c7;        /* muted text */
+      --accent:#2ad678;       /* profit green */
+      --accent-2:#f0c75e;     /* gold for badges */
+      --danger:#ff5d5d;       /* soft red */
+      --line:#1b2330;         /* subtle borders */
+      --shadow:0 8px 24px rgba(0,0,0,.35);
+      --radius:16px;
+      --radius-lg:20px;
+      --max:1200px;
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial,sans-serif;overflow-x:hidden}
+    a{color:inherit;text-decoration:none}
+    img{max-width:100%;display:block}
+    button{font:inherit}
+
+    /* Utility */
+    .container{width:100%;max-width:var(--max);margin-inline:auto;padding-inline:20px}
+    .grid{display:grid;gap:20px}
+    .btn{display:inline-flex;align-items:center;gap:.6rem;padding:.9rem .9rem;border-radius:999px;border:1px solid transparent;cursor:pointer;transition:.2s ease;white-space:nowrap}
+    .btn-primary{background:var(--accent);color:#04140a;font-weight:600}
+    .btn-primary:hover{filter:brightness(1.1);transform:translateY(-1px)}
+    .btn-ghost{background:transparent;border-color:var(--line);color:var(--text)}
+    .btn-ghost:hover{background:#0f151d}
+    .badge{display:inline-flex;align-items:center;gap:.4rem;background:rgba(42,214,120,.1);color:var(--accent);border:1px solid rgba(42,214,120,.25);padding:.35rem .6rem;border-radius:999px;font-size:.78rem;font-weight:600; margin: 10px 0;}
+    .card{background:var(--bg-2);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+    .muted{color:var(--muted)}
+    .center{text-align:center}
+    .section-title { margin-top: 0; }
+    
+    /* Reveal animations */
+    .reveal{opacity:0;transform:translateY(12px);transition:opacity .5s ease, transform .5s ease}
+    .reveal.in{opacity:1;transform:none}
+
+    /* Header */
+    header{position:sticky;top:0;z-index:50;background:linear-gradient(180deg, rgba(11,15,20,.9), rgba(11,15,20,.6));backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+    .nav{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 20px;}
+    .brand{display:flex;align-items:center;gap:.6rem}
+    .logo{width:28px;height:28px;border-radius:7px;background:conic-gradient(from 30deg, #12b886, #2ad678, #8ef7bf);box-shadow:0 0 0 2px rgba(42,214,120,.15)}
+    nav a{opacity:.9}
+    nav a:hover{opacity:1}
+    .nav-links{display:flex;gap:18px;align-items:center}
+    .nav-toggle-btn { display: none; }
+    
+    /* Main Content Styling */
+    .main-content { padding: 48px 0; }
+    .back-link { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 24px; color: var(--muted); }
+    .back-link:hover { color: var(--text); }
+
+    /* Performance snapshot */
+    .performance{padding:48px 0;}
+    .perf-wrap{display:grid;grid-template-columns:1fr .9fr;gap:24px}
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:12px;border-bottom:1px solid var(--line);text-align:left}
+    th{color:var(--muted);font-weight:600}
+    .gain{color:var(--accent);font-weight:700}
+    .loss{color:var(--danger);font-weight:700}
+    /* Add cursor pointer to table rows to indicate clickability */
+    #signals-table tr { cursor: pointer; }
+
+    /* Blog section styling */
+    .blog-section {
+      padding: 56px 20px;
+    }
+    .blog-section .content {
+      display: grid;
+      grid-template-columns: 1fr;
+      align-items: center;
+      gap: 32px;
+    }
+    .blog-section .cta-panel {
+      padding: 24px;
+      text-align: center;
+    }
+    .blog-section .cta-panel h3 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-top: 0;
+      margin-bottom: 8px;
+    }
+
+    /* Footer */
+    footer{border-top:1px solid var(--line);background:#0b1017;padding:36px 20px 12px;}
+    .f-grid{display:grid;grid-template-columns:2fr 1fr 1fr 1.2fr;gap:20px;}
+    footer ul{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+    footer li a{color:var(--muted)}
+    footer li a:hover{color:var(--text)}
+    .subtle{font-size:.88rem;color:var(--muted)}
+
+    /* Sticky CTA (mobile) */
+    .sticky-cta{position:fixed;bottom:10px;left:10px;right:10px;z-index:60;display:none}
+    .sticky-cta .inner{display:flex;gap:10px;justify-content:space-between;align-items:center;background:#0e151e;border:1px solid var(--line);padding:10px 12px;border-radius:14px;box-shadow:var(--shadow)}
+    .sticky-cta .price{font-weight:800}
+
+    /* Pagination */
+    .pagination {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 8px;
+        margin-top: 16px;
+    }
+    .pagination a, .pagination span {
+        display: inline-flex;
+        justify-content: center;
+        align-items: center;
+        height: 36px;
+        border-radius: 50%;
+        color: var(--muted);
+        text-decoration: none;
+        transition: background-color 0.2s ease;
+    }
+    .pagination .page-number {
+        width: 36px;
+    }
+    .pagination .nav-btn {
+        width: auto;
+        padding: 0 12px;
+        border-radius: 999px;
+    }
+    .pagination a:hover {
+        background-color: var(--line);
+    }
+    .pagination .active {
+        background-color: var(--accent);
+        color: #04140a;
+        font-weight: 700;
+    }
+    .pagination .disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    /* --- New Styles for the ROI Panel --- */
+    .roi-panel-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 100;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+
+    .roi-panel-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .roi-panel {
+      position: relative;
+      background: var(--bg-2);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 24px;
+      width: 90%;
+      max-width: 400px;
+      transform: scale(0.95);
+      transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .roi-panel-overlay.active .roi-panel {
+      transform: scale(1);
+    }
+
+    .roi-panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .roi-panel-header .brand {
+      margin: 0;
+    }
+    
+    .roi-panel-header .close-btn {
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      padding: 5px;
+      transition: color 0.2s ease;
+    }
+
+    .roi-panel-header .close-btn:hover {
+      color: var(--text);
+    }
+
+    .roi-pair {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 24px;
+    }
+    .roi-pair span {
+      color: var(--text);
+    }
+    
+    .roi-pair .badge {
+      font-size: 0.8rem;
+      padding: 0.25rem 0.5rem;
+    }
+    .roi-panel .badge-long {
+      background-color: rgba(42,214,120,0.1);
+      color: var(--accent);
+      border: 1px solid rgba(42,214,120,0.25);
+    }
+    .roi-panel .badge-short {
+      background-color: rgba(255, 93, 93, 0.1);
+      color: var(--danger);
+      border: 1px solid rgba(255, 93, 93, 0.25);
+    }
+
+    .roi-percent {
+      font-size: 3rem;
+      font-weight: 800;
+      margin-bottom: 12px;
+      line-height: 1;
+    }
+    .roi-percent.gain { color: var(--accent); }
+    .roi-percent.loss { color: var(--danger); }
+
+    .roi-details {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 24px;
+      border-top: 1px dashed var(--line);
+      padding-top: 16px;
+    }
+    .roi-detail-item {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .roi-detail-label {
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+    .roi-detail-value {
+      font-size: 1rem;
+      font-weight: 600;
+    }
+
+    /* --- Community Banner Styles --- */
+    .community-banner {
+      height: 120px;
+      background: linear-gradient(135deg, #2ad678, #12b886);
+      border-radius: 12px;
+      margin-bottom: 20px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      color: #04140a;
+      font-weight: 700;
+    }
+    .community-banner .banner-text {
+      font-size: 1.2rem;
+      margin-bottom: 4px;
+    }
+    .community-banner .banner-subtext {
+      font-size: 0.8rem;
+      opacity: 0.8;
+    }
+
+    .roi-actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 24px;
+      justify-content: flex-end;
+    }
+    .roi-actions .btn {
+      flex-grow: 1;
+    }
+
+    /* Responsive */
+    @media (max-width: 980px){
+      .container { padding-inline: 0; }
+      .perf-wrap, .f-grid{grid-template-columns:1fr;}
+      .performance table { font-size: 0.85rem; white-space: nowrap; }
+      .performance th, .performance td { padding: 8px; }
+      footer{ padding: 36px 20px 12px; }
+      .nav-links{display:none;}
+      .nav{padding:12px 16px;}
+      .nav-toggle-btn{display:block; cursor: pointer; background: transparent; border: none; font-size: 1.5rem; color: var(--text);}
+      header.mobile-nav-open .nav-links{
+        display:flex;
+        flex-direction: column;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        width: 100%;
+        background-color: var(--bg-2);
+        padding: 10px 0;
+        border-bottom: 1px solid var(--line);
+        box-shadow: var(--shadow);
+      }
+      header.mobile-nav-open .nav-links a{
+        padding: 10px 20px;
+        text-align: center;
+      }
+      .sticky-cta{display:block;}
+      .roi-panel { max-width: 90%; }
+      .blog-section .content {
+        grid-template-columns: 1fr;
+        text-align: center;
+      }
+    }
+    
+    @media (max-width: 580px){
+      .f-grid{grid-template-columns:1fr;}
+      .performance .grid {
+        grid-template-columns: 1fr;
+      }
+      .roi-panel {
+        padding: 20px;
+      }
+      .roi-percent {
+        font-size: 2.5rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header>
+    <div class="container nav">
+      <a class="brand" href="index.html" aria-label="NexxTrade home">
+        <span class="logo" aria-hidden="true"></span>
+        <strong>NexxTrade</strong>
+      </a>
+      <button class="nav-toggle-btn" aria-label="Toggle navigation" aria-controls="nav-menu">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
+      </button>
+      <nav class="nav-links" id="nav-menu" aria-label="primary">
+        <a href="#performance">Performance</a>
+        <a href="index.html#pricing">Pricing</a>
+        <a href="index.html#faq">FAQ</a>
+        <a href="blog.html">Blog</a>
+        <a class="btn btn-primary" href="index.html#join">Get Access</a>
+      </nav>
+    </div>
+  </header>
+  
+  <main class="main-content">
+    <div class="container">
+      <a class="back-link" href="index.html">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+        Back to Home
+      </a>
+      
+      <section id="performance">
+        <div class="perf-wrap">
+          <div class="card reveal" style="padding:5px; font-size: 10px;">
+            <h3 style="margin:6px 0 10px; padding-left: 10px; font-size: 20px;">Full Recent Signals</h3>
+            <div style="overflow:auto">
+              <table aria-label="Full recent signals">
+                <thead>
+                  <tr><th>Date</th><th>Pair</th><th>Entry</th><th>Exit</th><th>P/L %</th></tr>
+                </thead>
+                <tbody id="signals-table">
+                  <!-- Added data-type and data-leverage attributes for dynamic panel -->
+                  <tr class="signal-row" data-type="gain" data-leverage="20X" data-is-long="true"><td>14/08/25</td><td style="color:var(--accent)">BTC/USDT</td><td>57,240</td><td>59,880</td><td class="gain">+4.6%</td></tr>
+                  <tr class="signal-row" data-type="gain" data-leverage="10X" data-is-long="false"><td>13/08/25</td><td style="color:var(--danger)">ETH/USDT</td><td>2,420</td><td>2,360</td><td class="gain">+2.5%</td></tr>
+                  <tr class="signal-row" data-type="loss" data-leverage="15X" data-is-long="false"><td>12/08/25</td><td style="color:var(--accent)">SOL/USDT</td><td>168.5</td><td>165.2</td><td class="loss">-2.0%</td></tr>
+                  <tr class="signal-row" data-type="gain" data-leverage="25X" data-is-long="true"><td>11/08/25</td><td style="color:var(--accent)">BNB/USDT</td><td>612</td><td>635</td><td class="gain">+3.7%</td></tr>
+                  <tr class="signal-row" data-type="gain" data-leverage="5X" data-is-long="false"><td>10/08/25</td><td style="color:var(--danger)">ADA/USDT</td><td>0.41</td><td>0.39</td><td class="gain">+4.8%</td></tr>
+                  <tr class="signal-row" data-type="gain" data-leverage="10X" data-is-long="true"><td>09/08/25</td><td style="color:var(--accent)">LINK/USDT</td><td>18.15</td><td>18.72</td><td class="gain">+3.1%</td></tr>
+                  <tr class="signal-row" data-type="gain" data-leverage="12X" data-is-long="true"><td>08/08/25</td><td style="color:var(--accent)">DOT/USDT</td><td>6.89</td><td>7.01</td><td class="gain">+1.7%</td></tr>
+                  <tr class="signal-row" data-type="loss" data-leverage="8X" data-is-long="false"><td>07/08/25</td><td style="color:var(--danger)">LTC/USDT</td><td>78.5</td><td>76.0</td><td class="loss">-3.2%</td></tr>
+                  <tr class="signal-row" data-type="gain" data-leverage="18X" data-is-long="true"><td>06/08/25</td><td style="color:var(--accent)">XRP/USDT</td><td>0.52</td><td>0.54</td><td class="gain">+3.8%</td></tr>
+                  <tr class="signal-row" data-type="gain" data-leverage="20X" data-is-long="false"><td>05/08/25</td><td style="color:var(--danger)">BCH/USDT</td><td>380.1</td><td>375.5</td><td class="gain">+1.2%</td></tr>
+                  <tr class="signal-row" data-type="gain" data-leverage="15X" data-is-long="true"><td>04/08/25</td><td style="color:var(--accent)">BTC/USDT</td><td>57,100</td><td>58,000</td><td class="gain">+1.6%</td></tr>
+                  <tr class="signal-row" data-type="gain" data-leverage="10X" data-is-long="true"><td>03/08/25</td><td style="color:var(--accent)">ETH/USDT</td><td>2,300</td><td>2,350</td><td class="gain">+2.2%</td></tr>
+                  <tr class="signal-row" data-type="loss" data-leverage="5X" data-is-long="false"><td>02/08/25</td><td style="color:var(--danger)">SOL/USDT</td><td>170.0</td><td>167.0</td><td class="loss">-1.8%</td></tr>
+                  <tr class="signal-row" data-type="gain" data-leverage="20X" data-is-long="true"><td>01/08/25</td><td style="color:var(--accent)">BNB/USDT</td><td>600</td><td>625</td><td class="gain">+4.2%</td></tr>
+                  <tr class="signal-row" data-type="gain" data-leverage="12X" data-is-long="false"><td>31/07/25</td><td style="color:var(--danger)">ADA/USDT</td><td>0.40</td><td>0.38</td><td class="gain">+5.0%</td></tr>
+                  <tr class="signal-row" data-type="gain" data-leverage="15X" data-is-long="true"><td>30/07/25</td><td style="color:var(--accent)">BTC/USDT</td><td>56,500</td><td>57,800</td><td class="gain">+2.3%</td></tr>
+                  <tr class="signal-row" data-type="gain" data-leverage="10X" data-is-long="true"><td>29/07/25</td><td style="color:var(--accent)">ETH/USDT</td><td>2,250</td><td>2,290</td><td class="gain">+1.8%</td></tr>
+                  <tr class="signal-row" data-type="loss" data-leverage="8X" data-is-long="false"><td>28/07/25</td><td style="color:var(--danger)">SOL/USDT</td><td>165.0</td><td>160.0</td><td class="loss">-3.0%</td></tr>
+                  <tr class="signal-row" data-type="gain" data-leverage="25X" data-is-long="true"><td>27/07/25</td><td style="color:var(--accent)">BNB/USDT</td><td>590</td><td>610</td><td class="gain">+3.4%</td></tr>
+                  <tr class="signal-row" data-type="gain" data-leverage="5X" data-is-long="false"><td>26/07/25</td><td style="color:var(--danger)">ADA/USDT</td><td>0.39</td><td>0.37</td><td class="gain">+5.1%</td></tr>
+                </tbody>
+              </table>
+            </div>
+           <div class="pagination" id="signals-table-pagination"></div>
+          </div>
+          <div class="card reveal" style="padding:18px">
+            <h3 style="margin:6px 0 10px">PNL Proof (full gallery)</h3>
+            <div class="grid" style="grid-template-columns:repeat(2,1fr);gap:12px" id="pnl-gallery">
+              <div class="panel" style="aspect-ratio:16/10;background:#101722;border:1px solid var(--line);border-radius:12px;position:relative;overflow:hidden">
+                <div class="blurbar"></div>
+              </div>
+              <div class="panel" style="aspect-ratio:16/10;background:#101722;border:1px solid var(--line);border-radius:12px;position:relative;overflow:hidden">
+                <div class="blurbar"></div>
+              </div>
+              <div class="panel" style="aspect-ratio:16/10;background:#101722;border:1px solid var(--line);border-radius:12px;position:relative;overflow:hidden">
+                <div class="blurbar"></div>
+              </div>
+              <div class="panel" style="aspect-ratio:16/10;background:#101722;border:1px solid var(--line);border-radius:12px;position:relative;overflow:hidden">
+                <div class="blurbar"></div>
+              </div>
+              <div class="panel" style="aspect-ratio:16/10;background:#101722;border:1px solid var(--line);border-radius:12px;position:relative;overflow:hidden">
+                <div class="blurbar"></div>
+              </div>
+              <div class="panel" style="aspect-ratio:16/10;background:#101722;border:1px solid var(--line);border-radius:12px;position:relative;overflow:hidden">
+                <div class="blurbar"></div>
+              </div>
+              <div class="panel" style="aspect-ratio:16/10;background:#101722;border:1px solid var(--line);border-radius:12px;position:relative;overflow:hidden">
+                <div class="blurbar"></div>
+              </div>
+              <div class="panel" style="aspect-ratio:16/10;background:#101722;border:1px solid var(--line);border-radius:12px;position:relative;overflow:hidden">
+                <div class="blurbar"></div>
+              </div>
+              <div class="panel" style="aspect-ratio:16/10;background:#101722;border:1px solid var(--line);border-radius:12px;position:relative;overflow:hidden">
+                <div class="blurbar"></div>
+              </div>
+              <div class="panel" style="aspect-ratio:16/10;background:#101722;border:1px solid var(--line);border-radius:12px;position:relative;overflow:hidden">
+                <div class="blurbar"></div>
+              </div>
+              <div class="panel" style="aspect-ratio:16/10;background:#101722;border:1px solid var(--line);border-radius:12px;position:relative;overflow:hidden">
+                <div class="blurbar"></div>
+              </div>
+              <div class="panel" style="aspect-ratio:16/10;background:#101722;border:1px solid var(--line);border-radius:12px;position:relative;overflow:hidden">
+                <div class="blurbar"></div>
+              </div>
+            </div>
+            <p class="muted" style="margin-top:12px">Sensitive details intentionally blurred. This is a full gallery.</p>
+            <div class="pagination" id="pnl-gallery-pagination"></div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+  
+  <!-- Blog section -->
+  <section class="blog-section container reveal">
+    <div class="content card">
+      <div class="cta-panel">
+        <h3 class="text-white">Learn to Trade Smarter</h3>
+        <p class="muted max-w-sm mx-auto">
+          Our blog offers market analysis, trading strategies, and educational content to help you sharpen your skills and stay informed.
+        </p>
+        <a href="blog.html" class="btn btn-primary mt-4">
+          Read the Blog
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- New ROI Panel Overlay -->
+  <div id="roi-panel-overlay" class="roi-panel-overlay">
+    <div class="roi-panel" id="roi-panel-content">
+      <div class="roi-panel-header">
+        <div class="brand">
+          <span class="logo" aria-hidden="true"></span>
+          <strong>NexxTrade</strong>
+        </div>
+        <button class="close-btn" id="close-roi-panel" aria-label="Close">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      
+      <!-- Replaced ROI Chart with a Community Banner -->
+      <div id="community-banner" class="community-banner">
+          <div class="banner-text">Join the NexxTrade Community</div>
+          <div class="banner-subtext">Trade smarter with our team.</div>
+      </div>
+      
+      <div class="roi-pair" id="roi-pair-details">
+        <span id="roi-pair-name"></span>
+        <span id="roi-leverage" class="badge"></span>
+      </div>
+      
+      <div class="roi-percent" id="roi-percent-value"></div>
+      
+      <div class="roi-details">
+        <div class="roi-detail-item">
+          <div class="roi-detail-label">Entry Price</div>
+          <div class="roi-detail-value" id="roi-entry-price"></div>
+        </div>
+        <div class="roi-detail-item">
+          <div class="roi-detail-label">Exit Price</div>
+          <div class="roi-detail-value" id="roi-exit-price"></div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="roi-actions">
+        <button id="share-roi-btn" class="btn btn-ghost">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-share-2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+          Share
+        </button>
+        <button id="save-roi-btn" class="btn btn-primary">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-download"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+          Save
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Disclaimer -->
+  <div class="disclaimer container">
+    <strong>Risk Notice:</strong> Trading involves risk. Past performance does not guarantee future results. This is not financial advice.
+  </div>
+  
+  <!-- Footer -->
+  <footer>
+    <div class="container grid f-grid">
+      <div>
+        <div class="brand" style="margin-bottom:10px"><span class="logo"></span><strong>NexxTrade</strong></div>
+        <p class="subtle">Signals with structure. Community with standards.</p>
+      </div>
+      <div>
+        <h4>Links</h4>
+        <ul>
+          <li><a href="index.html">Home</a></li>
+          <li><a href="#performance">Performance</a></li>
+          <li><a href="index.html#pricing">Pricing</a></li>
+          <li><a href="index.html#faq">FAQ</a></li>
+          <li><a href="blog.html">Blog</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Legal</h4>
+        <ul>
+          <li><a href="#">Terms</a></li>
+          <li><a href="#">Privacy</a></li>
+          <li><a href="#">Risk Disclaimer</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Payments & Social</h4>
+        <ul>
+          <li class="subtle">OPay • Crypto</li>
+          <li><a href="#">Telegram</a></li>
+          <li><a href="#">X (Twitter)</a></li>
+          <li><a href="#">Support Email</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="container" style="border-top:1px solid var(--line);margin-top:18px;padding-top:12px">
+      <div class="subtle">© <span id="year"></span> NexxTrade. All rights reserved.</div>
+    </div>
+  </footer>
+
+  <!-- Sticky CTA (mobile) -->
+  <div class="sticky-cta" id="join">
+    <div class="inner">
+      <div>
+        <div style="font-weight:700">Join NexxTrade</div>
+        <div class="subtle">Instant Telegram access</div>
+      </div>
+      <a class="btn btn-primary" href="index.html#join">Get Access</a>
+    </div>
+  </div>
+
+  <script>
+    // Current year
+    document.getElementById('year').textContent = new Date().getFullYear();
+
+    // Reveal on scroll
+    const io = new IntersectionObserver((entries)=>{
+      entries.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target);} });
+    },{threshold:.12});
+    document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+    
+    // Mobile navigation toggle
+    document.querySelector('.nav-toggle-btn').addEventListener('click', () => {
+        const header = document.querySelector('header');
+        header.classList.toggle('mobile-nav-open');
+    });
+
+    // Close mobile menu on link click
+    document.querySelectorAll('.nav-links a').forEach(link => {
+      link.addEventListener('click', () => {
+        const header = document.querySelector('header');
+        header.classList.remove('mobile-nav-open');
+      });
+    });
+
+    // Pagination Logic
+    function setupPagination(containerId, itemsPerPage, isTable = false) {
+      const container = document.getElementById(containerId);
+      const items = isTable ? Array.from(container.querySelectorAll('tr')) : Array.from(container.children);
+      const totalItems = items.length;
+      const totalPages = Math.ceil(totalItems / itemsPerPage);
+      let currentPage = 1;
+
+      const paginationContainer = document.getElementById(`${containerId}-pagination`);
+
+      function showPage(page) {
+        items.forEach((item, index) => {
+          const isVisible = index >= (page - 1) * itemsPerPage && index < page * itemsPerPage;
+          item.style.display = isVisible ? (isTable ? '' : 'block') : 'none';
+        });
+
+        // Update active class
+        const pageLinks = paginationContainer.querySelectorAll('.page-link');
+        pageLinks.forEach(link => link.classList.remove('active'));
+        const activeLink = paginationContainer.querySelector(`[data-page='${page}']`);
+        if (activeLink) activeLink.classList.add('active');
+
+        // Update nav button state
+        const prevBtn = paginationContainer.querySelector('.prev-page');
+        const nextBtn = paginationContainer.querySelector('.next-page');
+        if (prevBtn) prevBtn.classList.toggle('disabled', page === 1);
+        if (nextBtn) nextBtn.classList.toggle('disabled', page === totalPages);
+      }
+
+      function createPagination() {
+        paginationContainer.innerHTML = ''; // Clear old pagination
+
+        // Only create pagination links if there's more than one page
+        if (totalPages > 1) {
+          // Previous button
+          const prevBtn = document.createElement('a');
+          prevBtn.href = '#';
+          prevBtn.className = 'page-link nav-btn prev-page';
+          prevBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>';
+          prevBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (currentPage > 1) {
+              currentPage--;
+              showPage(currentPage);
+            }
+          });
+          paginationContainer.appendChild(prevBtn);
+
+          // Page numbers
+          for (let i = 1; i <= totalPages; i++) {
+            const pageLink = document.createElement('a');
+            pageLink.href = '#';
+            pageLink.className = 'page-link page-number';
+            pageLink.textContent = i;
+            pageLink.setAttribute('data-page', i);
+            pageLink.addEventListener('click', (e) => {
+              e.preventDefault();
+              currentPage = i;
+              showPage(currentPage);
+            });
+            paginationContainer.appendChild(pageLink);
+          }
+
+          // Next button
+          const nextBtn = document.createElement('a');
+          nextBtn.href = '#';
+          nextBtn.className = 'page-link nav-btn next-page';
+          nextBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>';
+          nextBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (currentPage < totalPages) {
+              currentPage++;
+              showPage(currentPage);
+            }
+          });
+          paginationContainer.appendChild(nextBtn);
+        }
+      }
+
+      createPagination();
+      showPage(currentPage);
+    }
+    
+    // New JS to handle the ROI panel
+    function setupSignalClickHandlers() {
+      const overlay = document.getElementById('roi-panel-overlay');
+      const closeBtn = document.getElementById('close-roi-panel');
+      const signalRows = document.querySelectorAll('.signal-row');
+      
+      // Get all the elements to update
+      const roiPanelContent = document.getElementById('roi-panel-content');
+      const roiPairName = document.getElementById('roi-pair-name');
+      const roiLeverage = document.getElementById('roi-leverage');
+      const roiPercentValue = document.getElementById('roi-percent-value');
+      const roiEntryPrice = document.getElementById('roi-entry-price');
+      const roiExitPrice = document.getElementById('roi-exit-price');
+      const shareBtn = document.getElementById('share-roi-btn');
+      const saveBtn = document.getElementById('save-roi-btn');
+      
+      // Keep track of animation timers to clear them
+      let animationIntervals = [];
+
+      function showSignalPanel(event) {
+        const row = event.currentTarget; // Get the clicked row
+        
+        // Extract data from the row
+        const cells = row.querySelectorAll('td');
+        const pair = cells[1].textContent;
+        const entry = cells[2].textContent;
+        const exit = cells[3].textContent;
+        const percent = cells[4].textContent;
+        
+        const leverage = row.dataset.leverage; // From the new data-attribute
+        const isLong = row.dataset.isLong === 'true'; // From the new data-attribute
+
+        // Populate the panel
+        roiPairName.textContent = pair;
+        roiLeverage.textContent = leverage;
+        roiPercentValue.textContent = percent;
+        roiEntryPrice.textContent = entry;
+        roiExitPrice.textContent = exit;
+
+        // Clear existing animations
+        animationIntervals.forEach(interval => clearInterval(interval));
+        animationIntervals = [];
+
+        // Apply dynamic classes for styling and badge text
+        roiPairName.textContent = pair;
+        roiLeverage.textContent = leverage;
+        roiPercentValue.textContent = percent;
+        roiEntryPrice.textContent = entry;
+        roiExitPrice.textContent = exit;
+
+        roiLeverage.classList.remove('badge-long', 'badge-short');
+        if (isLong) {
+          roiLeverage.textContent = `LONG | ${leverage}`;
+          roiLeverage.classList.add('badge-long');
+        } else {
+          roiLeverage.textContent = `SHORT | ${leverage}`;
+          roiLeverage.classList.add('badge-short');
+        }
+
+        roiPercentValue.classList.remove('gain', 'loss');
+        const type = row.dataset.type;
+        if (type === 'gain') {
+          roiPercentValue.classList.add('gain');
+        } else {
+          roiPercentValue.classList.add('loss');
+        }
+        
+        overlay.classList.add('active');
+      }
+
+      function closeSignalPanel() {
+        overlay.classList.remove('active');
+        // Clear all animation timers when closing
+        animationIntervals.forEach(interval => clearInterval(interval));
+        animationIntervals = [];
+      }
+
+      // New function to handle sharing and saving the ROI panel
+      async function handleShareAndSave(action) {
+        try {
+          // Store original styles to restore them later
+          const originalMaxWidth = roiPanelContent.style.maxWidth;
+          const originalPadding = roiPanelContent.style.padding;
+          const originalMargin = roiPanelContent.style.margin;
+
+          // Temporarily modify styles for a full-width, clean image capture
+          roiPanelContent.style.maxWidth = '100vw';
+          roiPanelContent.style.padding = '32px';
+          roiPanelContent.style.margin = '0';
+          const actionsDiv = document.querySelector('.roi-actions');
+          actionsDiv.style.display = 'none';
+
+          // Convert the panel to an image
+          const dataUrl = await htmlToImage.toPng(roiPanelContent);
+          const blob = await (await fetch(dataUrl)).blob();
+
+          // Restore the original styles and buttons
+          roiPanelContent.style.maxWidth = originalMaxWidth;
+          roiPanelContent.style.padding = originalPadding;
+          roiPanelContent.style.margin = originalMargin;
+          actionsDiv.style.display = 'flex';
+
+          if (action === 'share' && navigator.share) {
+            // Use the Web Share API for native sharing on supported devices
+            await navigator.share({
+              title: 'NexxTrade Signal ROI',
+              text: `Check out my latest signal from NexxTrade!`,
+              files: [new File([blob], 'NexxTrade_roi.png', { type: 'image/png' })]
+            });
+          } else if (action === 'save' || !navigator.share) {
+            // Fallback for devices without Web Share API or for explicit "Save" action
+            const a = document.createElement('a');
+            a.href = dataUrl;
+            a.download = 'NexxTrade_roi.png';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+          }
+        } catch (error) {
+          console.error('Error generating or sharing image:', error);
+          // Fallback UI message if something goes wrong
+          const messageBox = document.createElement('div');
+          messageBox.textContent = 'Could not share/save image. Please try again.';
+          messageBox.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:rgba(255,0,0,0.8);color:white;padding:10px;border-radius:8px;z-index:200;';
+          document.body.appendChild(messageBox);
+          setTimeout(() => messageBox.remove(), 3000);
+        }
+      }
+
+      // Add event listeners to each signal row
+      signalRows.forEach(row => {
+        row.addEventListener('click', showSignalPanel);
+      });
+
+      // Add event listener to the close button
+      closeBtn.addEventListener('click', closeSignalPanel);
+      
+      // Add event listener to close the panel when clicking outside of it
+      overlay.addEventListener('click', (event) => {
+        if (event.target === overlay) {
+          closeSignalPanel();
+        }
+      });
+
+      // Add event listeners for the new share and save buttons
+      shareBtn.addEventListener('click', () => handleShareAndSave('share'));
+      saveBtn.addEventListener('click', () => handleShareAndSave('save'));
+    }
+
+    // Initialize all functionality on window load
+    window.onload = () => {
+        setupPagination('signals-table', 10, true);
+        setupPagination('pnl-gallery', 6);
+        setupSignalClickHandlers(); // Call the new function
+        lucide.createIcons(); // Initialize Lucide Icons
+    };
+  </script>
+</body>
+</html>

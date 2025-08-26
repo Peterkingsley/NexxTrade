@@ -1,0 +1,113 @@
+<div class="space-y-8">
+    <h2 class="text-2xl font-semibold">Manage Blog Posts</h2>
+
+    <!-- Create New Post Section -->
+    <div class="card p-6 space-y-4">
+        <h3 class="text-xl font-semibold flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent-2"><path d="M12 20a7 7 0 0 1-7-7c0-2.8 1.5-5 4-6"/><path d="M14 2c-3.3 0-6 2.7-6 6"/><path d="M10 9a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/><path d="M16 17v4"/><path d="M18 19h-4"/></svg>
+            Create New Post
+        </h3>
+        
+        <form class="space-y-4">
+            <div>
+                <label for="blog-title" class="block text-sm font-medium mb-1 text-muted">Post Title</label>
+                <input type="text" id="blog-title" placeholder="Understanding Market Cycles: A Trader's Guide" class="input-field" required>
+            </div>
+            
+            <div>
+                <label for="blog-teaser" class="block text-sm font-medium mb-1 text-muted">Teaser / Short Description (for card preview)</label>
+                <textarea id="blog-teaser" rows="2" placeholder="Navigating the volatile crypto landscape requires more than luck. Learn how to identify and capitalize on key market cycles..." class="input-field" required></textarea>
+            </div>
+            
+            <div>
+                <label for="blog-content" class="block text-sm font-medium mb-1 text-muted">Full Content (Supports basic HTML/Markdown)</label>
+                <textarea id="blog-content" rows="8" placeholder="Start typing the full article content here..." class="input-field" required></textarea>
+            </div>
+
+            <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+                <!-- File Upload -->
+                <div class="file-input-wrapper flex-grow">
+                    <input type="file" id="blog-image" accept="image/*">
+                    <span id="file-label">Upload Featured Image</span>
+                </div>
+
+                <!-- Status and Publish Button -->
+                <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                    <label class="text-muted text-sm flex items-center gap-2">
+                        <input type="checkbox" id="blog-status" class="w-4 h-4 rounded" style="background: var(--line); border-color: var(--muted);" checked>
+                        Publish Immediately
+                    </label>
+                    <button type="submit" class="btn btn-primary w-full sm:w-auto">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                        Save Post
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Existing Posts Table Section -->
+    <div class="card p-6">
+        <h3 class="text-xl font-semibold mb-4 flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+            Existing Posts
+        </h3>
+
+        <div class="overflow-x-auto">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Title</th>
+                        <th>Author</th>
+                        <th>Date</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Example Row 1: Published -->
+                    <tr>
+                        <td>Understanding Market Cycles</td>
+                        <td>Admin</td>
+                        <td>2025-08-15</td>
+                        <td><span class="text-accent font-medium">Published</span></td>
+                        <td>
+                            <button class="text-muted hover:text-text focus:outline-none p-1">Edit</button>
+                            <button class="text-muted hover:text-danger focus:outline-none p-1">Delete</button>
+                        </td>
+                    </tr>
+                    <!-- Example Row 2: Draft -->
+                    <tr>
+                        <td>Risk Management for Beginners</td>
+                        <td>Guest Writer</td>
+                        <td>2025-08-10</td>
+                        <td><span class="text-danger font-medium">Draft</span></td>
+                        <td>
+                            <button class="text-muted hover:text-text focus:outline-none p-1">Edit</button>
+                            <button class="text-muted hover:text-danger focus:outline-none p-1">Delete</button>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <p class="text-muted text-sm mt-4">Note: Actions are static links/buttons in this UI. Functionality requires backend logic.</p>
+    </div>
+</div>
+
+<script>
+    // This script handles the file input label update
+    document.addEventListener('DOMContentLoaded', () => {
+        const fileInput = document.getElementById('blog-image');
+        const fileLabel = document.getElementById('file-label');
+
+        if (fileInput && fileLabel) {
+            fileInput.addEventListener('change', () => {
+                if (fileInput.files.length > 0) {
+                    fileLabel.textContent = fileInput.files[0].name;
+                } else {
+                    fileLabel.textContent = 'Upload Featured Image';
+                }
+            });
+        }
+    });
+</script>

@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NexxTrade - Checkout</title>
+  <!-- Load Tailwind CSS for a clean, professional look and easy responsiveness -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons for a clean, professional look -->
+  <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
+  <style>
+    /* Custom CSS to match the original site's theme and styles */
+    :root {
+      --bg: #0b0f14;
+      --bg-2: #0f141b;
+      --text: #e9edf3;
+      --muted: #a8b3c7;
+      --accent: #2ad678;
+      --accent-2: #f0c75e;
+      --danger: #ff5d5d;
+      --line: #1b2330;
+      --shadow: 0 8px 24px rgba(0,0,0,.35);
+      --radius: 16px;
+      --radius-lg: 20px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, "Helvetica Neue", Arial, sans-serif;
+      overflow-x: hidden;
+    }
+
+    /* Additional styles for the checkout page */
+    .card {
+      background: var(--bg-2);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+    
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: .6rem;
+      padding: .9rem 1.4rem;
+      border-radius: 999px;
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: .2s ease;
+      white-space: nowrap;
+      font-weight: 600;
+      color: #04140a;
+      background: var(--accent);
+    }
+
+    .btn:hover {
+      filter: brightness(1.1);
+      transform: translateY(-1px);
+    }
+
+    .btn-ghost {
+      background: transparent;
+      border-color: var(--line);
+      color: var(--text);
+    }
+
+    .btn-ghost:hover {
+      background: #0f151d;
+    }
+
+    .input-field {
+      width: 100%;
+      padding: 12px 16px;
+      border-radius: 12px;
+      background: #0d1219;
+      border: 1px solid var(--line);
+      color: var(--text);
+      transition: border-color 0.2s ease;
+    }
+
+    .input-field:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .payment-option {
+      cursor: pointer;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      transition: all 0.2s ease;
+    }
+
+    .payment-option:hover {
+      background: rgba(42, 214, 120, 0.05);
+      border-color: var(--accent);
+    }
+
+    .payment-option.active {
+      border-color: var(--accent);
+      background: rgba(42, 214, 120, 0.08);
+      box-shadow: 0 0 0 2px rgba(42, 214, 120, 0.2);
+    }
+
+    .payment-option-head {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .plan-button {
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      background: var(--bg-2);
+      text-align: center;
+    }
+
+    .plan-button:hover {
+      border-color: var(--muted);
+      background: #151a23;
+    }
+
+    .plan-button.active {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(42, 214, 120, 0.2);
+      background: rgba(42, 214, 120, 0.08);
+    }
+
+    @media (max-width: 640px) {
+      .plan-selection-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4 md:p-8">
+  <div class="card w-full max-w-lg p-6 md:p-8 space-y-6">
+    <!-- Header section -->
+    <div class="text-center">
+      <h1 class="text-3xl font-bold">Checkout</h1>
+      <p class="text-muted mt-2">Complete your purchase to get instant access.</p>
+    </div>
+
+    <!-- Dynamic Plan Summary -->
+    <div class="card p-4 flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent">
+          <path d="M12 2a5 5 0 0 0-5 5v3.1A2 2 0 0 1 5 12a2 2 0 0 1-2-2.3c3.1-.9 6.2-1.7 8.3-4.4C10.6 3.7 11.2 2 12 2z"></path>
+          <path d="M21 15c0 1.2-.6 2.3-1.6 3l-1.4 1.4a1 1 0 0 1-1.4 0L15 18l-1.4 1.4a1 1 0 0 1-1.4 0L11 18l-1.4 1.4a1 1 0 0 1-1.4 0L7 18l-1.4 1.4a1 1 0 0 1-1.4 0L3 18c-1.2-1.2-2-3-2-5a5 5 0 0 1 5-5h3a2 2 0 0 0 2-2V2"></path>
+        </svg>
+        <div id="plan-name" class="font-semibold text-lg"></div>
+      </div>
+      <div id="plan-price" class="text-2xl font-bold text-accent"></div>
+    </div>
+
+    <!-- Plan Selection Buttons -->
+    <div class="space-y-4">
+      <h3 class="font-semibold text-lg">Change Your Plan</h3>
+      <div id="plan-selection-buttons" class="grid grid-cols-1 sm:grid-cols-3 gap-4 plan-selection-grid">
+        <button data-plan="monthly" class="plan-button active">
+          <div class="font-semibold">Monthly</div>
+          <div class="text-muted text-sm">$39</div>
+        </button>
+        <button data-plan="quarterly" class="plan-button">
+          <div class="font-semibold">Quarterly</div>
+          <div class="text-muted text-sm">$99</div>
+        </button>
+        <button data-plan="yearly" class="plan-button">
+          <div class="font-semibold">Yearly</div>
+          <div class="text-muted text-sm">$299</div>
+        </button>
+      </div>
+    </div>
+
+    <!-- User Details Form -->
+    <div class="space-y-4">
+      <h3 class="font-semibold text-lg">Your Details</h3>
+      <div>
+        <label for="fullname" class="block text-sm font-medium mb-1 text-muted">Full Name</label>
+        <input type="text" id="fullname" placeholder="John Doe" class="input-field">
+      </div>
+      <div>
+        <label for="email" class="block text-sm font-medium mb-1 text-muted">Email Address</label>
+        <input type="email" id="email" placeholder="you@example.com" class="input-field">
+      </div>
+      <div>
+        <label for="telegram" class="block text-sm font-medium mb-1 text-muted">Telegram Username (@handle)</label>
+        <input type="text" id="telegram" placeholder="@yourhandle" class="input-field">
+      </div>
+    </div>
+    
+    <!-- Payment Options -->
+    <div class="space-y-4">
+      <h3 class="font-semibold text-lg mt-6">Choose Payment Method</h3>
+      
+      <!-- OPay Option -->
+      <div id="opay-option" class="payment-option flex flex-col gap-2">
+        <div class="payment-option-head">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent">
+            <rect width="20" height="14" x="2" y="5" rx="2"></rect><path d="M2 10h20"></path>
+          </svg>
+          <span class="font-medium">Pay with OPay</span>
+        </div>
+        <p class="text-sm text-muted">Safe and secure payment via OPay.</p>
+      </div>
+
+      <!-- Crypto Option -->
+      <div id="crypto-option" class="payment-option flex flex-col gap-2">
+        <div class="payment-option-head">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent">
+            <path d="M12 21v-4"></path><path d="M16.2 16.2 14 14"></path><path d="M19 12h-4"></path><path d="M16.2 7.8 14 10"></path><path d="M12 3v4"></path><path d="M7.8 7.8 10 10"></path><path d="M5 12h4"></path><path d="M7.8 16.2 10 14"></path>
+            <circle cx="12" cy="12" r="10"></circle>
+          </svg>
+          <span class="font-medium">Pay with Crypto</span>
+        </div>
+        <p class="text-sm text-muted">BTC, ETH, USDT, and more.</p>
+      </div>
+    </div>
+    
+    <!-- Dynamic Payment Details / Message Box -->
+    <div id="payment-details-box" class="card p-4 hidden space-y-4">
+      <!-- Content will be injected here by JavaScript -->
+    </div>
+    
+    <!-- Action Buttons -->
+    <div class="flex flex-col gap-4">
+      <button id="pay-button" class="btn mt-4">Pay Now</button>
+      <a href="index.html" class="text-center text-sm text-muted hover:underline">Back to Homepage</a>
+    </div>
+  </div>
+
+  <script>
+    // Lucide icons initialization for dynamic content
+    lucide.createIcons();
+
+    // --- Dynamic Content & Logic ---
+    
+    // Get URL parameters to determine which plan was selected
+    const urlParams = new URLSearchParams(window.location.search);
+    const selectedPlanFromUrl = urlParams.get('plan') || 'monthly';
+
+    // Define plan details
+    const plans = {
+      monthly: { name: 'Monthly Plan', price: '$39', term: 'per month' },
+      quarterly: { name: 'Quarterly Plan', price: '$99', term: 'per month' },
+      yearly: { name: 'Yearly Plan', price: '$299', term: 'per year' }
+    };
+    
+    // Get references to all relevant elements
+    const planNameElement = document.getElementById('plan-name');
+    const planPriceElement = document.getElementById('plan-price');
+    const planButtons = document.querySelectorAll('#plan-selection-buttons .plan-button');
+    const opayOption = document.getElementById('opay-option');
+    const cryptoOption = document.getElementById('crypto-option');
+    const paymentDetailsBox = document.getElementById('payment-details-box');
+    const payButton = document.getElementById('pay-button');
+
+    let activePaymentMethod = '';
+
+    // Function to update the displayed plan and UI
+    function updatePlanDisplay(planKey) {
+      const plan = plans[planKey] || plans.monthly;
+      planNameElement.textContent = plan.name;
+      planPriceElement.textContent = plan.price;
+
+      // Update active class on plan buttons
+      planButtons.forEach(btn => {
+        if (btn.dataset.plan === planKey) {
+          btn.classList.add('active');
+        } else {
+          btn.classList.remove('active');
+        }
+      });
+    }
+
+    // Set the initial plan based on the URL
+    updatePlanDisplay(selectedPlanFromUrl);
+
+    // Add event listeners to the plan selection buttons
+    planButtons.forEach(button => {
+      button.addEventListener('click', () => {
+        const planKey = button.dataset.plan;
+        updatePlanDisplay(planKey);
+      });
+    });
+
+    // Function to set the active payment method
+    function setActivePayment(method) {
+      opayOption.classList.remove('active');
+      cryptoOption.classList.remove('active');
+      activePaymentMethod = method;
+
+      if (method === 'opay') {
+        opayOption.classList.add('active');
+        paymentDetailsBox.classList.add('hidden');
+        payButton.style.display = 'flex';
+      } else if (method === 'crypto') {
+        cryptoOption.classList.add('active');
+        paymentDetailsBox.classList.remove('hidden');
+        payButton.style.display = 'none'; // The crypto info box will contain the "copy" button
+      }
+    }
+
+    // Set OPay as default
+    setActivePayment('opay');
+    
+    // Event listeners for payment option clicks
+    opayOption.addEventListener('click', () => {
+      setActivePayment('opay');
+    });
+
+    cryptoOption.addEventListener('click', () => {
+      setActivePayment('crypto');
+      showCryptoDetails();
+    });
+
+    // --- OPay & Crypto Logic ---
+    const cryptoWallets = {
+      btc: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
+      eth: '0x1234567890abcdef1234567890abcdef12345678',
+      usdt: 'TEJ3fN8mEwK5qR2uV6gX9yP7bQ1sL4d'
+    };
+
+    function showCryptoDetails() {
+      // Dynamic content for the crypto details box
+      paymentDetailsBox.innerHTML = `
+        <h4 class="font-semibold">Pay with Crypto</h4>
+        <p class="text-sm text-muted">Send the exact amount to the wallet address below. Once we confirm the transaction, we will send an invite link to your email.</p>
+        <div class="space-y-2">
+          <label for="crypto-select" class="block text-sm font-medium text-muted">Select Coin</label>
+          <select id="crypto-select" class="input-field">
+            <option value="btc">Bitcoin (BTC)</option>
+            <option value="eth">Ethereum (ETH)</option>
+            <option value="usdt">USDT (TRC20)</option>
+          </select>
+        </div>
+        <div class="bg-gray-800 p-3 rounded-lg flex items-center justify-between">
+          <code id="wallet-address" class="text-sm md:text-base font-mono break-all text-accent-2"></code>
+          <button id="copy-address-btn" class="text-muted ml-2 hover:text-text focus:outline-none">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-copy">
+              <rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path>
+            </svg>
+          </button>
+        </div>
+      `;
+
+      // Wait for content to be in the DOM before getting elements
+      const cryptoSelect = document.getElementById('crypto-select');
+      const walletAddress = document.getElementById('wallet-address');
+      const copyBtn = document.getElementById('copy-address-btn');
+
+      // Function to update the wallet address display
+      function updateWalletAddress() {
+        const selectedCoin = cryptoSelect.value;
+        walletAddress.textContent = cryptoWallets[selectedCoin];
+      }
+
+      // Initial update
+      updateWalletAddress();
+
+      // Event listener for dropdown change
+      cryptoSelect.addEventListener('change', updateWalletAddress);
+
+      // Copy to clipboard function
+      copyBtn.addEventListener('click', () => {
+        const address = walletAddress.textContent;
+        const tempInput = document.createElement('input');
+        document.body.appendChild(tempInput);
+        tempInput.value = address;
+        tempInput.select();
+        document.execCommand('copy');
+        document.body.removeChild(tempInput);
+        
+        copyBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+        setTimeout(() => {
+          copyBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-copy"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg>`;
+        }, 2000);
+      });
+    }
+
+    // Handle form submission (for OPay button)
+    payButton.addEventListener('click', () => {
+      // Simple validation for demonstration purposes
+      const fullname = document.getElementById('fullname').value;
+      const email = document.getElementById('email').value;
+      const telegram = document.getElementById('telegram').value;
+      
+      if (!fullname || !email || !telegram) {
+        // Use a simple alert-like message box instead of alert()
+        const messageBox = document.createElement('div');
+        messageBox.className = "card p-4 mt-4 text-center text-sm bg-red-900 border-red-700 text-danger";
+        messageBox.textContent = "Please fill in all fields.";
+        document.querySelector('.card').appendChild(messageBox);
+        setTimeout(() => messageBox.remove(), 3000);
+        return;
+      }
+
+      // Replace the main card content with a confirmation message
+      document.querySelector('.card').innerHTML = `
+        <div class="text-center space-y-4 p-8">
+          <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent mx-auto">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+          <h2 class="text-2xl font-bold">Thank You!</h2>
+          <p class="text-muted">You will be redirected to OPay to complete your payment. A Telegram invite link will be sent to your email after a successful transaction.</p>
+          <a href="index.html" class="btn">Back to Home</a>
+        </div>
+      `;
+    });
+  </script>
+</body>
+</html>

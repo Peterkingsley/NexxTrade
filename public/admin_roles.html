@@ -1,0 +1,94 @@
+<div class="space-y-8">
+    <h2 class="text-2xl font-semibold">Delegate Admin Roles</h2>
+
+    <div class="message-box success">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17L4 12"/></svg>
+        <span>This is a crucial section. Exercise caution when delegating new roles.</span>
+    </div>
+
+    <div class="card p-6 space-y-4">
+        <h3 class="text-xl font-semibold flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            Add New Admin
+        </h3>
+        <form class="space-y-4">
+            <div>
+                <label for="new-admin-username" class="block text-sm font-medium mb-1 text-muted">Username</label>
+                <input type="text" id="new-admin-username" placeholder="Choose a username" class="input-field" required>
+            </div>
+            <div>
+                <label for="new-admin-password" class="block text-sm font-medium mb-1 text-muted">Password</label>
+                <input type="password" id="new-admin-password" placeholder="Set a temporary password" class="input-field" required>
+            </div>
+            
+            <div class="space-y-2">
+                <label class="block text-sm font-medium text-muted">Permissions</label>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <label class="flex items-center gap-2 text-muted">
+                        <input type="checkbox" id="perm-dashboard" class="w-4 h-4 rounded" style="background: var(--line); border-color: var(--muted);" checked>
+                        <span>View Dashboard</span>
+                    </label>
+                    <label class="flex items-center gap-2 text-muted">
+                        <input type="checkbox" id="perm-blogs" class="w-4 h-4 rounded" style="background: var(--line); border-color: var(--muted);">
+                        <span>Manage Blogs</span>
+                    </label>
+                    <label class="flex items-center gap-2 text-muted">
+                        <input type="checkbox" id="perm-performance" class="w-4 h-4 rounded" style="background: var(--line); border-color: var(--muted);">
+                        <span>View Performance</span>
+                    </label>
+                    <label class="flex items-center gap-2 text-muted">
+                        <input type="checkbox" id="perm-pricing" class="w-4 h-4 rounded" style="background: var(--line); border-color: var(--muted);">
+                        <span>Update Pricing</span>
+                    </label>
+                    <label class="flex items-center gap-2 text-muted">
+                        <input type="checkbox" id="perm-roles" class="w-4 h-4 rounded" style="background: var(--line); border-color: var(--muted);" disabled>
+                        <span>Delegate Roles (Main Admin Only)</span>
+                    </label>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary w-full">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                Create Admin
+            </button>
+        </form>
+    </div>
+
+    <div class="card p-6">
+        <h3 class="text-xl font-semibold mb-4 flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent-2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            Existing Admin Accounts
+        </h3>
+        
+        <div class="overflow-x-auto">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Username</th>
+                        <th>Role</th>
+                        <th>Permissions</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>admin</td>
+                        <td><span class="text-accent-2 font-semibold">Main Admin</span></td>
+                        <td>All Permissions</td>
+                        <td>-</td>
+                    </tr>
+                    <tr>
+                        <td>peterkingsley</td>
+                        <td><span class="text-muted">Delegated</span></td>
+                        <td>Dashboard, Blogs, Performance</td>
+                        <td>
+                            <button class="text-muted hover:text-text p-1">Edit</button>
+                            <button class="text-muted hover:text-danger p-1">Revoke</button>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <p class="text-muted text-sm mt-4">Note: This is a static UI. Backend logic is needed to manage user accounts and permissions.</p>
+    </div>
+</div>
