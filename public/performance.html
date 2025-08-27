@@ -69,6 +69,7 @@
     table{width:100%;border-collapse:collapse}
     th,td{padding:12px;border-bottom:1px solid var(--line);text-align:left}
     th{color:var(--muted);font-weight:600}
+    /* Updated styles for P/L gain and loss */
     .gain{color:var(--accent);font-weight:700}
     .loss{color:var(--danger);font-weight:700}
     /* Add cursor pointer to table rows to indicate clickability */
@@ -721,9 +722,9 @@
         }
         
         roiPercentValue.classList.remove('gain', 'loss');
-        if (signal.result_type === 'Win') {
+        if (signal.pnl_percent.startsWith('+') || parseFloat(signal.pnl_percent) > 0) {
           roiPercentValue.classList.add('gain');
-        } else if (signal.result_type === 'Loss') {
+        } else if (signal.pnl_percent.startsWith('-') || parseFloat(signal.pnl_percent) < 0) {
           roiPercentValue.classList.add('loss');
         }
         
@@ -827,7 +828,12 @@
                     const row = document.createElement('tr');
                     // Adding data attributes for the pop-up panel
                     row.className = 'signal-row';
-                    const pnlClass = signal.result_type === 'Win' ? 'gain' : 'loss';
+                    
+                    // Determine P/L class based on value
+                    const pnlValue = parseFloat(signal.pnl_percent);
+                    const pnlClass = pnlValue >= 0 ? 'gain' : 'loss';
+                    
+                    // Determine pair color based on position
                     const pairColor = signal.is_long_position ? 'var(--accent)' : 'var(--danger)';
                     
                     row.innerHTML = `
