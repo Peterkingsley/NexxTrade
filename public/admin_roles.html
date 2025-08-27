@@ -246,6 +246,7 @@
 </head>
 <body class="p-4 md:p-8">
     <div id="admin-panel" class="container space-y-8">
+        <!-- Header Section -->
         <div class="card p-4 md:p-6 flex justify-between items-center admin-header">
             <div class="flex items-center gap-4">
                 <a class="brand" href="index.html" aria-label="NexxTrade home">
@@ -259,6 +260,7 @@
             </a>
         </div>
 
+        <!-- Navigation Tabs -->
         <div class="flex flex-wrap border-b border-line gap-2 tab-nav">
             <a href="admin_dashboard.html" class="tab-btn">Dashboard</a>
             <a href="admin_blogs.html" class="tab-btn">Manage Blogs</a>
@@ -270,11 +272,13 @@
         <div class="space-y-8">
             <h2 class="text-2xl font-semibold">User Role & Permissions Management</h2>
 
+            <!-- Message box for feedback -->
             <div class="message-box success" id="roles-message-box">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17L4 12"/></svg>
                 <span>Use the form below to update user roles and permissions.</span>
             </div>
         
+            <!-- Form to update user roles and permissions -->
             <div class="card p-6 space-y-4">
                 <h3 class="text-xl font-semibold flex items-center gap-2">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent-2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
@@ -330,6 +334,7 @@
                 <div id="update-message" class="hidden"></div>
             </div>
             
+            <!-- Table to display existing users -->
             <div class="card p-6">
                 <h3 class="text-xl font-semibold mb-4 flex items-center gap-2">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
@@ -372,10 +377,13 @@
         });
 
         document.addEventListener('DOMContentLoaded', () => {
+            // Initialize Lucide icons
             lucide.createIcons();
 
+            // The base URL for the API endpoints
             const API_BASE_URL = 'https://nexxtrade.onrender.com/api';
 
+            // Get references to all the form elements and table body
             const updateRoleForm = document.getElementById('update-role-form');
             const usersTableBody = document.getElementById('users-table');
             const userIdInput = document.getElementById('user-id');
@@ -383,12 +391,14 @@
             const cancelEditBtn = document.getElementById('cancel-edit-btn');
             const roleMessageBox = document.getElementById('update-message');
 
+            // Reference to the permissions checkboxes
             const permissionsCheckboxes = {
                 blogs: document.getElementById('perm-blogs'),
                 pricing: document.getElementById('perm-pricing'),
                 performance: document.getElementById('perm-performance'),
             };
 
+            // Function to display a message box with feedback
             function showMessage(container, message, type) {
                 container.innerHTML = `<div class="message-box ${type}">${message}</div>`;
                 container.classList.remove('hidden');
@@ -398,17 +408,19 @@
                 }, 5000);
             }
 
+            // Function to fetch and display the list of all users
             const fetchUsers = async () => {
                 try {
                     const response = await fetch(`${API_BASE_URL}/roles`);
                     const users = await response.json();
                     
-                    usersTableBody.innerHTML = '';
+                    usersTableBody.innerHTML = ''; // Clear existing table rows
                     if (users.length === 0) {
                         usersTableBody.innerHTML = `<tr><td colspan="4" class="text-muted text-center py-4">No users found.</td></tr>`;
                         return;
                     }
 
+                    // Populate the table with user data
                     users.forEach(user => {
                         const row = document.createElement('tr');
                         row.innerHTML = `
@@ -423,13 +435,14 @@
                         `;
                         usersTableBody.appendChild(row);
                     });
-                    lucide.createIcons();
+                    lucide.createIcons(); // Re-create icons for the new buttons
                 } catch (error) {
                     console.error('Error fetching users:', error);
                     showMessage(roleMessageBox, 'Error loading user data. Please check the server connection.', 'error');
                 }
             };
 
+            // Function to add or update a user's role and permissions
             const addUpdateRole = async (e) => {
                 e.preventDefault();
                 const userId = userIdInput.value;
@@ -438,10 +451,12 @@
                     return;
                 }
                 
+                // Get the selected permissions from the checkboxes
                 const selectedPermissions = Object.keys(permissionsCheckboxes)
                                                 .filter(key => permissionsCheckboxes[key].checked)
                                                 .map(key => permissionsCheckboxes[key].value);
 
+                // Construct the data payload for the API call
                 const data = {
                     role: document.getElementById('user-role').value,
                     permissions: selectedPermissions,
@@ -466,17 +481,21 @@
                     console.error('Error updating role:', error);
                     showMessage(roleMessageBox, 'Error updating user role. Please check server logs.', 'error');
                 } finally {
+                    // Reset the form and UI state
                     updateRoleForm.reset();
                     userIdInput.value = '';
+                    document.getElementById('user-username').value = '';
                     saveRoleBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Update Role';
                     cancelEditBtn.classList.add('hidden');
                     submitBtn.disabled = false;
-                    fetchUsers();
+                    fetchUsers(); // Refresh the user list
                 }
             };
             
+            // Function to populate the form with a user's details for editing
             const editRole = async (id) => {
                 try {
+                    // Fetch all users to find the one to edit
                     const response = await fetch(`${API_BASE_URL}/roles`);
                     const users = await response.json();
                     const user = users.find(u => u.id === id);
@@ -486,7 +505,7 @@
                         document.getElementById('user-username').value = user.username;
                         document.getElementById('user-role').value = user.role;
                         
-                        // Set permissions checkboxes
+                        // Set the permissions checkboxes based on the user's data
                         Object.values(permissionsCheckboxes).forEach(checkbox => {
                             checkbox.checked = user.permissions.includes(checkbox.value);
                         });
@@ -502,16 +521,20 @@
                 }
             };
             
+            // Event listeners
             updateRoleForm.addEventListener('submit', addUpdateRole);
             cancelEditBtn.addEventListener('click', () => {
                 updateRoleForm.reset();
                 userIdInput.value = '';
+                document.getElementById('user-username').value = '';
                 saveRoleBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Update Role';
                 cancelEditBtn.classList.add('hidden');
             });
 
+            // Make editRole globally accessible for the table buttons
             window.editRole = editRole;
 
+            // Initial fetch of users when the page loads
             fetchUsers();
         });
     </script>
