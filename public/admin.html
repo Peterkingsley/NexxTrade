@@ -3,10 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>NexxTrade Admin Panel</title>
-  <!-- Load Tailwind CSS for a clean, professional look and easy responsiveness -->
+  <title>NexxTrade Admin Login</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Lucide Icons for a clean, professional look -->
   <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
   <style>
     /* Custom CSS to match the original site's theme and styles */
@@ -246,8 +244,7 @@
     }
   </style>
 </head>
-<body class="p-4 md:p-8">
-  <!-- Login Container -->
+<body>
   <div id="login-screen" class="login-container">
     <div class="card p-6 w-full max-w-sm space-y-6 text-center">
       <div class="flex flex-col items-center gap-2">
@@ -272,127 +269,17 @@
     </div>
   </div>
 
-  <!-- Main Admin Panel Content -->
-  <div id="admin-panel" class="container space-y-8 hidden">
-    <!-- Header -->
-    <div class="card p-4 md:p-6 flex justify-between items-center admin-header">
-      <div class="flex items-center gap-4">
-        <!-- Replicated brand logo and name from index.html -->
-        <a class="brand" href="index.html" aria-label="NexxTrade home">
-          <span class="logo" aria-hidden="true"></span>
-          <h1 class="text-xl md:text-2xl font-bold">NexxTrade Admin Panel</h1>
-        </a>
-      </div>
-      <button id="logout-btn" class="btn btn-ghost">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
-        Log Out
-      </button>
-    </div>
-
-    <!-- Tab Navigation -->
-    <div class="flex flex-wrap border-b border-line gap-2 tab-nav">
-      <button class="tab-btn active" data-tab="dashboard">Dashboard</button>
-      <button class="tab-btn" data-tab="blogs">Manage Blogs</button>
-      <button class="tab-btn" data-tab="performance">Performance</button>
-      <button class="tab-btn" data-tab="pricing">Update Pricing</button>
-      <button class="tab-btn" data-tab="roles">Delegate Roles</button>
-    </div>
-
-    <!-- Main Content Area -->
-    <div id="content" class="space-y-8">
-      <!-- Content from other files will be loaded here -->
-    </div>
-  </div>
-  
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       // Initialize Lucide icons
       lucide.createIcons();
       
-      const loginScreen = document.getElementById('login-screen');
       const loginForm = document.getElementById('login-form');
       const loginMessage = document.getElementById('login-message');
-      const adminPanel = document.getElementById('admin-panel');
-      const logoutBtn = document.getElementById('logout-btn');
-      const mainContentArea = document.getElementById('content');
-      
-      const tabButtons = document.querySelectorAll('.tab-btn');
-      
-      // --- Helper Functions ---
-      
-      // Function to show a temporary message
-      function showMessage(type, text) {
-        const messageBox = document.createElement('div');
-        messageBox.className = `message-box ${type}`;
-        const icon = type === 'success' 
-          ? `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17L4 12"/></svg>`
-          : `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/></svg>`;
-        messageBox.innerHTML = `${icon}<span>${text}</span>`;
-        mainContentArea.prepend(messageBox);
-        setTimeout(() => messageBox.remove(), 3000);
-      }
-      
-      // Function to load content from a file and inject it
-      async function loadContent(file) {
-        try {
-          // Show a loading indicator
-          mainContentArea.innerHTML = '<div class="text-center text-muted p-12">Loading...</div>';
-          const response = await fetch(file);
-          if (!response.ok) {
-            throw new Error(`Could not load ${file}`);
-          }
-          const content = await response.text();
-          mainContentArea.innerHTML = content;
-          // Re-create icons for the newly loaded content
-          if (typeof lucide !== 'undefined') {
-            lucide.createIcons();
-          }
-          // Custom scripts might need to be re-run, or attached after load
-          // We call window.initPageScripts() if it's defined in the loaded content.
-          if (typeof window.initPageScripts === 'function') {
-            window.initPageScripts();
-            window.initPageScripts = null; // Reset to prevent re-execution
-          }
-
-        } catch (error) {
-          console.error(error);
-          mainContentArea.innerHTML = `<div class="text-center text-danger p-12">Error loading content. Please try again later.</div>`;
-        }
-      }
-
-      // --- Event Listeners ---
-      
-      // Tab switching logic
-      tabButtons.forEach(button => {
-        button.addEventListener('click', () => {
-          const tab = button.dataset.tab;
-          
-          tabButtons.forEach(btn => btn.classList.remove('active'));
-          button.classList.add('active');
-          
-          // Load the corresponding HTML file
-          loadContent(`admin_${tab}.html`);
-        });
-      });
-      
-      // --- Login Logic ---
       
       // Hardcoded credentials for demonstration
       const ADMIN_USERNAME = 'admin';
       const ADMIN_PASSWORD = 'password123';
-      
-      function showAdminPanel() {
-        loginScreen.classList.add('hidden');
-        adminPanel.classList.remove('hidden');
-        // Load the dashboard by default
-        loadContent('admin_dashboard.html');
-      }
-      
-      function showLoginScreen() {
-        loginScreen.classList.remove('hidden');
-        adminPanel.classList.add('hidden');
-        loginMessage.textContent = '';
-      }
       
       loginForm.addEventListener('submit', (e) => {
         e.preventDefault();
@@ -400,16 +287,12 @@
         const password = document.getElementById('password').value;
         
         if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
-          showAdminPanel();
+          // On successful login, redirect to the dashboard page.
+          window.location.href = 'admin_dashboard.html';
         } else {
           loginMessage.textContent = 'Invalid username or password.';
         }
       });
-      
-      logoutBtn.addEventListener('click', showLoginScreen);
-      
-      // Initially, show the login screen
-      showLoginScreen();
     });
   </script>
 </body>

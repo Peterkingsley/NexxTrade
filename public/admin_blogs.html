@@ -1,113 +1,502 @@
-<div class="space-y-8">
-    <h2 class="text-2xl font-semibold">Manage Blog Posts</h2>
-
-    <!-- Create New Post Section -->
-    <div class="card p-6 space-y-4">
-        <h3 class="text-xl font-semibold flex items-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent-2"><path d="M12 20a7 7 0 0 1-7-7c0-2.8 1.5-5 4-6"/><path d="M14 2c-3.3 0-6 2.7-6 6"/><path d="M10 9a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/><path d="M16 17v4"/><path d="M18 19h-4"/></svg>
-            Create New Post
-        </h3>
-        
-        <form class="space-y-4">
-            <div>
-                <label for="blog-title" class="block text-sm font-medium mb-1 text-muted">Post Title</label>
-                <input type="text" id="blog-title" placeholder="Understanding Market Cycles: A Trader's Guide" class="input-field" required>
-            </div>
-            
-            <div>
-                <label for="blog-teaser" class="block text-sm font-medium mb-1 text-muted">Teaser / Short Description (for card preview)</label>
-                <textarea id="blog-teaser" rows="2" placeholder="Navigating the volatile crypto landscape requires more than luck. Learn how to identify and capitalize on key market cycles..." class="input-field" required></textarea>
-            </div>
-            
-            <div>
-                <label for="blog-content" class="block text-sm font-medium mb-1 text-muted">Full Content (Supports basic HTML/Markdown)</label>
-                <textarea id="blog-content" rows="8" placeholder="Start typing the full article content here..." class="input-field" required></textarea>
-            </div>
-
-            <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
-                <!-- File Upload -->
-                <div class="file-input-wrapper flex-grow">
-                    <input type="file" id="blog-image" accept="image/*">
-                    <span id="file-label">Upload Featured Image</span>
-                </div>
-
-                <!-- Status and Publish Button -->
-                <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                    <label class="text-muted text-sm flex items-center gap-2">
-                        <input type="checkbox" id="blog-status" class="w-4 h-4 rounded" style="background: var(--line); border-color: var(--muted);" checked>
-                        Publish Immediately
-                    </label>
-                    <button type="submit" class="btn btn-primary w-full sm:w-auto">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-                        Save Post
-                    </button>
-                </div>
-            </div>
-        </form>
-    </div>
-
-    <!-- Existing Posts Table Section -->
-    <div class="card p-6">
-        <h3 class="text-xl font-semibold mb-4 flex items-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
-            Existing Posts
-        </h3>
-
-        <div class="overflow-x-auto">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Title</th>
-                        <th>Author</th>
-                        <th>Date</th>
-                        <th>Status</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <!-- Example Row 1: Published -->
-                    <tr>
-                        <td>Understanding Market Cycles</td>
-                        <td>Admin</td>
-                        <td>2025-08-15</td>
-                        <td><span class="text-accent font-medium">Published</span></td>
-                        <td>
-                            <button class="text-muted hover:text-text focus:outline-none p-1">Edit</button>
-                            <button class="text-muted hover:text-danger focus:outline-none p-1">Delete</button>
-                        </td>
-                    </tr>
-                    <!-- Example Row 2: Draft -->
-                    <tr>
-                        <td>Risk Management for Beginners</td>
-                        <td>Guest Writer</td>
-                        <td>2025-08-10</td>
-                        <td><span class="text-danger font-medium">Draft</span></td>
-                        <td>
-                            <button class="text-muted hover:text-text focus:outline-none p-1">Edit</button>
-                            <button class="text-muted hover:text-danger focus:outline-none p-1">Delete</button>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-        <p class="text-muted text-sm mt-4">Note: Actions are static links/buttons in this UI. Functionality requires backend logic.</p>
-    </div>
-</div>
-
-<script>
-    // This script handles the file input label update
-    document.addEventListener('DOMContentLoaded', () => {
-        const fileInput = document.getElementById('blog-image');
-        const fileLabel = document.getElementById('file-label');
-
-        if (fileInput && fileLabel) {
-            fileInput.addEventListener('change', () => {
-                if (fileInput.files.length > 0) {
-                    fileLabel.textContent = fileInput.files[0].name;
-                } else {
-                    fileLabel.textContent = 'Upload Featured Image';
-                }
-            });
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NexxTrade Admin Panel - Manage Blogs</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
+    <style>
+        /* Custom CSS to match the original site's theme and styles */
+        :root {
+            --bg: #0b0f14;
+            --bg-2: #0f141b;
+            --text: #e9edf3;
+            --muted: #a8b3c7;
+            --accent: #2ad678;
+            --accent-2: #f0c75e;
+            --danger: #ff5d5d;
+            --line: #1b2330;
+            --shadow: 0 8px 24px rgba(0,0,0,.35);
+            --radius: 16px;
+            --radius-lg: 20px;
         }
-    });
-</script>
+        
+        /* Apply a consistent font and background */
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, "Helvetica Neue", Arial, sans-serif;
+            overflow-x: hidden;
+        }
+        
+        /* Reusable card style */
+        .card {
+            background: var(--bg-2);
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+        }
+
+        /* Input field styling */
+        .input-field {
+            width: 100%;
+            padding: 12px 16px;
+            border-radius: 12px;
+            background: #0d1219;
+            border: 1px solid var(--line);
+            color: var(--text);
+            transition: border-color 0.2s ease;
+        }
+        
+        .input-field:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+        
+        /* Button styles */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: .6rem;
+            padding: .9rem 1.4rem;
+            border-radius: 999px;
+            border: 1px solid transparent;
+            cursor: pointer;
+            transition: .2s ease;
+            white-space: nowrap;
+            font-weight: 600;
+        }
+        
+        .btn-primary {
+            background: var(--accent);
+            color: #04140a;
+        }
+        
+        .btn-primary:hover {
+            filter: brightness(1.1);
+            transform: translateY(-1px);
+        }
+        
+        .btn-ghost {
+            background: transparent;
+            border-color: var(--line);
+            color: var(--text);
+        }
+        
+        .btn-ghost:hover {
+            background: #0f151d;
+        }
+        
+        /* Utility for spacing and layout */
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            margin-inline: auto;
+            padding-inline: 20px;
+        }
+        
+        /* Custom styles for admin panel tabs */
+        .tab-btn {
+            padding: 12px 20px;
+            border-bottom: 2px solid transparent;
+            color: var(--muted);
+            font-weight: 500;
+            cursor: pointer;
+            transition: color 0.2s, border-color 0.2s;
+        }
+        
+        .tab-btn:hover {
+            color: var(--text);
+        }
+        
+        .tab-btn.active {
+            color: var(--accent);
+            border-color: var(--accent);
+        }
+        
+        /* Table styling for a more admin-like feel */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+        
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--line);
+        }
+        
+        th {
+            color: var(--muted);
+            font-weight: 600;
+            background: #0d1219;
+        }
+        
+        /* Message box styling */
+        .message-box {
+            padding: 16px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 500;
+            margin-top: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .message-box.success {
+            background-color: rgba(42, 214, 120, 0.1);
+            color: var(--accent);
+            border: 1px solid rgba(42, 214, 120, 0.2);
+        }
+        
+        .message-box.error {
+            background-color: rgba(255, 93, 93, 0.1);
+            color: var(--danger);
+            border: 1px solid rgba(255, 93, 93, 0.2);
+        }
+
+        /* Styles for the brand logo from index.html */
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: .6rem;
+        }
+        
+        .logo {
+            width: 28px;
+            height: 28px;
+            border-radius: 7px;
+            background: conic-gradient(from 30deg, #12b886, #2ad678, #8ef7bf);
+            box-shadow: 0 0 0 2px rgba(42,214,120,.15);
+        }
+        
+        /* Login-specific styles */
+        .login-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 1rem;
+        }
+
+        /* Responsive-specific styles for mobile */
+        @media (max-width: 768px) {
+            /* General mobile padding */
+            .container {
+                padding-inline: 16px;
+            }
+            
+            /* Mobile-friendly header */
+            .admin-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            /* Responsive tab navigation */
+            .tab-nav {
+                flex-wrap: wrap;
+                justify-content: center;
+                border-bottom: none;
+                gap: 8px;
+            }
+            .tab-nav .tab-btn {
+                flex: 1 1 auto;
+                border-bottom: 2px solid transparent; /* Keep for active state */
+                border-radius: 999px;
+                padding: 8px 16px;
+            }
+            .tab-nav .tab-btn.active {
+                background-color: var(--line);
+            }
+
+            /* Mobile-friendly table overflow */
+            .card table {
+                display: block;
+                width: 100%;
+                white-space: nowrap;
+                overflow-x: auto;
+            }
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+    <div id="admin-panel" class="container space-y-8">
+        <div class="card p-4 md:p-6 flex justify-between items-center admin-header">
+            <div class="flex items-center gap-4">
+                <a class="brand" href="index.html" aria-label="NexxTrade home">
+                    <span class="logo" aria-hidden="true"></span>
+                    <h1 class="text-xl md:text-2xl font-bold">NexxTrade Admin Panel</h1>
+                </a>
+            </div>
+            <a href="login.html" id="logout-btn" class="btn btn-ghost">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
+                Log Out
+            </a>
+        </div>
+
+        <div class="flex flex-wrap border-b border-line gap-2 tab-nav">
+            <a href="admin_dashboard.html" class="tab-btn">Dashboard</a>
+            <a href="admin_blogs.html" class="tab-btn active">Manage Blogs</a>
+            <a href="admin_performance.html" class="tab-btn">Performance</a>
+            <a href="admin_pricing.html" class="tab-btn">Update Pricing</a>
+            <a href="admin_roles.html" class="tab-btn">Delegate Roles</a>
+        </div>
+
+        <div class="space-y-8">
+            <h2 class="text-2xl font-semibold">Blog Post Management</h2>
+
+            <div class="message-box success" id="blog-message-box">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17L4 12"/></svg>
+                <span>Use the form below to add or edit blog posts.</span>
+            </div>
+        
+            <div class="card p-6 space-y-4">
+                <h3 class="text-xl font-semibold flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20M12 11h7"/><path d="M12 16h7"/></svg>
+                    Add/Edit Blog Post
+                </h3>
+                <form id="add-blog-form" class="space-y-4">
+                    <input type="hidden" id="blog-id">
+                    <div>
+                        <label for="blog-title" class="block text-sm font-medium mb-1 text-muted">Title</label>
+                        <input type="text" id="blog-title" placeholder="A compelling title for the blog post" class="input-field" required>
+                    </div>
+                    <div>
+                        <label for="blog-author" class="block text-sm font-medium mb-1 text-muted">Author</label>
+                        <input type="text" id="blog-author" placeholder="Your Name" class="input-field" required>
+                    </div>
+                    <div>
+                        <label for="blog-teaser" class="block text-sm font-medium mb-1 text-muted">Teaser</label>
+                        <textarea id="blog-teaser" rows="2" placeholder="A short, catchy summary of the blog post." class="input-field" required></textarea>
+                    </div>
+                    <div>
+                        <label for="blog-content" class="block text-sm font-medium mb-1 text-muted">Content</label>
+                        <textarea id="blog-content" rows="10" placeholder="The full content of your blog post (supports Markdown)." class="input-field" required></textarea>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="blog-date" class="block text-sm font-medium mb-1 text-muted">Published Date</label>
+                            <input type="date" id="blog-date" class="input-field" required>
+                        </div>
+                        <div>
+                            <label for="blog-status" class="block text-sm font-medium mb-1 text-muted">Status</label>
+                            <select id="blog-status" class="input-field" required>
+                                <option value="Draft">Draft</option>
+                                <option value="Published">Published</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label for="featured-image" class="block text-sm font-medium mb-1 text-muted">Featured Image URL</label>
+                        <input type="url" id="featured-image" placeholder="https://example.com/image.jpg" class="input-field">
+                    </div>
+        
+                    <div class="flex justify-end space-x-4">
+                        <button type="submit" id="save-blog-btn" class="btn btn-primary">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                            Add New Post
+                        </button>
+                        <button type="button" id="cancel-edit-btn" class="btn btn-ghost hidden">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" x2="6" y1="6" y2="18"/><line x1="6" x2="18" y1="6" y2="18"/></svg>
+                            Cancel
+                        </button>
+                    </div>
+                </form>
+                <div id="blog-message" class="hidden"></div>
+            </div>
+            
+            <div class="card p-6">
+                <h3 class="text-xl font-semibold mb-4 flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20M12 11h7"/><path d="M12 16h7"/></svg>
+                    Existing Blog Posts
+                </h3>
+        
+                <div class="overflow-x-auto">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Title</th>
+                                <th>Author</th>
+                                <th>Published Date</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="blogs-table">
+                            <tr><td colspan="5" class="text-muted text-center py-4">Loading blog posts...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            
+            const API_BASE_URL = 'http://localhost:3000/api';
+            
+            const addBlogForm = document.getElementById('add-blog-form');
+            const blogsTableBody = document.getElementById('blogs-table');
+            const blogIdInput = document.getElementById('blog-id');
+            const saveBlogBtn = document.getElementById('save-blog-btn');
+            const cancelEditBtn = document.getElementById('cancel-edit-btn');
+            const blogMessageBox = document.getElementById('blog-message');
+
+            function showMessage(container, message, type) {
+                container.innerHTML = `<div class="message-box ${type}">${message}</div>`;
+                container.classList.remove('hidden');
+                setTimeout(() => {
+                    container.classList.add('hidden');
+                    container.innerHTML = '';
+                }, 5000);
+            }
+
+            const fetchBlogs = async () => {
+                try {
+                    const response = await fetch(`${API_BASE_URL}/blogs`);
+                    const posts = await response.json();
+                    
+                    blogsTableBody.innerHTML = '';
+                    if (posts.length === 0) {
+                        blogsTableBody.innerHTML = `<tr><td colspan="5" class="text-muted text-center py-4">No blog posts available.</td></tr>`;
+                        return;
+                    }
+
+                    posts.forEach(post => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${post.title}</td>
+                            <td>${post.author}</td>
+                            <td>${new Date(post.published_date).toISOString().split('T')[0]}</td>
+                            <td>${post.status}</td>
+                            <td>
+                                <button onclick="editPost(${post.id})" class="text-muted hover:text-text p-1">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-edit"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                                </button>
+                                <button onclick="deletePost(${post.id})" class="text-muted hover:text-danger p-1">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash-2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+                                </button>
+                            </td>
+                        `;
+                        blogsTableBody.appendChild(row);
+                    });
+                    lucide.createIcons();
+                } catch (error) {
+                    console.error('Error fetching blog posts:', error);
+                    showMessage(blogMessageBox, 'Error loading blog posts. Please check the server connection.', 'error');
+                }
+            };
+
+            const addUpdatePost = async (e) => {
+                e.preventDefault();
+                const postId = blogIdInput.value;
+                
+                const data = {
+                    title: document.getElementById('blog-title').value,
+                    teaser: document.getElementById('blog-teaser').value,
+                    content: document.getElementById('blog-content').value,
+                    author: document.getElementById('blog-author').value,
+                    published_date: document.getElementById('blog-date').value,
+                    status: document.getElementById('blog-status').value,
+                    featured_image_url: document.getElementById('featured-image').value,
+                };
+
+                const submitBtn = e.submitter;
+                submitBtn.disabled = true;
+
+                try {
+                    let response;
+                    if (postId) {
+                        response = await fetch(`${API_BASE_URL}/blogs/${postId}`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(data),
+                        });
+                    } else {
+                        response = await fetch(`${API_BASE_URL}/blogs`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(data),
+                        });
+                    }
+
+                    if (response.ok) {
+                        const message = postId ? 'Blog post updated successfully!' : 'Blog post added successfully!';
+                        showMessage(blogMessageBox, message, 'success');
+                    } else {
+                        throw new Error('Failed to save blog post.');
+                    }
+                } catch (error) {
+                    console.error('Error saving blog post:', error);
+                    showMessage(blogMessageBox, 'Error saving blog post. Please check server logs.', 'error');
+                } finally {
+                    addBlogForm.reset();
+                    blogIdInput.value = '';
+                    saveBlogBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Add New Post';
+                    cancelEditBtn.classList.add('hidden');
+                    submitBtn.disabled = false;
+                    fetchBlogs();
+                }
+            };
+            
+            const editPost = async (id) => {
+                try {
+                    const response = await fetch(`${API_BASE_URL}/blogs/${id}`);
+                    const post = await response.json();
+                    
+                    blogIdInput.value = post.id;
+                    document.getElementById('blog-title').value = post.title;
+                    document.getElementById('blog-author').value = post.author;
+                    document.getElementById('blog-teaser').value = post.teaser;
+                    document.getElementById('blog-content').value = post.content;
+                    document.getElementById('blog-date').value = new Date(post.published_date).toISOString().split('T')[0];
+                    document.getElementById('blog-status').value = post.status;
+                    document.getElementById('featured-image').value = post.featured_image_url;
+                    
+                    saveBlogBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Update Post';
+                    cancelEditBtn.classList.remove('hidden');
+
+                } catch (error) {
+                    console.error('Error fetching blog post for edit:', error);
+                    showMessage(blogMessageBox, 'Failed to fetch blog post details.', 'error');
+                }
+            };
+
+            const deletePost = async (id) => {
+                if (!confirm('Are you sure you want to delete this blog post?')) return;
+                
+                try {
+                    const response = await fetch(`${API_BASE_URL}/blogs/${id}`, { method: 'DELETE' });
+                    if (response.ok) {
+                        showMessage(blogMessageBox, 'Blog post deleted successfully!', 'success');
+                        fetchBlogs();
+                    } else {
+                        throw new Error('Failed to delete blog post.');
+                    }
+                } catch (error) {
+                    console.error('Error deleting blog post:', error);
+                    showMessage(blogMessageBox, 'Error deleting blog post.', 'error');
+                }
+            };
+
+            addBlogForm.addEventListener('submit', addUpdatePost);
+            cancelEditBtn.addEventListener('click', () => {
+                addBlogForm.reset();
+                blogIdInput.value = '';
+                saveBlogBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Add New Post';
+                cancelEditBtn.classList.add('hidden');
+            });
+            
+            window.editPost = editPost;
+            window.deletePost = deletePost;
+
+            fetchBlogs();
+        });
+    </script>
+</body>
+</html>

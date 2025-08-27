@@ -1,52 +1,411 @@
-<div class="space-y-8">
-  <h2 class="text-2xl font-semibold">Dashboard Overview</h2>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NexxTrade Admin Panel - Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
+    <style>
+        /* Custom CSS to match the original site's theme and styles */
+        :root {
+            --bg: #0b0f14;
+            --bg-2: #0f141b;
+            --text: #e9edf3;
+            --muted: #a8b3c7;
+            --accent: #2ad678;
+            --accent-2: #f0c75e;
+            --danger: #ff5d5d;
+            --line: #1b2330;
+            --shadow: 0 8px 24px rgba(0,0,0,.35);
+            --radius: 16px;
+            --radius-lg: 20px;
+        }
+        
+        /* Apply a consistent font and background */
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, "Helvetica Neue", Arial, sans-serif;
+            overflow-x: hidden;
+        }
+        
+        /* Reusable card style */
+        .card {
+            background: var(--bg-2);
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+        }
 
-  <!-- Stats Cards Grid -->
-  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-    <!-- Card 1: Total Users -->
-    <div class="card p-6 flex flex-col items-center justify-center text-center space-y-2">
-      <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent">
-        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-      </svg>
-      <div class="text-3xl font-bold" id="total-users-stat">...</div>
-      <p class="text-muted">Total Users</p>
-    </div>
+        /* Input field styling */
+        .input-field {
+            width: 100%;
+            padding: 12px 16px;
+            border-radius: 12px;
+            background: #0d1219;
+            border: 1px solid var(--line);
+            color: var(--text);
+            transition: border-color 0.2s ease;
+        }
+        
+        .input-field:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+        
+        /* Button styles */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: .6rem;
+            padding: .9rem 1.4rem;
+            border-radius: 999px;
+            border: 1px solid transparent;
+            cursor: pointer;
+            transition: .2s ease;
+            white-space: nowrap;
+            font-weight: 600;
+        }
+        
+        .btn-primary {
+            background: var(--accent);
+            color: #04140a;
+        }
+        
+        .btn-primary:hover {
+            filter: brightness(1.1);
+            transform: translateY(-1px);
+        }
+        
+        .btn-ghost {
+            background: transparent;
+            border-color: var(--line);
+            color: var(--text);
+        }
+        
+        .btn-ghost:hover {
+            background: #0f151d;
+        }
+        
+        /* Utility for spacing and layout */
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            margin-inline: auto;
+            padding-inline: 20px;
+        }
+        
+        /* Custom styles for admin panel tabs */
+        .tab-btn {
+            padding: 12px 20px;
+            border-bottom: 2px solid transparent;
+            color: var(--muted);
+            font-weight: 500;
+            cursor: pointer;
+            transition: color 0.2s, border-color 0.2s;
+        }
+        
+        .tab-btn:hover {
+            color: var(--text);
+        }
+        
+        .tab-btn.active {
+            color: var(--accent);
+            border-color: var(--accent);
+        }
+        
+        /* Table styling for a more admin-like feel */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+        
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--line);
+        }
+        
+        th {
+            color: var(--muted);
+            font-weight: 600;
+            background: #0d1219;
+        }
+        
+        /* Message box styling */
+        .message-box {
+            padding: 16px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 500;
+            margin-top: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .message-box.success {
+            background-color: rgba(42, 214, 120, 0.1);
+            color: var(--accent);
+            border: 1px solid rgba(42, 214, 120, 0.2);
+        }
+        
+        .message-box.error {
+            background-color: rgba(255, 93, 93, 0.1);
+            color: var(--danger);
+            border: 1px solid rgba(255, 93, 93, 0.2);
+        }
 
-    <!-- Card 2: Active Subscriptions -->
-    <div class="card p-6 flex flex-col items-center justify-center text-center space-y-2">
-      <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent-2">
-        <path d="M4 14.5V20a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V14.5"/>
-        <path d="M16 10h-6a2 2 0 0 0-2 2v2a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-2a2 2 0 0 0-2-2z"/>
-        <path d="M16 10V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v5"/>
-      </svg>
-      <div class="text-3xl font-bold" id="active-subscriptions-stat">...</div>
-      <p class="text-muted">Active Subscriptions</p>
-    </div>
-    
-    <!-- Card 3: New Registrations (Last 30 days) -->
-    <div class="card p-6 flex flex-col items-center justify-center text-center space-y-2">
-      <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent">
-        <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
-      </svg>
-      <div class="text-3xl font-bold" id="new-registrations-stat">...</div>
-      <p class="text-muted">New in last 30 days</p>
-    </div>
-    
-    <!-- Card 4: Total Revenue (Last 30 days) -->
-    <div class="card p-6 flex flex-col items-center justify-center text-center space-y-2">
-      <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent-2">
-        <path d="M12 2v20M17 5H9.5a3.5 3.5 0 1 0 0 7h5a3.5 3.5 0 1 1 0 7H6"/>
-      </svg>
-      <div class="text-3xl font-bold" id="total-revenue-stat">...</div>
-      <p class="text-muted">Total Revenue (30d)</p>
-    </div>
-  </div>
+        /* Styles for the brand logo from index.html */
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: .6rem;
+        }
+        
+        .logo {
+            width: 28px;
+            height: 28px;
+            border-radius: 7px;
+            background: conic-gradient(from 30deg, #12b886, #2ad678, #8ef7bf);
+            box-shadow: 0 0 0 2px rgba(42,214,120,.15);
+        }
+        
+        /* Login-specific styles */
+        .login-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 1rem;
+        }
 
-  <!-- Note for Integration -->
-  <div class="message-box success">
-    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M20 6L9 17L4 12"/>
-    </svg>
-    <span>This dashboard is a static UI. You will need to add server-side logic to populate the data.</span>
-  </div>
-</div>
+        /* Responsive-specific styles for mobile */
+        @media (max-width: 768px) {
+            /* General mobile padding */
+            .container {
+                padding-inline: 16px;
+            }
+            
+            /* Mobile-friendly header */
+            .admin-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            /* Responsive tab navigation */
+            .tab-nav {
+                flex-wrap: wrap;
+                justify-content: center;
+                border-bottom: none;
+                gap: 8px;
+            }
+            .tab-nav .tab-btn {
+                flex: 1 1 auto;
+                border-bottom: 2px solid transparent; /* Keep for active state */
+                border-radius: 999px;
+                padding: 8px 16px;
+            }
+            .tab-nav .tab-btn.active {
+                background-color: var(--line);
+            }
+
+            /* Mobile-friendly table overflow */
+            .card table {
+                display: block;
+                width: 100%;
+                white-space: nowrap;
+                overflow-x: auto;
+            }
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+    <div id="admin-panel" class="container space-y-8">
+        <div class="card p-4 md:p-6 flex justify-between items-center admin-header">
+            <div class="flex items-center gap-4">
+                <a class="brand" href="index.html" aria-label="NexxTrade home">
+                    <span class="logo" aria-hidden="true"></span>
+                    <h1 class="text-xl md:text-2xl font-bold">NexxTrade Admin Panel</h1>
+                </a>
+            </div>
+            <a href="login.html" id="logout-btn" class="btn btn-ghost">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
+                Log Out
+            </a>
+        </div>
+
+        <div class="flex flex-wrap border-b border-line gap-2 tab-nav">
+            <a href="admin_dashboard.html" class="tab-btn active">Dashboard</a>
+            <a href="admin_blogs.html" class="tab-btn">Manage Blogs</a>
+            <a href="admin_performance.html" class="tab-btn">Performance</a>
+            <a href="admin_pricing.html" class="tab-btn">Update Pricing</a>
+            <a href="admin_roles.html" class="tab-btn">Delegate Roles</a>
+        </div>
+
+        <div class="space-y-8">
+            <h2 class="text-2xl font-semibold">Dashboard Overview</h2>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div class="card p-6 flex flex-col items-center justify-center text-center space-y-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent-2">
+                        <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+                        <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+                    </svg>
+                    <div class="text-3xl font-bold" id="total-blogs-stat">...</div>
+                    <p class="text-muted">Total Blog Posts</p>
+                </div>
+                <div class="card p-6 flex flex-col items-center justify-center text-center space-y-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent">
+                        <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                    <div class="text-3xl font-bold" id="total-signals-stat">...</div>
+                    <p class="text-muted">Total Performance Signals</p>
+                </div>
+                <div class="card p-6 flex flex-col items-center justify-center text-center space-y-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent-2">
+                        <path d="M12 2v20M17 5H9.5a3.5 3.5 0 1 0 0 7h5a3.5 3.5 0 1 1 0 7H6"/>
+                    </svg>
+                    <div class="text-3xl font-bold" id="total-plans-stat">...</div>
+                    <p class="text-muted">Active Pricing Plans</p>
+                </div>
+            </div>
+
+            <div class="card p-6">
+                <h3 class="text-xl font-semibold mb-4 flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent-2"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m2 15 5 2 8-5 5 2"/></svg>
+                    Recent Blog Posts
+                </h3>
+                <div class="overflow-x-auto">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Title</th>
+                                <th>Author</th>
+                                <th>Published Date</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="blogs-table">
+                            <tr><td colspan="5" class="text-muted text-center py-4">Loading blog posts...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="flex justify-end mt-4">
+                    <a href="admin_blogs.html" class="btn btn-ghost text-sm">View All Blogs</a>
+                </div>
+            </div>
+
+            <div class="card p-6">
+                <h3 class="text-xl font-semibold mb-4 flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 1 0 0 7h5a3.5 3.5 0 1 1 0 7H6"/></svg>
+                    Recent Performance Signals
+                </h3>
+                <div class="overflow-x-auto">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Pair</th>
+                                <th>Entry</th>
+                                <th>Exit</th>
+                                <th>P/L %</th>
+                                <th>Leverage</th>
+                                <th>Result</th>
+                            </tr>
+                        </thead>
+                        <tbody id="signals-table">
+                            <tr><td colspan="7" class="text-muted text-center py-4">Loading signals...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="flex justify-end mt-4">
+                    <a href="admin_performance.html" class="btn btn-ghost text-sm">View All Signals</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            const API_BASE_URL = 'http://localhost:3000/api';
+
+            // Function to fetch all data and update the dashboard
+            const fetchData = async () => {
+                // Fetch stats
+                try {
+                    const blogsResponse = await fetch(`${API_BASE_URL}/blogs`);
+                    const blogs = await blogsResponse.json();
+                    document.getElementById('total-blogs-stat').textContent = blogs.length;
+
+                    const signalsResponse = await fetch(`${API_BASE_URL}/performances`);
+                    const signals = await signalsResponse.json();
+                    document.getElementById('total-signals-stat').textContent = signals.length;
+
+                    const pricingResponse = await fetch(`${API_BASE_URL}/pricing`);
+                    const plans = await pricingResponse.json();
+                    document.getElementById('total-plans-stat').textContent = plans.length;
+
+                    // Populate recent blog posts table (limit to 5)
+                    const blogsTableBody = document.getElementById('blogs-table');
+                    blogsTableBody.innerHTML = '';
+                    const recentBlogs = blogs.slice(0, 5);
+                    if (recentBlogs.length === 0) {
+                        blogsTableBody.innerHTML = `<tr><td colspan="5" class="text-muted text-center py-4">No recent blog posts.</td></tr>`;
+                    } else {
+                        recentBlogs.forEach(post => {
+                            const row = document.createElement('tr');
+                            row.innerHTML = `
+                                <td>${post.title}</td>
+                                <td>${post.author}</td>
+                                <td>${new Date(post.published_date).toISOString().split('T')[0]}</td>
+                                <td>${post.status}</td>
+                                <td><a href="admin_blogs.html" class="text-muted hover:text-text p-1">Edit</a></td>
+                            `;
+                            blogsTableBody.appendChild(row);
+                        });
+                    }
+
+                    // Populate recent signals table (limit to 5)
+                    const signalsTableBody = document.getElementById('signals-table');
+                    signalsTableBody.innerHTML = '';
+                    const recentSignals = signals.slice(0, 5);
+                    if (recentSignals.length === 0) {
+                        signalsTableBody.innerHTML = `<tr><td colspan="7" class="text-muted text-center py-4">No recent signals.</td></tr>`;
+                    } else {
+                        recentSignals.forEach(signal => {
+                            const row = document.createElement('tr');
+                            const pnlClass = parseFloat(signal.pnl_percent) > 0 ? 'gain' : 'loss';
+                            row.innerHTML = `
+                                <td>${new Date(signal.date).toISOString().split('T')[0]}</td>
+                                <td>${signal.pair}</td>
+                                <td>${signal.entry_price}</td>
+                                <td>${signal.exit_price}</td>
+                                <td class="${pnlClass}">${signal.pnl_percent}</td>
+                                <td>${signal.leverage}</td>
+                                <td>${signal.result_type}</td>
+                            `;
+                            signalsTableBody.appendChild(row);
+                        });
+                    }
+                    lucide.createIcons();
+                } catch (error) {
+                    console.error('Error fetching dashboard data:', error);
+                    // Update all stat and table elements to show an error state
+                    document.getElementById('total-blogs-stat').textContent = 'Error';
+                    document.getElementById('total-signals-stat').textContent = 'Error';
+                    document.getElementById('total-plans-stat').textContent = 'Error';
+                    document.getElementById('blogs-table').innerHTML = `<tr><td colspan="5" class="text-danger text-center py-4">Failed to load data.</td></tr>`;
+                    document.getElementById('signals-table').innerHTML = `<tr><td colspan="7" class="text-danger text-center py-4">Failed to load data.</td></tr>`;
+                }
+            };
+
+            fetchData();
+        });
+    </script>
+</body>
+</html>

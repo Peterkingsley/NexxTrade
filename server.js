@@ -1,124 +1,337 @@
-// Filename: server.js
-// This server contains only the backend API endpoints.
-// Database table creation is handled separately via DBeaver or a migration script.
+// server.js
+// This file sets up a Node.js backend server using Express and a PostgreSQL database.
+// It handles API routes for managing blogs, pricing plans, roles, and performance data.
 
-// Import necessary modules.
+// Import required modules
 const express = require('express');
-const path = require('path');
 const { Pool } = require('pg');
-
-// Initialize the Express application.
+const path = require('path');
 const app = express();
+// Load environment variables from .env file
+require('dotenv').config();
+const port = process.env.PORT || 3000;
 
-// Define the port the server will listen on.
-const PORT = process.env.PORT || 3000;
+// Middleware setup
+// Use express.json() to parse incoming JSON payloads
+app.use(express.json());
+// Use express.urlencoded() to parse URL-encoded bodies, important for form submissions
+app.use(express.urlencoded({ extended: true }));
 
-// Set up the database connection pool using the DATABASE_URL environment variable.
+// PostgreSQL database connection pool
+// This uses a connection string from an environment variable for security.
+// Remember to set DATABASE_URL in your environment before running the server.
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: {
+    // This setting is often needed for cloud-hosted databases that use self-signed certificates.
+    // It tells the client to not reject the connection based on the certificate authority.
     rejectUnauthorized: false
   }
 });
 
-// Test the database connection.
-pool.query('SELECT NOW()', (err, res) => {
-  if (err) {
-    console.error('Error connecting to the database:', err.stack);
-  } else {
-    console.log('Database connected successfully! Current time from DB:', res.rows[0].now);
-  }
-});
-
-// Use Express's built-in JSON middleware.
-app.use(express.json());
-
-// Serve static files from the 'public' directory.
-app.use(express.static(path.join(__dirname, 'public')));
-
-// API Endpoint: Create a new blog post
-app.post('/api/blogs', async (req, res) => {
-  const { title, teaser, content, author, status, featured_image_url } = req.body;
-  const published_date = new Date().toISOString().slice(0, 10);
-
+// Function to connect to the database and handle errors
+async function connectToDatabase() {
   try {
-    const newBlog = await pool.query(
-      `INSERT INTO blogPosts (title, teaser, content, author, published_date, status, featured_image_url) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-      [title, teaser, content, author, published_date, status, featured_image_url]
-    );
-    res.status(201).json(newBlog.rows[0]);
-  } catch (err) {
-    console.error('Error adding new blog post:', err.stack);
-    res.status(500).json({ error: 'Failed to add blog post' });
+    const client = await pool.connect();
+    console.log('Successfully connected to the PostgreSQL database.');
+    client.release(); // Release the client back to the pool
+  } catch (error) {
+    console.error('Database connection failed:', error.stack);
   }
-});
+}
 
-// API Endpoint: Get all blog posts
+// Call the function to test the database connection on server start
+connectToDatabase();
+
+// API Routes for Blogs Management
+// Based on the 'blogposts' table from your SQL dump.
+// The columns are: id, title, teaser, content, author, published_date, status, featured_image_url
 app.get('/api/blogs', async (req, res) => {
   try {
-    const allBlogs = await pool.query('SELECT * FROM blogPosts ORDER BY published_date DESC');
-    res.status(200).json(allBlogs.rows);
+    const { rows } = await pool.query('SELECT * FROM blogposts ORDER BY published_date DESC');
+    res.json(rows);
   } catch (err) {
-    console.error('Error fetching blog posts:', err.stack);
-    res.status(500).json({ error: 'Failed to fetch blog posts' });
+    console.error(err);
+    res.status(500).send('Server Error');
   }
 });
 
-// API Endpoint: Get a single blog post by ID
 app.get('/api/blogs/:id', async (req, res) => {
-  const { id } = req.params;
   try {
-    const blog = await pool.query('SELECT * FROM blogPosts WHERE id = $1', [id]);
-    if (blog.rows.length === 0) {
-      return res.status(404).json({ error: 'Blog post not found' });
+    const { id } = req.params;
+    const { rows } = await pool.query('SELECT * FROM blogposts WHERE id = $1', [id]);
+    if (rows.length === 0) {
+      return res.status(404).send('Blog post not found.');
     }
-    res.status(200).json(blog.rows[0]);
+    res.json(rows[0]);
   } catch (err) {
-    console.error('Error fetching single blog post:', err.stack);
-    res.status(500).json({ error: 'Failed to fetch blog post' });
+    console.error(err);
+    res.status(500).send('Server Error');
   }
 });
 
-// API Endpoint: Delete a blog post by ID
-app.delete('/api/blogs/:id', async (req, res) => {
-  const { id } = req.params;
+app.post('/api/blogs', async (req, res) => {
   try {
-    await pool.query('DELETE FROM blogPosts WHERE id = $1', [id]);
-    res.status(200).json({ message: 'Blog post deleted successfully' });
-  } catch (err) {
-    console.error('Error deleting blog post:', err.stack);
-    res.status(500).json({ error: 'Failed to delete blog post' });
-  }
-});
-
-// API Endpoint: Update a blog post
-app.put('/api/blogs/:id', async (req, res) => {
-  const { id } = req.params;
-  const { title, teaser, content, author, status, featured_image_url } = req.body;
-  try {
-    const updatedBlog = await pool.query(
-      `UPDATE blogPosts SET title = $1, teaser = $2, content = $3, author = $4, status = $5, featured_image_url = $6 
-       WHERE id = $7 RETURNING *`,
-      [title, teaser, content, author, status, featured_image_url, id]
+    const { title, teaser, content, author, published_date, status, featured_image_url } = req.body;
+    const { rows } = await pool.query(
+      'INSERT INTO blogposts(title, teaser, content, author, published_date, status, featured_image_url) VALUES($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+      [title, teaser, content, author, published_date, status, featured_image_url]
     );
-    if (updatedBlog.rows.length === 0) {
-      return res.status(404).json({ error: 'Blog post not found' });
-    }
-    res.status(200).json(updatedBlog.rows[0]);
+    res.status(201).json(rows[0]);
   } catch (err) {
-    console.error('Error updating blog post:', err.stack);
-    res.status(500).json({ error: 'Failed to update blog post' });
+    console.error(err);
+    res.status(500).send('Server Error');
   }
 });
 
-// Fallback route for the homepage.
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+app.put('/api/blogs/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, teaser, content, author, published_date, status, featured_image_url } = req.body;
+    const { rows } = await pool.query(
+      'UPDATE blogposts SET title = $1, teaser = $2, content = $3, author = $4, published_date = $5, status = $6, featured_image_url = $7 WHERE id = $8 RETURNING *',
+      [title, teaser, content, author, published_date, status, featured_image_url, id]
+    );
+    if (rows.length === 0) {
+      return res.status(404).send('Blog post not found.');
+    }
+    res.json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server Error');
+  }
 });
 
-// Start the server and listen for incoming requests.
-app.listen(PORT, () => {
-  console.log(`Server is running on http://localhost:${PORT}`);
-  console.log('Serving files from the "public" directory.');
+app.delete('/api/blogs/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rowCount } = await pool.query('DELETE FROM blogposts WHERE id = $1', [id]);
+    if (rowCount === 0) {
+      return res.status(404).send('Blog post not found.');
+    }
+    res.status(204).send(); // 204 No Content
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server Error');
+  }
+});
+
+
+// API Routes for Pricing Plans Management
+// Based on the 'pricingplans' table from your SQL dump.
+// The columns are: id, plan_name, price, term, description, features, is_best_value
+app.get('/api/pricing', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM pricingplans ORDER BY price ASC');
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server Error');
+  }
+});
+
+app.post('/api/pricing', async (req, res) => {
+  try {
+    const { plan_name, price, term, description, features, is_best_value } = req.body;
+    const { rows } = await pool.query(
+      'INSERT INTO pricingplans(plan_name, price, term, description, features, is_best_value) VALUES($1, $2, $3, $4, $5, $6) RETURNING *',
+      [plan_name, price, term, description, features, is_best_value]
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server Error');
+  }
+});
+
+app.put('/api/pricing/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { plan_name, price, term, description, features, is_best_value } = req.body;
+    const { rows } = await pool.query(
+      'UPDATE pricingplans SET plan_name = $1, price = $2, term = $3, description = $4, features = $5, is_best_value = $6 WHERE id = $7 RETURNING *',
+      [plan_name, price, term, description, features, is_best_value, id]
+    );
+    if (rows.length === 0) {
+      return res.status(404).send('Pricing plan not found.');
+    }
+    res.json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server Error');
+  }
+});
+
+app.delete('/api/pricing/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rowCount } = await pool.query('DELETE FROM pricingplans WHERE id = $1', [id]);
+    if (rowCount === 0) {
+      return res.status(404).send('Pricing plan not found.');
+    }
+    res.status(204).send();
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server Error');
+  }
+});
+
+
+// API Routes for User Roles Management
+// Based on the 'adminusers' table from your SQL dump.
+// The columns are: id, username, hashed_password, role, permissions
+app.get('/api/roles', async (req, res) => {
+  try {
+    // Note: Do not expose sensitive data like hashed_password.
+    const { rows } = await pool.query('SELECT id, username, role, permissions FROM adminusers');
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server Error');
+  }
+});
+
+app.put('/api/roles/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { role, permissions } = req.body;
+    const { rows } = await pool.query(
+      'UPDATE adminusers SET role = $1, permissions = $2 WHERE id = $3 RETURNING id, username, role, permissions',
+      [role, permissions, id]
+    );
+    if (rows.length === 0) {
+      return res.status(404).send('User not found.');
+    }
+    res.json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server Error');
+  }
+});
+
+
+// API Routes for Performance Signals
+// Based on the 'performancesignals' table from your SQL dump.
+// The columns are: id, date, pair, entry_price, exit_price, pnl_percent, leverage, is_long_position, result_type
+app.get('/api/performances', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM performancesignals ORDER BY date DESC');
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server Error');
+  }
+});
+
+app.post('/api/performances', async (req, res) => {
+  try {
+    const { date, pair, entry_price, exit_price, pnl_percent, leverage, is_long_position, result_type } = req.body;
+    const { rows } = await pool.query(
+      'INSERT INTO performancesignals(date, pair, entry_price, exit_price, pnl_percent, leverage, is_long_position, result_type) VALUES($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+      [date, pair, entry_price, exit_price, pnl_percent, leverage, is_long_position, result_type]
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server Error');
+  }
+});
+
+app.put('/api/performances/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { date, pair, entry_price, exit_price, pnl_percent, leverage, is_long_position, result_type } = req.body;
+    const { rows } = await pool.query(
+      'UPDATE performancesignals SET date = $1, pair = $2, entry_price = $3, exit_price = $4, pnl_percent = $5, leverage = $6, is_long_position = $7, result_type = $8 WHERE id = $9 RETURNING *',
+      [date, pair, entry_price, exit_price, pnl_percent, leverage, is_long_position, result_type, id]
+    );
+    if (rows.length === 0) {
+      return res.status(404).send('Performance signal not found.');
+    }
+    res.json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server Error');
+  }
+});
+
+app.delete('/api/performances/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rowCount } = await pool.query('DELETE FROM performancesignals WHERE id = $1', [id]);
+    if (rowCount === 0) {
+      return res.status(404).send('Performance signal not found.');
+    }
+    res.status(204).send();
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server Error');
+  }
+});
+
+// API Routes for PnL Proofs
+// Based on the 'pnlproofs' table from your SQL dump.
+// The columns are: id, description, image_url
+app.get('/api/pnlproofs', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM pnlproofs ORDER BY id DESC');
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server Error');
+  }
+});
+
+app.post('/api/pnlproofs', async (req, res) => {
+  try {
+    const { description, image_url } = req.body;
+    const { rows } = await pool.query(
+      'INSERT INTO pnlproofs(description, image_url) VALUES($1, $2) RETURNING *',
+      [description, image_url]
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server Error');
+  }
+});
+
+app.put('/api/pnlproofs/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { description, image_url } = req.body;
+    const { rows } = await pool.query(
+      'UPDATE pnlproofs SET description = $1, image_url = $2 WHERE id = $3 RETURNING *',
+      [description, image_url, id]
+    );
+    if (rows.length === 0) {
+      return res.status(404).send('PnL proof not found.');
+    }
+    res.json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server Error');
+  }
+});
+
+app.delete('/api/pnlproofs/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rowCount } = await pool.query('DELETE FROM pnlproofs WHERE id = $1', [id]);
+    if (rowCount === 0) {
+      return res.status(404).send('PnL proof not found.');
+    }
+    res.status(204).send();
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server Error');
+  }
+});
+
+// Serve static files from the 'public' directory
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Start the server
+app.listen(port, () => {
+  console.log(`Server is running on http://localhost:${port}`);
 });

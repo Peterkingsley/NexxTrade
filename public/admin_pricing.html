@@ -1,77 +1,520 @@
-<div class="space-y-8">
-    <h2 class="text-2xl font-semibold">Update Pricing Plans</h2>
-
-    <div class="message-box success">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17L4 12"/></svg>
-        <span>Changes made here would affect the checkout page and the public pricing section.</span>
-    </div>
-
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NexxTrade Admin Panel - Pricing</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
+    <style>
+        /* Custom CSS to match the original site's theme and styles */
+        :root {
+            --bg: #0b0f14;
+            --bg-2: #0f141b;
+            --text: #e9edf3;
+            --muted: #a8b3c7;
+            --accent: #2ad678;
+            --accent-2: #f0c75e;
+            --danger: #ff5d5d;
+            --line: #1b2330;
+            --shadow: 0 8px 24px rgba(0,0,0,.35);
+            --radius: 16px;
+            --radius-lg: 20px;
+        }
         
-        <div class="card p-6 space-y-4">
-            <h3 class="text-xl font-semibold text-center">Monthly Plan</h3>
-            <form class="space-y-4">
-                <div>
-                    <label for="monthly-price" class="block text-sm font-medium mb-1 text-muted">Price ($)</label>
-                    <input type="number" id="monthly-price" value="39" class="input-field" required>
-                </div>
-                <div>
-                    <label for="monthly-description" class="block text-sm font-medium mb-1 text-muted">Description</label>
-                    <input type="text" id="monthly-description" value="Good to try us out" class="input-field" required>
-                </div>
-                <div class="space-y-2">
-                    <label class="block text-sm font-medium text-muted">Features (Max 3)</label>
-                    <input type="text" placeholder="Feature 1" value="Real‑time signals" class="input-field">
-                    <input type="text" placeholder="Feature 2" value="Automated Telegram access" class="input-field">
-                    <input type="text" placeholder="Feature 3" value="Risk framework on every call" class="input-field">
-                </div>
-                <button type="submit" class="btn btn-primary w-full">Update Monthly</button>
-            </form>
+        /* Apply a consistent font and background */
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, "Helvetica Neue", Arial, sans-serif;
+            overflow-x: hidden;
+        }
+        
+        /* Reusable card style */
+        .card {
+            background: var(--bg-2);
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+        }
+
+        /* Input field styling */
+        .input-field {
+            width: 100%;
+            padding: 12px 16px;
+            border-radius: 12px;
+            background: #0d1219;
+            border: 1px solid var(--line);
+            color: var(--text);
+            transition: border-color 0.2s ease;
+        }
+        
+        .input-field:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+        
+        /* Button styles */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: .6rem;
+            padding: .9rem 1.4rem;
+            border-radius: 999px;
+            border: 1px solid transparent;
+            cursor: pointer;
+            transition: .2s ease;
+            white-space: nowrap;
+            font-weight: 600;
+        }
+        
+        .btn-primary {
+            background: var(--accent);
+            color: #04140a;
+        }
+        
+        .btn-primary:hover {
+            filter: brightness(1.1);
+            transform: translateY(-1px);
+        }
+        
+        .btn-ghost {
+            background: transparent;
+            border-color: var(--line);
+            color: var(--text);
+        }
+        
+        .btn-ghost:hover {
+            background: #0f151d;
+        }
+        
+        /* Utility for spacing and layout */
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            margin-inline: auto;
+            padding-inline: 20px;
+        }
+        
+        /* Custom styles for admin panel tabs */
+        .tab-btn {
+            padding: 12px 20px;
+            border-bottom: 2px solid transparent;
+            color: var(--muted);
+            font-weight: 500;
+            cursor: pointer;
+            transition: color 0.2s, border-color 0.2s;
+        }
+        
+        .tab-btn:hover {
+            color: var(--text);
+        }
+        
+        .tab-btn.active {
+            color: var(--accent);
+            border-color: var(--accent);
+        }
+        
+        /* Table styling for a more admin-like feel */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+        
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--line);
+        }
+        
+        th {
+            color: var(--muted);
+            font-weight: 600;
+            background: #0d1219;
+        }
+        
+        /* File input styling */
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+            border: 1px solid var(--line);
+            background: #0d1219;
+            border-radius: 12px;
+            color: var(--muted);
+            padding: 12px 16px;
+            cursor: pointer;
+        }
+        
+        .file-input-wrapper input[type="file"] {
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+        
+        /* Message box styling */
+        .message-box {
+            padding: 16px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 500;
+            margin-top: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .message-box.success {
+            background-color: rgba(42, 214, 120, 0.1);
+            color: var(--accent);
+            border: 1px solid rgba(42, 214, 120, 0.2);
+        }
+        
+        .message-box.error {
+            background-color: rgba(255, 93, 93, 0.1);
+            color: var(--danger);
+            border: 1px solid rgba(255, 93, 93, 0.2);
+        }
+
+        /* Styles for the brand logo from index.html */
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: .6rem;
+        }
+        
+        .logo {
+            width: 28px;
+            height: 28px;
+            border-radius: 7px;
+            background: conic-gradient(from 30deg, #12b886, #2ad678, #8ef7bf);
+            box-shadow: 0 0 0 2px rgba(42,214,120,.15);
+        }
+        
+        /* Login-specific styles */
+        .login-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 1rem;
+        }
+
+        /* Responsive-specific styles for mobile */
+        @media (max-width: 768px) {
+            /* General mobile padding */
+            .container {
+                padding-inline: 16px;
+            }
+            
+            /* Mobile-friendly header */
+            .admin-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            /* Responsive tab navigation */
+            .tab-nav {
+                flex-wrap: wrap;
+                justify-content: center;
+                border-bottom: none;
+                gap: 8px;
+            }
+            .tab-nav .tab-btn {
+                flex: 1 1 auto;
+                border-bottom: 2px solid transparent; /* Keep for active state */
+                border-radius: 999px;
+                padding: 8px 16px;
+            }
+            .tab-nav .tab-btn.active {
+                background-color: var(--line);
+            }
+
+            /* Mobile-friendly table overflow */
+            .card table {
+                display: block;
+                width: 100%;
+                white-space: nowrap;
+                overflow-x: auto;
+            }
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+    <div id="admin-panel" class="container space-y-8">
+        <div class="card p-4 md:p-6 flex justify-between items-center admin-header">
+            <div class="flex items-center gap-4">
+                <a class="brand" href="index.html" aria-label="NexxTrade home">
+                    <span class="logo" aria-hidden="true"></span>
+                    <h1 class="text-xl md:text-2xl font-bold">NexxTrade Admin Panel</h1>
+                </a>
+            </div>
+            <a href="login.html" id="logout-btn" class="btn btn-ghost">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
+                Log Out
+            </a>
         </div>
 
-        <div class="card p-6 space-y-4" style="outline:2px solid rgba(240,199,94,.25)">
-            <h3 class="text-xl font-semibold text-center">Quarterly Plan</h3>
-            <div class="text-center"><span class="badge" style="background:rgba(240,199,94,.15); color:var(--accent-2); border-color:rgba(240,199,94,.35)">Best Value</span></div>
-            <form class="space-y-4">
-                <div>
-                    <label for="quarterly-price" class="block text-sm font-medium mb-1 text-muted">Price ($)</label>
-                    <input type="number" id="quarterly-price" value="99" class="input-field" required>
-                </div>
-                <div>
-                    <label for="quarterly-description" class="block text-sm font-medium mb-1 text-muted">Description</label>
-                    <input type="text" id="quarterly-description" value="Commit and save" class="input-field" required>
-                </div>
-                <div class="space-y-2">
-                    <label class="block text-sm font-medium text-muted">Features (Max 3)</label>
-                    <input type="text" placeholder="Feature 1" value="Everything in Monthly" class="input-field">
-                    <input type="text" placeholder="Feature 2" value="Priority support" class="input-field">
-                    <input type="text" placeholder="Feature 3" value="Member‑only Q&As" class="input-field">
-                </div>
-                <button type="submit" class="btn btn-primary w-full">Update Quarterly</button>
-            </form>
+        <div class="flex flex-wrap border-b border-line gap-2 tab-nav">
+            <a href="admin_dashboard.html" class="tab-btn">Dashboard</a>
+            <a href="admin_blogs.html" class="tab-btn">Manage Blogs</a>
+            <a href="admin_performance.html" class="tab-btn">Performance</a>
+            <a href="admin_pricing.html" class="tab-btn active">Update Pricing</a>
+            <a href="admin_roles.html" class="tab-btn">Delegate Roles</a>
         </div>
 
-        <div class="card p-6 space-y-4">
-            <h3 class="text-xl font-semibold text-center">Yearly Plan</h3>
-            <form class="space-y-4">
-                <div>
-                    <label for="yearly-price" class="block text-sm font-medium mb-1 text-muted">Price ($)</label>
-                    <input type="number" id="yearly-price" value="299" class="input-field" required>
+        <div class="space-y-8">
+            <h2 class="text-2xl font-semibold">Pricing Plan Management</h2>
+
+            <div class="message-box success" id="pricing-message-box">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17L4 12"/></svg>
+                <span>Use the form below to add or edit pricing plans.</span>
+            </div>
+        
+            <div class="card p-6 space-y-4">
+                <h3 class="text-xl font-semibold flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent-2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 1 0 0 7h5a3.5 3.5 0 1 1 0 7H6"/></svg>
+                    Add/Edit Pricing Plan
+                </h3>
+                <form id="add-pricing-form" class="space-y-4">
+                    <input type="hidden" id="plan-id">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label for="plan-name" class="block text-sm font-medium mb-1 text-muted">Plan Name</label>
+                            <input type="text" id="plan-name" placeholder="e.g., Starter, Professional" class="input-field" required>
+                        </div>
+                        <div>
+                            <label for="plan-price" class="block text-sm font-medium mb-1 text-muted">Price (in USD)</label>
+                            <input type="number" step="1" id="plan-price" placeholder="e.g., 49" class="input-field" required>
+                        </div>
+                        <div>
+                            <label for="plan-term" class="block text-sm font-medium mb-1 text-muted">Billing Term</label>
+                            <input type="text" id="plan-term" placeholder="e.g., /month, /year" class="input-field" required>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="plan-description" class="block text-sm font-medium mb-1 text-muted">Description</label>
+                            <textarea id="plan-description" rows="3" placeholder="A short description of the plan." class="input-field"></textarea>
+                        </div>
+                        <div>
+                            <label for="plan-features" class="block text-sm font-medium mb-1 text-muted">Features (comma-separated)</label>
+                            <textarea id="plan-features" rows="3" placeholder="Feature 1, Feature 2, Feature 3" class="input-field"></textarea>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center gap-2">
+                        <input type="checkbox" id="is-best-value" class="h-4 w-4 rounded border-line bg-gray-800 text-accent focus:ring-accent-2">
+                        <label for="is-best-value" class="text-sm font-medium text-muted">Mark as "Best Value"</label>
+                    </div>
+        
+                    <div class="flex justify-end space-x-4">
+                        <button type="submit" id="save-pricing-btn" class="btn btn-primary">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                            Add New Plan
+                        </button>
+                        <button type="button" id="cancel-edit-btn" class="btn btn-ghost hidden">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" x2="6" y1="6" y2="18"/><line x1="6" x2="18" y1="6" y2="18"/></svg>
+                            Cancel
+                        </button>
+                    </div>
+                </form>
+                <div id="pricing-message" class="hidden"></div>
+            </div>
+            
+            <div class="card p-6">
+                <h3 class="text-xl font-semibold mb-4 flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 1 0 0 7h5a3.5 3.5 0 1 1 0 7H6"/></svg>
+                    Existing Pricing Plans
+                </h3>
+        
+                <div class="overflow-x-auto">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Plan Name</th>
+                                <th>Price</th>
+                                <th>Billing Term</th>
+                                <th>Best Value</th>
+                                <th>Features</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pricing-table">
+                            <tr><td colspan="6" class="text-muted text-center py-4">Loading pricing plans...</td></tr>
+                        </tbody>
+                    </table>
                 </div>
-                <div>
-                    <label for="yearly-description" class="block text-sm font-medium mb-1 text-muted">Description</label>
-                    <input type="text" id="yearly-description" value="Maximum savings" class="input-field" required>
-                </div>
-                <div class="space-y-2">
-                    <label class="block text-sm font-medium text-muted">Features (Max 3)</label>
-                    <input type="text" placeholder="Feature 1" value="Everything in Quarterly" class="input-field">
-                    <input type="text" placeholder="Feature 2" value="VIP role in community" class="input-field">
-                    <input type="text" placeholder="Feature 3" value="Bonus market notes" class="input-field">
-                </div>
-                <button type="submit" class="btn btn-primary w-full">Update Yearly</button>
-            </form>
+            </div>
         </div>
     </div>
-    
-    <p class="text-muted text-sm text-center pt-4">Note: The input fields are pre-populated with values from your current `index.html` file. Backend logic is required to save and apply changes.</p>
-</div>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            
+            const API_BASE_URL = 'http://localhost:3000/api';
+            
+            const addPricingForm = document.getElementById('add-pricing-form');
+            const pricingTableBody = document.getElementById('pricing-table');
+            const planIdInput = document.getElementById('plan-id');
+            const savePricingBtn = document.getElementById('save-pricing-btn');
+            const cancelEditBtn = document.getElementById('cancel-edit-btn');
+            const pricingMessageBox = document.getElementById('pricing-message');
+
+            function showMessage(container, message, type) {
+                container.innerHTML = `<div class="message-box ${type}">${message}</div>`;
+                container.classList.remove('hidden');
+                setTimeout(() => {
+                    container.classList.add('hidden');
+                    container.innerHTML = '';
+                }, 5000);
+            }
+
+            const fetchPricingPlans = async () => {
+                try {
+                    const response = await fetch(`${API_BASE_URL}/pricing`);
+                    const plans = await response.json();
+                    
+                    pricingTableBody.innerHTML = '';
+                    if (plans.length === 0) {
+                        pricingTableBody.innerHTML = `<tr><td colspan="6" class="text-muted text-center py-4">No pricing plans available.</td></tr>`;
+                        return;
+                    }
+
+                    plans.forEach(plan => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${plan.plan_name}</td>
+                            <td>$${plan.price}</td>
+                            <td>${plan.term}</td>
+                            <td>${plan.is_best_value ? 'Yes' : 'No'}</td>
+                            <td>${plan.features ? plan.features.join(', ') : ''}</td>
+                            <td>
+                                <button onclick="editPlan(${plan.id})" class="text-muted hover:text-text p-1">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-edit"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                                </button>
+                                <button onclick="deletePlan(${plan.id})" class="text-muted hover:text-danger p-1">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash-2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+                                </button>
+                            </td>
+                        `;
+                        pricingTableBody.appendChild(row);
+                    });
+                    lucide.createIcons();
+                } catch (error) {
+                    console.error('Error fetching pricing plans:', error);
+                    showMessage(pricingMessageBox, 'Error loading pricing plans. Please check the server connection.', 'error');
+                }
+            };
+
+            const addUpdatePlan = async (e) => {
+                e.preventDefault();
+                const planId = planIdInput.value;
+                
+                const data = {
+                    plan_name: document.getElementById('plan-name').value,
+                    price: parseInt(document.getElementById('plan-price').value),
+                    term: document.getElementById('plan-term').value,
+                    description: document.getElementById('plan-description').value,
+                    features: document.getElementById('plan-features').value.split(',').map(f => f.trim()),
+                    is_best_value: document.getElementById('is-best-value').checked,
+                };
+
+                const submitBtn = e.submitter;
+                submitBtn.disabled = true;
+
+                try {
+                    let response;
+                    if (planId) {
+                        response = await fetch(`${API_BASE_URL}/pricing/${planId}`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(data),
+                        });
+                    } else {
+                        response = await fetch(`${API_BASE_URL}/pricing`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(data),
+                        });
+                    }
+
+                    if (response.ok) {
+                        const message = planId ? 'Pricing plan updated successfully!' : 'Pricing plan added successfully!';
+                        showMessage(pricingMessageBox, message, 'success');
+                    } else {
+                        throw new Error('Failed to save pricing plan.');
+                    }
+                } catch (error) {
+                    console.error('Error saving pricing plan:', error);
+                    showMessage(pricingMessageBox, 'Error saving pricing plan. Please check server logs.', 'error');
+                } finally {
+                    addPricingForm.reset();
+                    planIdInput.value = '';
+                    savePricingBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Add New Plan';
+                    cancelEditBtn.classList.add('hidden');
+                    submitBtn.disabled = false;
+                    fetchPricingPlans();
+                }
+            };
+            
+            const editPlan = async (id) => {
+                try {
+                    const response = await fetch(`${API_BASE_URL}/pricing/${id}`);
+                    const plan = await response.json();
+                    
+                    planIdInput.value = plan.id;
+                    document.getElementById('plan-name').value = plan.plan_name;
+                    document.getElementById('plan-price').value = plan.price;
+                    document.getElementById('plan-term').value = plan.term;
+                    document.getElementById('plan-description').value = plan.description;
+                    document.getElementById('plan-features').value = plan.features ? plan.features.join(', ') : '';
+                    document.getElementById('is-best-value').checked = plan.is_best_value;
+                    
+                    savePricingBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Update Plan';
+                    cancelEditBtn.classList.remove('hidden');
+
+                } catch (error) {
+                    console.error('Error fetching pricing plan for edit:', error);
+                    showMessage(pricingMessageBox, 'Failed to fetch plan details.', 'error');
+                }
+            };
+
+            const deletePlan = async (id) => {
+                if (!confirm('Are you sure you want to delete this pricing plan?')) return;
+                
+                try {
+                    const response = await fetch(`${API_BASE_URL}/pricing/${id}`, { method: 'DELETE' });
+                    if (response.ok) {
+                        showMessage(pricingMessageBox, 'Pricing plan deleted successfully!', 'success');
+                        fetchPricingPlans();
+                    } else {
+                        throw new Error('Failed to delete pricing plan.');
+                    }
+                } catch (error) {
+                    console.error('Error deleting pricing plan:', error);
+                    showMessage(pricingMessageBox, 'Error deleting pricing plan.', 'error');
+                }
+            };
+
+            addPricingForm.addEventListener('submit', addUpdatePlan);
+            cancelEditBtn.addEventListener('click', () => {
+                addPricingForm.reset();
+                planIdInput.value = '';
+                savePricingBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Add New Plan';
+                cancelEditBtn.classList.add('hidden');
+            });
+            
+            window.editPlan = editPlan;
+            window.deletePlan = deletePlan;
+
+            fetchPricingPlans();
+        });
+    </script>
+</body>
+</html>
