@@ -118,6 +118,25 @@
       margin-top: 0;
       margin-bottom: 8px;
     }
+    .blog-card {
+      padding: 20px;
+      text-align: left;
+    }
+    .blog-card img {
+      width: 100%;
+      height: 200px;
+      object-fit: cover;
+      border-radius: var(--radius);
+      margin-bottom: 15px;
+    }
+    .blog-card h4 {
+      margin-top: 0;
+      margin-bottom: 8px;
+    }
+    .blog-card .teaser {
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
 
     /* Pricing */
     .pricing{padding:56px 20px;}
@@ -284,7 +303,6 @@
         grid-template-columns: 1fr;
       }
     }
-
   </style>
 </head>
 <body>
@@ -347,13 +365,13 @@
 
   <!-- Social Proof Bar -->
   <div class="proof">
-    <div class="container proof-wrap">
-      <div class="kpi"><span style="font-weight: bold;">7500+</span><span class="muted">members</span></div>
-      <div class="kpi"><span style="font-weight: bold;">92%</span><span class="muted">win rate</span></div>
-      <div class="kpi"><span style="font-weight: bold;">3 min</span><span class="muted">avg. response</span></div>
-      <div class="kpi"><span style="font-weight: bold;">24/7</span><span class="muted"> active chat</span></div>
+    <div class="container proof-wrap" id="social-proof">
+      <div class="kpi"><span class="num" data-count="7500">7500</span><span class="muted">members</span></div>
+      <div class="kpi"><span class="num" data-count="92">92</span><span class="muted">win rate</span></div>
+      <div class="kpi"><span class="num" data-count="3">3</span><span class="muted">min avg. response</span></div>
+      <div class="kpi"><span class="num" data-count="24">24</span><span class="muted">/7 active chat</span></div>
     </div>
-  </section>
+  </div>
 
   <!-- Benefits -->
   <section class="benefits container">
@@ -400,12 +418,9 @@
             <thead>
               <tr><th>Date</th><th>Pair</th><th>Entry</th><th>Exit</th><th>P/L %</th></tr>
             </thead>
-            <tbody>
-              <tr><td>14/08/25</td><td style="color:var(--accent)">BTC/USDT</td><td>57,240</td><td>59,880</td><td class="gain">+4.6%</td></tr>
-              <tr><td>13/08/25</td><td style="color:var(--danger)">ETH/USDT</td><td>2,420</td><td>2,360</td><td class="gain">+2.5%</td></tr>
-              <tr><td>12/08/25</td><td style="color:var(--accent)">SOL/USDT</td><td>168.5</td><td>165.2</td><td class="loss">-2.0%</td></tr>
-              <tr><td>11/08/25</td><td style="color:var(--accent)">BNB/USDT</td><td>612</td><td>635</td><td class="gain">+3.7%</td></tr>
-              <tr><td>10/08/25</td><td style="color:var(--danger)">ADA/USDT</td><td>0.41</td><td>0.39</td><td class="gain">+4.8%</td></tr>
+            <tbody id="signals-table">
+              <!-- Signals will be dynamically inserted here -->
+              <tr><td colspan="5" class="text-center text-muted py-4">Loading signals...</td></tr>
             </tbody>
           </table>
         </div>
@@ -413,19 +428,9 @@
       </div>
       <div class="card reveal" style="padding:18px">
         <h3 style="margin:6px 0 10px">PNL Proof (blurred)</h3>
-        <div class="grid" style="grid-template-columns:repeat(2,1fr);gap:12px">
-          <div class="panel" style="aspect-ratio:16/10;background:#101722;border:1px solid var(--line);border-radius:12px;position:relative;overflow:hidden">
-            <div class="blurbar"></div>
-          </div>
-          <div class="panel" style="aspect-ratio:16/10;background:#101722;border:1px solid var(--line);border-radius:12px;position:relative;overflow:hidden">
-            <div class="blurbar"></div>
-          </div>
-          <div class="panel" style="aspect-ratio:16/10;background:#101722;border:1px solid var(--line);border-radius:12px;position:relative;overflow:hidden">
-            <div class="blurbar"></div>
-          </div>
-          <div class="panel" style="aspect-ratio:16/10;background:#101722;border:1px solid var(--line);border-radius:12px;position:relative;overflow:hidden">
-            <div class="blurbar"></div>
-          </div>
+        <div class="grid" style="grid-template-columns:repeat(2,1fr);gap:12px" id="pnl-gallery">
+          <!-- PNL proofs will be dynamically inserted here -->
+          <div class="text-muted text-center py-8 col-span-2">Loading PNL proofs...</div>
         </div>
         <p class="muted" style="margin-top:12px">Sensitive details intentionally blurred. Full gallery on the Performance page.</p>
       </div>
@@ -470,77 +475,9 @@
   <!-- Pricing -->
   <section id="pricing" class="pricing container">
     <h2 class="center reveal">Simple Pricing</h2>
-    <div class="grid plans">
-      <div class="card plan reveal">
-        <h3>Monthly</h3>
-        <p class="muted">Good to try us out</p>
-        <div class="price-group">
-          <p class="price-val">$39</p>
-          <p class="price-term muted">per month</p>
-        </div>
-        <ul class="features">
-          <li>
-            <svg class="feature-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            Real‑time signals
-          </li>
-          <li>
-            <svg class="feature-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            Automated Telegram access
-          </li>
-          <li>
-            <svg class="feature-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            Risk framework on every call
-          </li>
-        </ul>
-        <a class="btn btn-primary" href="registration.html">Join Monthly</a>
-      </div>
-      <div class="card plan reveal" style="outline:2px solid rgba(240,199,94,.25)">
-        <div class="tag">Best value</div>
-        <h3>Quarterly</h3>
-        <p class="muted">Commit and save</p>
-        <div class="price-group">
-          <p class="price-val">$99</p>
-          <p class="price-term muted">per month</p>
-        </div>
-        <ul class="features">
-          <li>
-            <svg class="feature-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            Everything in Monthly
-          </li>
-          <li>
-            <svg class="feature-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            Priority support
-          </li>
-          <li>
-            <svg class="feature-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            Member‑only Q&As
-          </li>
-        </ul>
-        <a class="btn btn-primary" href="registration.html">Join Quarterly</a>
-      </div>
-      <div class="card plan reveal">
-        <h3>Yearly</h3>
-        <p class="muted">Maximum savings</p>
-        <div class="price-group">
-          <p class="price-val">$299</p>
-          <p class="price-term muted">per year</p>
-        </div>
-        <ul class="features">
-          <li>
-            <svg class="feature-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            Everything in Quarterly
-          </li>
-          <li>
-            <svg class="feature-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            VIP role in community
-          </li>
-          <li>
-            <svg class="feature-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            Bonus market notes
-          </li>
-        </ul>
-        <a class="btn btn-primary" href="registration.html">Join Yearly</a>
-      </div>
+    <div class="grid plans" id="pricing-plans">
+      <!-- Pricing plans will be dynamically inserted here -->
+      <p class="text-muted text-center col-span-3">Loading pricing plans...</p>
     </div>
     <p class="center subtle" style="margin-top:12px">Payments: OPay & Crypto supported • Instant invite after payment</p>
   </section>
@@ -564,7 +501,7 @@
     </div>
   </section>
 
-   <!-- Blog section -->
+  <!-- Blog section -->
   <section class="blog-section container reveal">
     <div class="content card">
       <div class="cta-panel">
@@ -659,60 +596,212 @@
   </div>
 
   <script>
-    // Current year
-    document.getElementById('year').textContent = new Date().getFullYear();
+    document.addEventListener('DOMContentLoaded', () => {
+      // Initialize Lucide icons
+      lucide.createIcons();
+      
+      const API_BASE_URL = 'https://nexxtrade.onrender.com/api';
 
-    // Reveal on scroll
-    const io = new IntersectionObserver((entries)=>{
-      entries.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target);} });
-    },{threshold:.12});
-    document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+      // Function to fetch and display signals
+      const fetchSignals = async () => {
+        try {
+          const response = await fetch(`${API_BASE_URL}/performances`);
+          const signals = await response.json();
+          const signalsTableBody = document.getElementById('signals-table');
+          signalsTableBody.innerHTML = ''; // Clear loading text
 
-    // Count-up KPIs
-    const nums = document.querySelectorAll('.kpi .num');
-    const iok = new IntersectionObserver((entries)=>{
-      entries.forEach(e=>{
-        if(!e.isIntersecting) return;
-        const el = e.target; const target = +el.dataset.count; let cur = 0; const step = Math.ceil(target/40);
-        const tick = ()=>{ cur += step; if(cur>=target){ el.textContent = target; } else { el.textContent = cur; requestAnimationFrame(tick);} };
-        requestAnimationFrame(tick); iok.unobserve(el);
-      })
-    },{threshold:.8});
-    nums.forEach(n=>iok.observe(n));
+          if (signals.length === 0) {
+            signalsTableBody.innerHTML = `<tr><td colspan="5" class="text-center text-muted py-4">No signals available.</td></tr>`;
+            return;
+          }
 
-    // FAQ accordion
-    document.querySelectorAll('.acc-item').forEach(item=>{
-      const head = item.querySelector('.acc-head');
-      const body = item.querySelector('.acc-body');
-      head.addEventListener('click', ()=>{
-        const expanded = head.getAttribute('aria-expanded') === 'true';
-        head.setAttribute('aria-expanded', !expanded);
-        body.style.maxHeight = expanded ? '0' : body.scrollHeight + 'px';
+          // Take only the top 5 signals for the preview
+          const recentSignals = signals.slice(0, 5);
+          recentSignals.forEach(signal => {
+            const row = document.createElement('tr');
+            const pnlClass = parseFloat(signal.pnl_percent) > 0 ? 'gain' : 'loss';
+            const formattedDate = new Date(signal.date).toLocaleDateString('en-GB');
+
+            row.innerHTML = `
+              <td>${formattedDate}</td>
+              <td>${signal.pair}</td>
+              <td>${signal.entry_price}</td>
+              <td>${signal.exit_price}</td>
+              <td class="${pnlClass}">${signal.pnl_percent}</td>
+            `;
+            signalsTableBody.appendChild(row);
+          });
+        } catch (error) {
+          console.error('Error fetching signals:', error);
+          const signalsTableBody = document.getElementById('signals-table');
+          signalsTableBody.innerHTML = `<tr><td colspan="5" class="text-center text-muted py-4">Error loading signals.</td></tr>`;
+        }
+      };
+
+      // Function to fetch and display PNL proofs
+      const fetchPnlProofs = async () => {
+        try {
+          const response = await fetch(`${API_BASE_URL}/pnlproofs`);
+          const proofs = await response.json();
+          const pnlGallery = document.getElementById('pnl-gallery');
+          pnlGallery.innerHTML = ''; // Clear loading text
+
+          if (proofs.length === 0) {
+            pnlGallery.innerHTML = '<div class="text-muted text-center py-8 col-span-2">No PNL proofs available.</div>';
+            return;
+          }
+
+          // Take the top 4 proofs for the homepage gallery
+          const recentProofs = proofs.slice(0, 4);
+          recentProofs.forEach(proof => {
+            const panel = document.createElement('div');
+            panel.className = 'panel';
+            panel.innerHTML = `
+              <img src="${proof.image_url}" alt="${proof.description}" class="w-full h-full object-cover filter blur-sm brightness-75">
+              <div class="blurbar">${proof.description}</div>
+            `;
+            pnlGallery.appendChild(panel);
+          });
+        } catch (error) {
+          console.error('Error fetching PNL proofs:', error);
+          const pnlGallery = document.getElementById('pnl-gallery');
+          pnlGallery.innerHTML = '<div class="text-muted text-center py-8 col-span-2">Error loading PNL proofs.</div>';
+        }
+      };
+
+      // Function to fetch and display pricing plans
+      const fetchPricingPlans = async () => {
+        try {
+          const response = await fetch(`${API_BASE_URL}/pricing`);
+          const plans = await response.json();
+          const pricingPlansContainer = document.getElementById('pricing-plans');
+          pricingPlansContainer.innerHTML = ''; // Clear loading text
+
+          if (plans.length === 0) {
+            pricingPlansContainer.innerHTML = `<p class="text-muted text-center col-span-3">No pricing plans available.</p>`;
+            return;
+          }
+
+          plans.forEach(plan => {
+            const planCard = document.createElement('div');
+            planCard.className = 'card plan reveal';
+            
+            let bestValueTag = '';
+            let outlineStyle = '';
+            if (plan.is_best_value) {
+              bestValueTag = `<div class="tag">Best value</div>`;
+              outlineStyle = `style="outline:2px solid rgba(240,199,94,.25)"`;
+            }
+
+            const featuresList = plan.features ? plan.features.map(f => `
+              <li>
+                <svg class="feature-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                ${f}
+              </li>
+            `).join('') : '';
+
+            planCard.innerHTML = `
+              ${bestValueTag}
+              <div ${outlineStyle}>
+                <h3>${plan.plan_name}</h3>
+                <p class="muted">${plan.description}</p>
+                <div class="price-group">
+                  <p class="price-val">$${plan.price}</p>
+                  <p class="price-term muted">${plan.term}</p>
+                </div>
+                <ul class="features">
+                  ${featuresList}
+                </ul>
+                <a class="btn btn-primary" href="registration.html">Join ${plan.plan_name}</a>
+              </div>
+            `;
+            pricingPlansContainer.appendChild(planCard);
+          });
+
+          // Re-run Lucide to create icons for the new elements
+          lucide.createIcons();
+        } catch (error) {
+          console.error('Error fetching pricing plans:', error);
+          const pricingPlansContainer = document.getElementById('pricing-plans');
+          pricingPlansContainer.innerHTML = `<p class="text-muted text-center col-span-3">Error loading pricing plans.</p>`;
+        }
+      };
+
+      // --- Original Scripting from the provided file ---
+
+      // Current year
+      document.getElementById('year').textContent = new Date().getFullYear();
+
+      // Reveal on scroll
+      const io = new IntersectionObserver((entries)=>{
+        entries.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target);} });
+      },{threshold:.12});
+      document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+
+      // Count-up KPIs
+      const nums = document.querySelectorAll('.kpi .num');
+      const iok = new IntersectionObserver((entries)=>{
+        entries.forEach(e=>{
+          if(!e.isIntersecting) return;
+          const el = e.target;
+          // Use dataset to get the target value
+          const target = +el.dataset.count; 
+          let cur = 0;
+          const step = Math.ceil(target/40);
+          const tick = ()=>{ 
+            cur += step;
+            if(cur>=target){ 
+              el.textContent = target; 
+            } else { 
+              el.textContent = cur; 
+              requestAnimationFrame(tick);
+            } 
+          };
+          requestAnimationFrame(tick);
+          iok.unobserve(el);
+        })
+      },{threshold:.8});
+      nums.forEach(n=>iok.observe(n));
+
+      // FAQ accordion
+      document.querySelectorAll('.acc-item').forEach(item=>{
+        const head = item.querySelector('.acc-head');
+        const body = item.querySelector('.acc-body');
+        head.addEventListener('click', ()=>{
+          const expanded = head.getAttribute('aria-expanded') === 'true';
+          head.setAttribute('aria-expanded', !expanded);
+          body.style.maxHeight = expanded ? '0' : body.scrollHeight + 'px';
+        });
       });
-    });
 
-    // Smooth anchor scroll (basic)
-    document.querySelectorAll('a[href^="#"]').forEach(a=>{
-      a.addEventListener('click', (e)=>{
-        const id = a.getAttribute('href').slice(1);
-        if(!id) return;
-        const el = document.getElementById(id);
-        if(el){ e.preventDefault(); el.scrollIntoView({behavior:'smooth', block:'start'}); }
-      })
-    });
-    
-    // Mobile navigation toggle
-    document.querySelector('.nav-toggle-btn').addEventListener('click', () => {
-        const header = document.querySelector('header');
-        header.classList.toggle('mobile-nav-open');
-    });
-
-    // Close mobile menu on link click
-    document.querySelectorAll('.nav-links a').forEach(link => {
-      link.addEventListener('click', () => {
-        const header = document.querySelector('header');
-        header.classList.remove('mobile-nav-open');
+      // Smooth anchor scroll (basic)
+      document.querySelectorAll('a[href^="#"]').forEach(a=>{
+        a.addEventListener('click', (e)=>{
+          const id = a.getAttribute('href').slice(1);
+          if(!id) return;
+          const el = document.getElementById(id);
+          if(el){ e.preventDefault(); el.scrollIntoView({behavior:'smooth', block:'start'}); }
+        })
       });
+      
+      // Mobile navigation toggle
+      document.querySelector('.nav-toggle-btn').addEventListener('click', () => {
+          const header = document.querySelector('header');
+          header.classList.toggle('mobile-nav-open');
+      });
+
+      // Close mobile menu on link click
+      document.querySelectorAll('.nav-links a').forEach(link => {
+        link.addEventListener('click', () => {
+          const header = document.querySelector('header');
+          header.classList.remove('mobile-nav-open');
+        });
+      });
+
+      // Fetch data on page load
+      fetchSignals();
+      fetchPnlProofs();
+      fetchPricingPlans();
     });
   </script>
 </body>
