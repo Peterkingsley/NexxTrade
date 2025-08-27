@@ -253,9 +253,21 @@
             overflow: hidden;
         }
         
-        /* Added for the delete button */
-        .panel:hover .pnl-delete-btn {
-            opacity: 1;
+        /* The delete button is now always visible for all devices */
+        .pnl-delete-btn {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: rgba(255, 93, 93, 0.75);
+            color: white;
+            padding: 8px;
+            border-radius: 999px;
+            cursor: pointer;
+            z-index: 10;
+        }
+        
+        .pnl-delete-btn:hover {
+            background: var(--danger);
         }
 
         .blurbar {
@@ -272,23 +284,6 @@
             text-align: center;
         }
         
-        .pnl-delete-btn {
-            position: absolute;
-            top: 12px;
-            right: 12px;
-            background: rgba(255, 93, 93, 0.75);
-            color: white;
-            padding: 8px;
-            border-radius: 999px;
-            transition: opacity 0.2s ease;
-            opacity: 0; /* Hidden by default */
-            cursor: pointer;
-            z-index: 10;
-        }
-        .pnl-delete-btn:hover {
-            background: var(--danger);
-        }
-
         .gain { color: var(--accent); }
         .loss { color: var(--danger); }
     </style>
@@ -407,60 +402,6 @@
                     </div>
                 </form>
                 <div id="signal-message" class="hidden"></div>
-            </div>
-            
-            <div class="card p-6 space-y-4">
-                <h3 class="text-xl font-semibold flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent-2"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m2 15 5 2 8-5 5 2"/></svg>
-                    Upload New PNL Proof
-                </h3>
-                
-                <form id="add-pnl-form" class="space-y-4">
-                    <div>
-                        <label for="proof-description" class="block text-sm font-medium mb-1 text-muted">Description (e.g., BTC/USDT +4.6%)</label>
-                        <input type="text" id="proof-description" placeholder="Add a short caption for the proof image" class="input-field" required>
-                    </div>
-                    <div class="flex items-center gap-4">
-                        <div class="file-input-wrapper flex-grow">
-                            <input type="file" id="pnl-image" accept="image/*">
-                            <span id="file-label-pnl">Upload PNL Screenshot (must be blurred)</span>
-                        </div>
-                        <button type="submit" id="upload-pnl-btn" class="btn btn-primary flex-shrink-0">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
-                            Upload Proof
-                        </button>
-                    </div>
-                </form>
-                <div id="pnl-message" class="hidden"></div>
-            </div>
-            
-            <div class="card p-6">
-                <h3 class="text-xl font-semibold mb-4 flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent">
-                        <path d="M12 2v20M17 5H9.5a3.5 3.5 0 1 0 0 7h5a3.5 3.5 0 1 1 0 7H6"/>
-                    </svg>
-                    Signal History Management
-                </h3>
-        
-                <div class="overflow-x-auto">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Pair</th>
-                                <th>Entry</th>
-                                <th>Exit</th>
-                                <th>P/L %</th>
-                                <th>Leverage</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="signals-table">
-                            <tr><td colspan="7" class="text-muted text-center py-4">Loading signal history...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-                <p class="text-muted text-sm mt-4">Note: The data below will be dynamically loaded from the server.</p>
             </div>
             
             <div class="card p-6 space-y-4">
