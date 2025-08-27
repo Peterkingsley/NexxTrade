@@ -240,6 +240,45 @@ app.put('/api/roles/:id', async (req, res) => {
   }
 });
 
+// NEW ROUTE: Handle admin login
+app.post('/api/login', async (req, res) => {
+    try {
+        const { username, password } = req.body;
+        
+        // Find the user by username
+        const { rows } = await pool.query(
+            'SELECT * FROM adminusers WHERE username = $1', 
+            [username]
+        );
+
+        if (rows.length > 0) {
+            const user = rows[0];
+            // Compare the provided password with the stored hashed password
+            const match = await bcrypt.compare(password, user.hashed_password);
+
+            if (match) {
+                // Return user data including permissions on successful login
+                res.status(200).json({ 
+                    message: 'Login successful',
+                    user: {
+                        id: user.id,
+                        username: user.username,
+                        role: user.role,
+                        permissions: user.permissions
+                    }
+                });
+            } else {
+                res.status(401).json({ message: 'Invalid credentials' });
+            }
+        } else {
+            res.status(401).json({ message: 'Invalid credentials' });
+        }
+    } catch (err) {
+        console.error('Login error:', err);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
 
 // API Routes for Performance Signals
 // Based on the 'performancesignals' table from your SQL dump.
