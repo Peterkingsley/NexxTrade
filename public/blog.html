@@ -217,57 +217,10 @@
       </div>
       
       <div class="grid blog-grid gap-6 md:gap-8" id="blog-posts-container" style="padding: 20px;">
-        <!-- Blog Post 1 -->
-        <a href="#" class="blog-card card reveal">
-          <img src="https://greenpal-production.s3.amazonaws.com/nYRFsTucawhBnwwh2hm742w4" alt="Blog banner image of crypto charts" class="blog-card-img">
-          <div class="blog-card-content">
-            <h3 class="line-clamp-2">Understanding Market Cycles: A Trader's Guide</h3>
-            <p class="text-sm line-clamp-3">Navigating the volatile crypto landscape requires more than luck. Learn how to identify and capitalize on key market cycles and trends to improve your long-term success...</p>
-            <div class="flex items-center gap-2 text-sm text-accent font-semibold mt-auto">
-              Read More
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-right"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-            </div>
-          </div>
-        </a>
-        
-        <!-- Blog Post 2 -->
-        <a href="#" class="blog-card card reveal">
-          <img src="https://tse4.mm.bing.net/th/id/OIP.xP4150eQzWg7jSZfO6VE-wHaEK?r=0&w=1920&h=1080&rs=1&pid=ImgDetMain&o=7&rm=3" alt="Blog banner image of a balance scale" class="blog-card-img">
-          <div class="blog-card-content">
-            <h3 class="line-clamp-2">Top 5 Risk Management Strategies for Futures Trading</h3>
-            <p class="text-sm line-clamp-3">In futures trading, capital preservation is the first rule. We break down five essential strategies to help you protect your portfolio from unexpected market swings...</p>
-            <div class="flex items-center gap-2 text-sm text-accent font-semibold mt-auto">
-              Read More
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-right"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-            </div>
-          </div>
-        </a>
-
-        <!-- Blog Post 3 -->
-        <a href="#" class="blog-card card reveal">
-          <img src="https://cdn.slidesharecdn.com/ss_thumbnails/landscape-design-samples-condensed-1229641671674492-1-thumbnail.jpg?width=640&height=640&fit=bounds" alt="Blog banner image of a blueprint with a magnifying glass" class="blog-card-img">
-          <div class="blog-card-content">
-            <h3 class="line-clamp-2">The NexxTrade Trading Methodology: Signals with Structure</h3>
-            <p class="text-sm line-clamp-3">Discover the core principles behind our high-conviction signals. From technical analysis to on-chain metrics, we reveal our approach to finding profitable set-ups...</p>
-            <div class="flex items-center gap-2 text-sm text-accent font-semibold mt-auto">
-              Read More
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-right"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-            </div>
-          </div>
-        </a>
-        
-        <!-- Blog Post 4 -->
-        <a href="#" class="blog-card card reveal">
-          <img src="https://th.bing.com/th/id/R.848fe9f61bdd0a4e1db8d96f6577704f?rik=a67eCBq2H13w0w&riu=http%3a%2f%2fwww.trulandscape.com%2fwp-content%2fuploads%2f2014%2f06%2fOrange-County-Landscape-Design.png&ehk=sULj8qKOkeF14X%2b8wjiDORxsWsgljVu9WcMDkLtwXKk%3d&risl=&pid=ImgRaw&r=0" alt="Blog banner image of two intersecting graphs" class="blog-card-img">
-          <div class="blog-card-content">
-            <h3 class="line-clamp-2">Spot vs. Futures Trading: What's the Difference?</h3>
-            <p class="text-sm line-clamp-3">Confused about the differences between spot and futures trading? This article breaks down the key concepts, risks, and benefits to help you decide which is right for you...</p>
-            <div class="flex items-center gap-2 text-sm text-accent font-semibold mt-auto">
-              Read More
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-right"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-            </div>
-          </div>
-        </a>
+        <!-- Blog posts will be dynamically loaded here -->
+        <div class="text-center col-span-full py-16 text-muted" id="loading-message">
+            Loading blog posts...
+        </div>
       </div>
     </div>
   </main>
@@ -347,26 +300,82 @@
       });
     });
 
-    // New JavaScript for search functionality
+    // Base URL for the API
+    const API_BASE_URL = 'https://nexxtrade.onrender.com/api';
+
+    // Function to fetch and display blog posts
+    const fetchAndDisplayBlogs = async () => {
+        const blogPostsContainer = document.getElementById('blog-posts-container');
+        const loadingMessage = document.getElementById('loading-message');
+        
+        // Show loading message while fetching
+        if (loadingMessage) {
+            loadingMessage.style.display = 'block';
+        }
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/blogs`);
+            const posts = await response.json();
+
+            // Clear existing content
+            blogPostsContainer.innerHTML = '';
+            
+            if (posts.length === 0) {
+                blogPostsContainer.innerHTML = '<div class="text-center col-span-full py-16 text-muted">No blog posts available.</div>';
+                return;
+            }
+
+            posts.forEach(post => {
+                const blogCard = document.createElement('a');
+                blogCard.href = `#`; // You can link this to a specific blog post page later
+                blogCard.classList.add('blog-card', 'card', 'reveal');
+
+                blogCard.innerHTML = `
+                    <img src="${post.featured_image_url}" alt="Blog banner image" class="blog-card-img">
+                    <div class="blog-card-content">
+                        <h3 class="line-clamp-2">${post.title}</h3>
+                        <p class="text-sm line-clamp-3">${post.teaser}</p>
+                        <div class="flex items-center gap-2 text-sm text-accent font-semibold mt-auto">
+                            Read More
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-right"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                        </div>
+                    </div>
+                `;
+                blogPostsContainer.appendChild(blogCard);
+            });
+
+            // Re-apply reveal animation to new elements
+            document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+            lucide.createIcons();
+
+        } catch (error) {
+            console.error('Error fetching blog posts:', error);
+            blogPostsContainer.innerHTML = '<div class="text-center col-span-full py-16 text-danger">Failed to load blog posts. Please try again later.</div>';
+        }
+    };
+
+    // New JavaScript for search functionality (now works with dynamic data)
     document.addEventListener('DOMContentLoaded', () => {
       const searchInput = document.getElementById('blog-search');
       const blogPostsContainer = document.getElementById('blog-posts-container');
-      const blogPosts = blogPostsContainer.querySelectorAll('.blog-card');
 
       searchInput.addEventListener('input', (e) => {
         const query = e.target.value.toLowerCase();
+        const blogPosts = blogPostsContainer.querySelectorAll('.blog-card');
 
         blogPosts.forEach(post => {
           const title = post.querySelector('h3').textContent.toLowerCase();
           const teaser = post.querySelector('p').textContent.toLowerCase();
           
           if (title.includes(query) || teaser.includes(query)) {
-            post.style.display = 'flex'; // Use 'flex' because the original blog card has `display: flex;`
+            post.style.display = 'flex';
           } else {
             post.style.display = 'none';
           }
         });
       });
+      
+      fetchAndDisplayBlogs();
     });
   </script>
 </body>
