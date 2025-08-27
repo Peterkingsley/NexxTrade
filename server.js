@@ -7,6 +7,7 @@ const express = require('express');
 const cors = require('cors'); // Import the cors package
 const { Pool } = require('pg');
 const path = require('path');
+const bcrypt = require('bcrypt'); // Import bcrypt for password hashing
 const app = express();
 // Load environment variables from .env file
 require('dotenv').config();
@@ -191,6 +192,33 @@ app.get('/api/roles', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).send('Server Error');
+  }
+});
+
+// NEW ROUTE: Create a new admin user
+app.post('/api/roles', async (req, res) => {
+  try {
+    const { username, password, role, permissions } = req.body;
+    const saltRounds = 10;
+    
+    // Hash the password before saving to the database
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+    
+    // Insert the new user into the adminusers table
+    const { rows } = await pool.query(
+      'INSERT INTO adminusers(username, hashed_password, role, permissions) VALUES($1, $2, $3, $4) RETURNING id, username, role, permissions',
+      [username, hashedPassword, role, permissions]
+    );
+    
+    // Send a 201 Created status and the new user's info (without password)
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    console.error('Error creating new user:', err);
+    // Handle specific errors, e.g., duplicate username
+    if (err.code === '23505') { // PostgreSQL error code for unique violation
+        return res.status(409).json({ message: 'Username already exists.' });
+    }
+    res.status(500).json({ message: 'Server Error' });
   }
 });
 
