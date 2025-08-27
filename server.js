@@ -4,6 +4,7 @@
 
 // Import required modules
 const express = require('express');
+const cors = require('cors'); // Import the cors package
 const { Pool } = require('pg');
 const path = require('path');
 const app = express();
@@ -12,6 +13,8 @@ require('dotenv').config();
 const port = process.env.PORT || 3000;
 
 // Middleware setup
+// Use the CORS middleware to allow cross-origin requests
+app.use(cors());
 // Use express.json() to parse incoming JSON payloads
 app.use(express.json());
 // Use express.urlencoded() to parse URL-encoded bodies, important for form submissions
