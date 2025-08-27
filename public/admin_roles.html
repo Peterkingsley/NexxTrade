@@ -275,14 +275,65 @@
             <!-- Message box for feedback -->
             <div class="message-box success" id="roles-message-box">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17L4 12"/></svg>
-                <span>Use the form below to update user roles and permissions.</span>
+                <span>Use the forms below to manage user roles and permissions.</span>
             </div>
         
+            <!-- Form to create a new user -->
+            <div class="card p-6 space-y-4">
+                <h3 class="text-xl font-semibold flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent-2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                    Create New Admin
+                </h3>
+                <form id="create-role-form" class="space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="new-username" class="block text-sm font-medium mb-1 text-muted">Username</label>
+                            <input type="text" id="new-username" class="input-field" required>
+                        </div>
+                        <div>
+                            <label for="new-password" class="block text-sm font-medium mb-1 text-muted">Password</label>
+                            <input type="password" id="new-password" class="input-field" required>
+                        </div>
+                    </div>
+                    <div>
+                        <label for="new-user-role" class="block text-sm font-medium mb-1 text-muted">Role</label>
+                        <select id="new-user-role" class="input-field" required>
+                            <option value="user">User</option>
+                            <option value="admin">Admin</option>
+                            <option value="superadmin">Super Admin</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1 text-muted">Permissions</label>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 mt-2">
+                            <div class="flex items-center gap-2">
+                                <input type="checkbox" id="new-perm-blogs" value="manage_blogs" class="h-4 w-4 rounded border-line bg-gray-800 text-accent focus:ring-accent-2">
+                                <label for="new-perm-blogs" class="text-sm font-medium text-muted">Manage Blogs</label>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <input type="checkbox" id="new-perm-pricing" value="manage_pricing" class="h-4 w-4 rounded border-line bg-gray-800 text-accent focus:ring-accent-2">
+                                <label for="new-perm-pricing" class="text-sm font-medium text-muted">Manage Pricing</label>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <input type="checkbox" id="new-perm-performance" value="manage_performance" class="h-4 w-4 rounded border-line bg-gray-800 text-accent focus:ring-accent-2">
+                                <label for="new-perm-performance" class="text-sm font-medium text-muted">Manage Performance</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex justify-end">
+                        <button type="submit" id="create-user-btn" class="btn btn-primary">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                            Create Admin
+                        </button>
+                    </div>
+                </form>
+            </div>
+
             <!-- Form to update user roles and permissions -->
             <div class="card p-6 space-y-4">
                 <h3 class="text-xl font-semibold flex items-center gap-2">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent-2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                    Update User Roles
+                    Update Existing User Roles
                 </h3>
                 <form id="update-role-form" class="space-y-4">
                     <input type="hidden" id="user-id">
@@ -385,17 +436,25 @@
 
             // Get references to all the form elements and table body
             const updateRoleForm = document.getElementById('update-role-form');
+            const createRoleForm = document.getElementById('create-role-form');
             const usersTableBody = document.getElementById('users-table');
             const userIdInput = document.getElementById('user-id');
             const saveRoleBtn = document.getElementById('save-role-btn');
             const cancelEditBtn = document.getElementById('cancel-edit-btn');
             const roleMessageBox = document.getElementById('update-message');
 
-            // Reference to the permissions checkboxes
+            // Reference to the permissions checkboxes for the update form
             const permissionsCheckboxes = {
                 blogs: document.getElementById('perm-blogs'),
                 pricing: document.getElementById('perm-pricing'),
                 performance: document.getElementById('perm-performance'),
+            };
+
+            // Reference to the permissions checkboxes for the new user form
+            const newPermissionsCheckboxes = {
+                blogs: document.getElementById('new-perm-blogs'),
+                pricing: document.getElementById('new-perm-pricing'),
+                performance: document.getElementById('new-perm-performance'),
             };
 
             // Function to display a message box with feedback
@@ -442,6 +501,50 @@
                 }
             };
 
+            // Function to create a new user
+            const createNewUser = async (e) => {
+                e.preventDefault();
+
+                const username = document.getElementById('new-username').value;
+                const password = document.getElementById('new-password').value;
+                const role = document.getElementById('new-user-role').value;
+                const selectedPermissions = Object.keys(newPermissionsCheckboxes)
+                                                .filter(key => newPermissionsCheckboxes[key].checked)
+                                                .map(key => newPermissionsCheckboxes[key].value);
+
+                const data = {
+                    username: username,
+                    password: password,
+                    role: role,
+                    permissions: selectedPermissions,
+                };
+
+                const submitBtn = e.submitter;
+                submitBtn.disabled = true;
+
+                try {
+                    const response = await fetch(`${API_BASE_URL}/roles`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(data),
+                    });
+
+                    if (response.ok) {
+                        showMessage(roleMessageBox, 'New user created successfully!', 'success');
+                    } else {
+                        const errorData = await response.json();
+                        throw new Error(errorData.message || 'Failed to create new user.');
+                    }
+                } catch (error) {
+                    console.error('Error creating user:', error);
+                    showMessage(roleMessageBox, `Error: ${error.message}`, 'error');
+                } finally {
+                    createRoleForm.reset();
+                    submitBtn.disabled = false;
+                    fetchUsers();
+                }
+            };
+
             // Function to add or update a user's role and permissions
             const addUpdateRole = async (e) => {
                 e.preventDefault();
@@ -475,11 +578,12 @@
                     if (response.ok) {
                         showMessage(roleMessageBox, 'User role and permissions updated successfully!', 'success');
                     } else {
-                        throw new Error('Failed to update user role.');
+                        const errorData = await response.json();
+                        throw new Error(errorData.message || 'Failed to update user role.');
                     }
                 } catch (error) {
                     console.error('Error updating role:', error);
-                    showMessage(roleMessageBox, 'Error updating user role. Please check server logs.', 'error');
+                    showMessage(roleMessageBox, `Error: ${error.message}`, 'error');
                 } finally {
                     // Reset the form and UI state
                     updateRoleForm.reset();
@@ -523,6 +627,7 @@
             
             // Event listeners
             updateRoleForm.addEventListener('submit', addUpdateRole);
+            createRoleForm.addEventListener('submit', createNewUser);
             cancelEditBtn.addEventListener('click', () => {
                 updateRoleForm.reset();
                 userIdInput.value = '';
