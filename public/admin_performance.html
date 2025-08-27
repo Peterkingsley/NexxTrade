@@ -698,6 +698,48 @@
                     showMessage(pnlMessageBox, 'Error loading PNL proofs. Please check the server connection.', 'error');
                 }
             };
+
+            // New function to compress and resize the image
+            const compressImage = (file, quality, maxWidth, maxHeight) => {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        const img = new Image();
+                        img.src = event.target.result;
+
+                        img.onload = () => {
+                            const canvas = document.createElement('canvas');
+                            let width = img.width;
+                            let height = img.height;
+
+                            // Calculate new dimensions while maintaining aspect ratio
+                            if (width > height) {
+                                if (width > maxWidth) {
+                                    height = Math.round(height * (maxWidth / width));
+                                    width = maxWidth;
+                                }
+                            } else {
+                                if (height > maxHeight) {
+                                    width = Math.round(width * (maxHeight / height));
+                                    height = maxHeight;
+                                }
+                            }
+
+                            canvas.width = width;
+                            canvas.height = height;
+                            const ctx = canvas.getContext('2d');
+                            ctx.drawImage(img, 0, 0, width, height);
+
+                            // Get the base64 data from the canvas with compression
+                            const compressedBase64 = canvas.toDataURL('image/jpeg', quality);
+                            resolve(compressedBase64);
+                        };
+                        img.onerror = (err) => reject(err);
+                    };
+                    reader.onerror = (err) => reject(err);
+                    reader.readAsDataURL(file);
+                });
+            };
             
             const uploadPnlProof = async (e) => {
                 e.preventDefault();
@@ -714,32 +756,33 @@
                     return;
                 }
 
-                const reader = new FileReader();
-                reader.onload = async (event) => {
-                    const base64Image = event.target.result;
-                    try {
-                        const response = await fetch(`${API_BASE_URL}/pnlproofs`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ description, image_url: base64Image }),
-                        });
+                // Call the new compression function before proceeding
+                try {
+                    // Compress to a quality of 0.7 (70%) and max dimensions of 1024x1024
+                    const compressedBase64 = await compressImage(file, 0.7, 1024, 1024);
+                    
+                    const response = await fetch(`${API_BASE_URL}/pnlproofs`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ description, image_url: compressedBase64 }),
+                    });
 
-                        if (response.ok) {
-                            showMessage(pnlMessageBox, 'PNL proof uploaded successfully!', 'success');
-                            addPnlForm.reset();
-                            fileLabel.textContent = 'Upload PNL Screenshot (must be blurred)';
-                            fetchPnlProofs();
-                        } else {
-                            throw new Error('Failed to upload PNL proof.');
-                        }
-                    } catch (error) {
-                        console.error('Submission error:', error);
-                        showMessage(pnlMessageBox, 'An error occurred. Please check the server status.', 'error');
-                    } finally {
-                        submitBtn.disabled = false;
+                    if (response.ok) {
+                        showMessage(pnlMessageBox, 'PNL proof uploaded successfully!', 'success');
+                        addPnlForm.reset();
+                        fileLabel.textContent = 'Upload PNL Screenshot (must be blurred)';
+                        fetchPnlProofs();
+                    } else {
+                        // If the server still returns an error, log it for debugging
+                        const errorText = await response.text();
+                        throw new Error(`Server error: ${response.status} - ${errorText}`);
                     }
-                };
-                reader.readAsDataURL(file);
+                } catch (error) {
+                    console.error('Submission error:', error);
+                    showMessage(pnlMessageBox, 'An error occurred. Please check the server status. ' + error.message, 'error');
+                } finally {
+                    submitBtn.disabled = false;
+                }
             };
 
             // --- Event Listeners and Initial Calls ---
