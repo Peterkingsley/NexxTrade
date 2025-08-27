@@ -1,0 +1,64 @@
+This document outlines the JSON schema for all the data to be controlled by the NexxTrade admin panel.
+
+Data Collections:
+
+{
+  "adminUsers": [
+    {
+      "id": "A unique identifier for the admin user.",
+      "username": "string",
+      "hashed_password": "string",
+      "role": "string (e.g., 'main_admin', 'editor')",
+      "permissions": {
+        "view_dashboard": "boolean",
+        "manage_blogs": "boolean",
+        "view_performance": "boolean",
+        "update_pricing": "boolean",
+        "delegate_roles": "boolean"
+      }
+    }
+  ],
+  "blogPosts": [
+    {
+      "id": "A unique identifier for the blog post.",
+      "title": "string",
+      "teaser": "string",
+      "content": "string",
+      "author": "string",
+      "published_date": "date_string (YYYY-MM-DD)",
+      "status": "string (e.g., 'published', 'draft')",
+      "featured_image_url": "string"
+    }
+  ],
+  "performanceSignals": [
+    {
+      "id": "A unique identifier for the signal.",
+      "date": "date_string (YYYY-MM-DD)",
+      "pair": "string",
+      "entry_price": "number",
+      "exit_price": "number",
+      "pnl_percent": "string",
+      "leverage": "string",
+      "is_long_position": "boolean",
+      "result_type": "string (e.g., 'gain', 'loss')"
+    }
+  ],
+  "pnlProofs": [
+    {
+      "id": "A unique identifier for the proof image.",
+      "description": "string",
+      "image_url": "string"
+    }
+  ],
+  "pricingPlans": [
+    {
+      "id": "A unique identifier for the plan.",
+      "plan_name": "string (e.g., 'monthly', 'quarterly', 'yearly')",
+      "price": "number",
+      "term": "string (e.g., 'per month', 'per year')",
+      "description": "string",
+      "features": "array of strings",
+      "is_best_value": "boolean"
+    }
+  ]
+}
