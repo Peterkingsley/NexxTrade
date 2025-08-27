@@ -389,7 +389,27 @@
                   <tr><th>Date</th><th>Pair</th><th>Entry</th><th>Exit</th><th>P/L %</th></tr>
                 </thead>
                 <tbody id="signals-table">
-                  <!-- Signals will be dynamically populated here -->
+                  <!-- Added data-type and data-leverage attributes for dynamic panel -->
+                  <tr class="signal-row" data-type="gain" data-leverage="20X" data-is-long="true"><td>14/08/25</td><td style="color:var(--accent)">BTC/USDT</td><td>57,240</td><td>59,880</td><td class="gain">+4.6%</td></tr>
+                  <tr class="signal-row" data-type="gain" data-leverage="10X" data-is-long="false"><td>13/08/25</td><td style="color:var(--danger)">ETH/USDT</td><td>2,420</td><td>2,360</td><td class="gain">+2.5%</td></tr>
+                  <tr class="signal-row" data-type="loss" data-leverage="15X" data-is-long="false"><td>12/08/25</td><td style="color:var(--accent)">SOL/USDT</td><td>168.5</td><td>165.2</td><td class="loss">-2.0%</td></tr>
+                  <tr class="signal-row" data-type="gain" data-leverage="25X" data-is-long="true"><td>11/08/25</td><td style="color:var(--accent)">BNB/USDT</td><td>612</td><td>635</td><td class="gain">+3.7%</td></tr>
+                  <tr class="signal-row" data-type="gain" data-leverage="5X" data-is-long="false"><td>10/08/25</td><td style="color:var(--danger)">ADA/USDT</td><td>0.41</td><td>0.39</td><td class="gain">+4.8%</td></tr>
+                  <tr class="signal-row" data-type="gain" data-leverage="10X" data-is-long="true"><td>09/08/25</td><td style="color:var(--accent)">LINK/USDT</td><td>18.15</td><td>18.72</td><td class="gain">+3.1%</td></tr>
+                  <tr class="signal-row" data-type="gain" data-leverage="12X" data-is-long="true"><td>08/08/25</td><td style="color:var(--accent)">DOT/USDT</td><td>6.89</td><td>7.01</td><td class="gain">+1.7%</td></tr>
+                  <tr class="signal-row" data-type="loss" data-leverage="8X" data-is-long="false"><td>07/08/25</td><td style="color:var(--danger)">LTC/USDT</td><td>78.5</td><td>76.0</td><td class="loss">-3.2%</td></tr>
+                  <tr class="signal-row" data-type="gain" data-leverage="18X" data-is-long="true"><td>06/08/25</td><td style="color:var(--accent)">XRP/USDT</td><td>0.52</td><td>0.54</td><td class="gain">+3.8%</td></tr>
+                  <tr class="signal-row" data-type="gain" data-leverage="20X" data-is-long="false"><td>05/08/25</td><td style="color:var(--danger)">BCH/USDT</td><td>380.1</td><td>375.5</td><td class="gain">+1.2%</td></tr>
+                  <tr class="signal-row" data-type="gain" data-leverage="15X" data-is-long="true"><td>04/08/25</td><td style="color:var(--accent)">BTC/USDT</td><td>57,100</td><td>58,000</td><td class="gain">+1.6%</td></tr>
+                  <tr class="signal-row" data-type="gain" data-leverage="10X" data-is-long="true"><td>03/08/25</td><td style="color:var(--accent)">ETH/USDT</td><td>2,300</td><td>2,350</td><td class="gain">+2.2%</td></tr>
+                  <tr class="signal-row" data-type="loss" data-leverage="5X" data-is-long="false"><td>02/08/25</td><td style="color:var(--danger)">SOL/USDT</td><td>170.0</td><td>167.0</td><td class="loss">-1.8%</td></tr>
+                  <tr class="signal-row" data-type="gain" data-leverage="20X" data-is-long="true"><td>01/08/25</td><td style="color:var(--accent)">BNB/USDT</td><td>600</td><td>625</td><td class="gain">+4.2%</td></tr>
+                  <tr class="signal-row" data-type="gain" data-leverage="12X" data-is-long="false"><td>31/07/25</td><td style="color:var(--danger)">ADA/USDT</td><td>0.40</td><td>0.38</td><td class="gain">+5.0%</td></tr>
+                  <tr class="signal-row" data-type="gain" data-leverage="15X" data-is-long="true"><td>30/07/25</td><td style="color:var(--accent)">BTC/USDT</td><td>56,500</td><td>57,800</td><td class="gain">+2.3%</td></tr>
+                  <tr class="signal-row" data-type="gain" data-leverage="10X" data-is-long="true"><td>29/07/25</td><td style="color:var(--accent)">ETH/USDT</td><td>2,250</td><td>2,290</td><td class="gain">+1.8%</td></tr>
+                  <tr class="signal-row" data-type="loss" data-leverage="8X" data-is-long="false"><td>28/07/25</td><td style="color:var(--danger)">SOL/USDT</td><td>165.0</td><td>160.0</td><td class="loss">-3.0%</td></tr>
+                  <tr class="signal-row" data-type="gain" data-leverage="25X" data-is-long="true"><td>27/07/25</td><td style="color:var(--accent)">BNB/USDT</td><td>590</td><td>610</td><td class="gain">+3.4%</td></tr>
+                  <tr class="signal-row" data-type="gain" data-leverage="5X" data-is-long="false"><td>26/07/25</td><td style="color:var(--danger)">ADA/USDT</td><td>0.39</td><td>0.37</td><td class="gain">+5.1%</td></tr>
                 </tbody>
               </table>
             </div>
@@ -398,7 +418,42 @@
           <div class="card reveal" style="padding:18px">
             <h3 style="margin:6px 0 10px">PNL Proof (full gallery)</h3>
             <div class="grid" style="grid-template-columns:repeat(2,1fr);gap:12px" id="pnl-gallery">
-              <!-- PNL proofs will be dynamically populated here -->
+              <div class="panel" style="aspect-ratio:16/10;background:#101722;border:1px solid var(--line);border-radius:12px;position:relative;overflow:hidden">
+                <div class="blurbar"></div>
+              </div>
+              <div class="panel" style="aspect-ratio:16/10;background:#101722;border:1px solid var(--line);border-radius:12px;position:relative;overflow:hidden">
+                <div class="blurbar"></div>
+              </div>
+              <div class="panel" style="aspect-ratio:16/10;background:#101722;border:1px solid var(--line);border-radius:12px;position:relative;overflow:hidden">
+                <div class="blurbar"></div>
+              </div>
+              <div class="panel" style="aspect-ratio:16/10;background:#101722;border:1px solid var(--line);border-radius:12px;position:relative;overflow:hidden">
+                <div class="blurbar"></div>
+              </div>
+              <div class="panel" style="aspect-ratio:16/10;background:#101722;border:1px solid var(--line);border-radius:12px;position:relative;overflow:hidden">
+                <div class="blurbar"></div>
+              </div>
+              <div class="panel" style="aspect-ratio:16/10;background:#101722;border:1px solid var(--line);border-radius:12px;position:relative;overflow:hidden">
+                <div class="blurbar"></div>
+              </div>
+              <div class="panel" style="aspect-ratio:16/10;background:#101722;border:1px solid var(--line);border-radius:12px;position:relative;overflow:hidden">
+                <div class="blurbar"></div>
+              </div>
+              <div class="panel" style="aspect-ratio:16/10;background:#101722;border:1px solid var(--line);border-radius:12px;position:relative;overflow:hidden">
+                <div class="blurbar"></div>
+              </div>
+              <div class="panel" style="aspect-ratio:16/10;background:#101722;border:1px solid var(--line);border-radius:12px;position:relative;overflow:hidden">
+                <div class="blurbar"></div>
+              </div>
+              <div class="panel" style="aspect-ratio:16/10;background:#101722;border:1px solid var(--line);border-radius:12px;position:relative;overflow:hidden">
+                <div class="blurbar"></div>
+              </div>
+              <div class="panel" style="aspect-ratio:16/10;background:#101722;border:1px solid var(--line);border-radius:12px;position:relative;overflow:hidden">
+                <div class="blurbar"></div>
+              </div>
+              <div class="panel" style="aspect-ratio:16/10;background:#101722;border:1px solid var(--line);border-radius:12px;position:relative;overflow:hidden">
+                <div class="blurbar"></div>
+              </div>
             </div>
             <p class="muted" style="margin-top:12px">Sensitive details intentionally blurred. This is a full gallery.</p>
             <div class="pagination" id="pnl-gallery-pagination"></div>
@@ -531,8 +586,6 @@
   </div>
 
   <script>
-    const API_BASE_URL = 'https://nexxtrade-backend-name.onrender.com/api'; // CHANGE THIS TO YOUR ACTUAL BACKEND URL
-
     // Current year
     document.getElementById('year').textContent = new Date().getFullYear();
 
@@ -643,6 +696,7 @@
     function setupSignalClickHandlers() {
       const overlay = document.getElementById('roi-panel-overlay');
       const closeBtn = document.getElementById('close-roi-panel');
+      const signalRows = document.querySelectorAll('.signal-row');
       
       // Get all the elements to update
       const roiPanelContent = document.getElementById('roi-panel-content');
@@ -657,34 +711,51 @@
       // Keep track of animation timers to clear them
       let animationIntervals = [];
 
-      function showSignalPanel(signal) {
+      function showSignalPanel(event) {
+        const row = event.currentTarget; // Get the clicked row
+        
+        // Extract data from the row
+        const cells = row.querySelectorAll('td');
+        const pair = cells[1].textContent;
+        const entry = cells[2].textContent;
+        const exit = cells[3].textContent;
+        const percent = cells[4].textContent;
+        
+        const leverage = row.dataset.leverage; // From the new data-attribute
+        const isLong = row.dataset.isLong === 'true'; // From the new data-attribute
+
         // Populate the panel
-        roiPairName.textContent = signal.pair;
-        roiLeverage.textContent = signal.leverage;
-        roiPercentValue.textContent = signal.pnl_percent;
-        roiEntryPrice.textContent = signal.entry_price;
-        roiExitPrice.textContent = signal.exit_price;
+        roiPairName.textContent = pair;
+        roiLeverage.textContent = leverage;
+        roiPercentValue.textContent = percent;
+        roiEntryPrice.textContent = entry;
+        roiExitPrice.textContent = exit;
 
         // Clear existing animations
         animationIntervals.forEach(interval => clearInterval(interval));
         animationIntervals = [];
 
         // Apply dynamic classes for styling and badge text
+        roiPairName.textContent = pair;
+        roiLeverage.textContent = leverage;
+        roiPercentValue.textContent = percent;
+        roiEntryPrice.textContent = entry;
+        roiExitPrice.textContent = exit;
+
         roiLeverage.classList.remove('badge-long', 'badge-short');
-        if (signal.is_long_position) {
-          roiLeverage.textContent = `LONG | ${signal.leverage}`;
+        if (isLong) {
+          roiLeverage.textContent = `LONG | ${leverage}`;
           roiLeverage.classList.add('badge-long');
-        } else if (signal.is_long_position === false) {
-          roiLeverage.textContent = `SHORT | ${signal.leverage}`;
-          roiLeverage.classList.add('badge-short');
         } else {
-            roiLeverage.textContent = `BREAK-EVEN | ${signal.leverage}`;
+          roiLeverage.textContent = `SHORT | ${leverage}`;
+          roiLeverage.classList.add('badge-short');
         }
-        
+
         roiPercentValue.classList.remove('gain', 'loss');
-        if (signal.result_type === 'Win') {
+        const type = row.dataset.type;
+        if (type === 'gain') {
           roiPercentValue.classList.add('gain');
-        } else if (signal.result_type === 'Loss') {
+        } else {
           roiPercentValue.classList.add('loss');
         }
         
@@ -750,6 +821,11 @@
         }
       }
 
+      // Add event listeners to each signal row
+      signalRows.forEach(row => {
+        row.addEventListener('click', showSignalPanel);
+      });
+
       // Add event listener to the close button
       closeBtn.addEventListener('click', closeSignalPanel);
       
@@ -763,88 +839,13 @@
       // Add event listeners for the new share and save buttons
       shareBtn.addEventListener('click', () => handleShareAndSave('share'));
       saveBtn.addEventListener('click', () => handleShareAndSave('save'));
-
-      // Expose the function to the global scope so it can be called from fetchSignals
-      window.showSignalPanel = showSignalPanel;
     }
-    
-    // Fetch and display all performance signals
-    const fetchSignals = async () => {
-        const signalsTableBody = document.getElementById('signals-table');
-        signalsTableBody.innerHTML = `<tr><td colspan="5" class="text-muted text-center py-4">Loading signals...</td></tr>`;
-        
-        try {
-            const response = await fetch(`${API_BASE_URL}/performances`);
-            const signals = await response.json();
-
-            signalsTableBody.innerHTML = '';
-            if (signals.length === 0) {
-                signalsTableBody.innerHTML = `<tr><td colspan="5" class="text-muted text-center py-4">No signals available.</td></tr>`;
-                return;
-            }
-            
-            signals.forEach(signal => {
-                const row = document.createElement('tr');
-                row.className = 'signal-row';
-                const pnlClass = signal.result_type === 'Win' ? 'gain' : 'loss';
-                
-                row.innerHTML = `
-                    <td>${new Date(signal.date).toLocaleDateString()}</td>
-                    <td style="color:${signal.is_long_position ? 'var(--accent)' : 'var(--danger)'}">${signal.pair}</td>
-                    <td>${signal.entry_price}</td>
-                    <td>${signal.exit_price}</td>
-                    <td class="${pnlClass}">${signal.pnl_percent}</td>
-                `;
-                
-                row.addEventListener('click', () => {
-                    showSignalPanel(signal);
-                });
-                
-                signalsTableBody.appendChild(row);
-            });
-            setupPagination('signals-table', 10, true);
-        } catch (error) {
-            console.error('Error fetching signals:', error);
-            signalsTableBody.innerHTML = `<tr><td colspan="5" class="text-danger text-center py-4">Failed to load signals.</td></tr>`;
-        }
-    };
-    
-    // Fetch and display all PnL proofs
-    const fetchPnlProofs = async () => {
-      const pnlGallery = document.getElementById('pnl-gallery');
-      pnlGallery.innerHTML = '<div class="text-muted text-center py-8 col-span-2">Loading PNL proofs...</div>';
-      
-      try {
-        const response = await fetch(`${API_BASE_URL}/pnlproofs`);
-        const proofs = await response.json();
-        
-        pnlGallery.innerHTML = ''; // Clear loading state
-        if (proofs.length === 0) {
-          pnlGallery.innerHTML = '<div class="text-muted text-center py-8 col-span-2">No PNL proofs available.</div>';
-          return;
-        }
-        
-        proofs.forEach(proof => {
-            const panel = document.createElement('div');
-            panel.className = 'panel';
-            panel.innerHTML = `
-                <img src="${proof.image_url}" alt="${proof.description}" class="w-full h-full object-cover filter blur-sm brightness-75">
-                <div class="blurbar">${proof.description}</div>
-            `;
-            pnlGallery.appendChild(panel);
-        });
-        setupPagination('pnl-gallery', 6);
-      } catch (error) {
-          console.error('Error fetching PNL proofs:', error);
-          pnlGallery.innerHTML = '<div class="text-danger text-center py-8 col-span-2">Error loading proofs.</div>';
-      }
-    };
 
     // Initialize all functionality on window load
     window.onload = () => {
-        setupSignalClickHandlers();
-        fetchSignals();
-        fetchPnlProofs();
+        setupPagination('signals-table', 10, true);
+        setupPagination('pnl-gallery', 6);
+        setupSignalClickHandlers(); // Call the new function
         lucide.createIcons(); // Initialize Lucide Icons
     };
   </script>
