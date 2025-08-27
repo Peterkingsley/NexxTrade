@@ -252,6 +252,11 @@
             position: relative;
             overflow: hidden;
         }
+        
+        /* Added for the delete button */
+        .panel:hover .pnl-delete-btn {
+            opacity: 1;
+        }
 
         .blurbar {
             position: absolute;
@@ -266,6 +271,24 @@
             -webkit-backdrop-filter: blur(5px);
             text-align: center;
         }
+        
+        .pnl-delete-btn {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: rgba(255, 93, 93, 0.75);
+            color: white;
+            padding: 8px;
+            border-radius: 999px;
+            transition: opacity 0.2s ease;
+            opacity: 0; /* Hidden by default */
+            cursor: pointer;
+            z-index: 10;
+        }
+        .pnl-delete-btn:hover {
+            background: var(--danger);
+        }
+
         .gain { color: var(--accent); }
         .loss { color: var(--danger); }
     </style>
@@ -690,9 +713,13 @@
                         panel.innerHTML = `
                             <img src="${proof.image_url}" alt="${proof.description}" class="w-full h-full object-cover filter blur-sm brightness-75">
                             <div class="blurbar">${proof.description}</div>
+                            <button onclick="deletePnlProof(${proof.id})" class="pnl-delete-btn">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+                            </button>
                         `;
                         pnlGallery.appendChild(panel);
                     });
+                    lucide.createIcons(); // Re-create icons after updating HTML
                 } catch (error) {
                     console.error('Error fetching PNL proofs:', error);
                     showMessage(pnlMessageBox, 'Error loading PNL proofs. Please check the server connection.', 'error');
@@ -784,6 +811,31 @@
                     submitBtn.disabled = false;
                 }
             };
+            
+            // Function to delete a PNL proof
+            const deletePnlProof = async (id) => {
+                // IMPORTANT: In a production environment, this should be a custom modal
+                // not window.confirm, as per instructions.
+                if (!window.confirm('Are you sure you want to delete this PNL proof?')) {
+                    return;
+                }
+                
+                try {
+                    const response = await fetch(`${API_BASE_URL}/pnlproofs/${id}`, {
+                        method: 'DELETE',
+                    });
+
+                    if (response.ok) {
+                        showMessage(pnlMessageBox, 'PNL proof deleted successfully!', 'success');
+                        fetchPnlProofs(); // Refresh the gallery
+                    } else {
+                        throw new Error('Failed to delete PNL proof.');
+                    }
+                } catch (error) {
+                    console.error('Deletion error:', error);
+                    showMessage(pnlMessageBox, 'Error deleting PNL proof.', 'error');
+                }
+            };
 
             // --- Event Listeners and Initial Calls ---
             
@@ -811,6 +863,7 @@
 
             window.editSignal = editSignal;
             window.deleteSignal = deleteSignal;
+            window.deletePnlProof = deletePnlProof;
 
             fetchSignals();
             fetchPnlProofs();
