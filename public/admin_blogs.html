@@ -335,6 +335,22 @@
         </div>
     </div>
     <script>
+        // Check for authentication on page load
+        if (sessionStorage.getItem('isAdminLoggedIn') !== 'true') {
+            window.location.href = 'admin.html';
+        }
+
+        // Logout function
+        const logout = () => {
+            sessionStorage.removeItem('isAdminLoggedIn');
+            window.location.href = 'admin.html';
+        };
+
+        document.getElementById('logout-btn').addEventListener('click', (e) => {
+            e.preventDefault();
+            logout();
+        });
+
         document.addEventListener('DOMContentLoaded', () => {
             lucide.createIcons();
             
@@ -385,7 +401,7 @@
                         `;
                         blogsTableBody.appendChild(row);
                     });
-                    lucide.createIcons();
+                    lucide.createIcons(); // Re-create icons after updating HTML
                 } catch (error) {
                     console.error('Error fetching blog posts:', error);
                     showMessage(blogMessageBox, 'Error loading blog posts. Please check the server connection.', 'error');

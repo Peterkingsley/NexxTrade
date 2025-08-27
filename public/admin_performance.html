@@ -476,8 +476,25 @@
         </div>
     </div>
     <script>
-        // This script handles the specific logic for the performance tab.
+        // Check for authentication on page load
+        if (sessionStorage.getItem('isAdminLoggedIn') !== 'true') {
+            window.location.href = 'admin.html';
+        }
+
+        // Logout function
+        const logout = () => {
+            sessionStorage.removeItem('isAdminLoggedIn');
+            window.location.href = 'admin.html';
+        };
+
+        document.getElementById('logout-btn').addEventListener('click', (e) => {
+            e.preventDefault();
+            logout();
+        });
+
         document.addEventListener('DOMContentLoaded', () => {
+            // This script handles the specific logic for the performance tab.
+            
             // Initialize Lucide icons
             lucide.createIcons();
             

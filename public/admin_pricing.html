@@ -354,6 +354,22 @@
         </div>
     </div>
     <script>
+        // Check for authentication on page load
+        if (sessionStorage.getItem('isAdminLoggedIn') !== 'true') {
+            window.location.href = 'admin.html';
+        }
+
+        // Logout function
+        const logout = () => {
+            sessionStorage.removeItem('isAdminLoggedIn');
+            window.location.href = 'admin.html';
+        };
+
+        document.getElementById('logout-btn').addEventListener('click', (e) => {
+            e.preventDefault();
+            logout();
+        });
+
         document.addEventListener('DOMContentLoaded', () => {
             lucide.createIcons();
 
