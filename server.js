@@ -331,7 +331,18 @@ app.delete('/api/pnlproofs/:id', async (req, res) => {
 // Serve static files from the 'public' directory
 app.use(express.static(path.join(__dirname, 'public')));
 
+
+// --- NEW CODE STARTS HERE ---
+// This is the new "catch-all" route. It's crucial for serving your frontend.
+// It tells the server to send the 'index.html' file for any request that
+// doesn't match an API route. This is common for Single-Page Applications (SPAs).
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
 // Start the server
+// NOTE: Make sure this is the last app.listen() call in your file.
 app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);
 });
+// --- NEW CODE ENDS HERE ---
