@@ -355,7 +355,7 @@
                 </h3>
                 <form id="add-signal-form" class="space-y-4">
                     <input type="hidden" id="signal-id">
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                         <div>
                             <label for="signal-date" class="block text-sm font-medium mb-1 text-muted">Date</label>
                             <input type="date" id="signal-date" class="input-field" required>
@@ -365,12 +365,19 @@
                             <input type="text" id="signal-pair" placeholder="BTC/USDT" class="input-field" required>
                         </div>
                         <div>
-                            <label for="signal-leverage" class="block text-sm font-medium mb-1 text-muted">Leverage (e.g., 20X)</label>
-                            <input type="text" id="signal-leverage" placeholder="20X" class="input-field" required>
+                            <label for="signal-leverage" class="block text-sm font-medium mb-1 text-muted">Leverage (e.g., 20)</label>
+                            <input type="number" step="1" id="signal-leverage" placeholder="20" class="input-field" required>
+                        </div>
+                        <div>
+                            <label for="signal-direction" class="block text-sm font-medium mb-1 text-muted">Direction</label>
+                            <select id="signal-direction" class="input-field" required>
+                                <option value="long">Long</option>
+                                <option value="short">Short</option>
+                            </select>
                         </div>
                     </div>
-
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label for="signal-entry" class="block text-sm font-medium mb-1 text-muted">Entry Price</label>
                             <input type="number" step="any" id="signal-entry" placeholder="57240" class="input-field" required>
@@ -378,10 +385,6 @@
                         <div>
                             <label for="signal-exit" class="block text-sm font-medium mb-1 text-muted">Exit Price</label>
                             <input type="number" step="any" id="signal-exit" placeholder="59880" class="input-field" required>
-                        </div>
-                        <div>
-                            <label for="signal-pnl" class="block text-sm font-medium mb-1 text-muted">P/L % (e.g., +4.6%)</label>
-                            <input type="text" id="signal-pnl" placeholder="+4.6%" class="input-field" required>
                         </div>
                     </div>
 
@@ -501,6 +504,10 @@
             const cancelEditBtn = document.getElementById('cancel-edit-btn');
             const signalMessageBox = document.getElementById('signal-message');
             const pnlMessageBox = document.getElementById('pnl-message');
+            const signalEntryInput = document.getElementById('signal-entry');
+            const signalExitInput = document.getElementById('signal-exit');
+            const signalLeverageInput = document.getElementById('signal-leverage');
+            const signalDirectionInput = document.getElementById('signal-direction');
 
             // Stats elements
             const winRateStat = document.getElementById('win-rate-stat');
@@ -534,7 +541,7 @@
                     const wins = signals.filter(s => s.result_type === 'Win').length;
                     const winRate = totalSignals > 0 ? ((wins / totalSignals) * 100).toFixed(2) : 0;
                     
-                    // No longer calculating Avg R:R
+                    // Since stop-loss and take-profit are not part of the schema, this is now a placeholder.
                     const avgRR = 'N/A';
 
                     winRateStat.textContent = `${winRate}%`;
@@ -573,21 +580,36 @@
                 e.preventDefault();
                 const signalId = signalIdInput.value;
 
+                const entry = parseFloat(signalEntryInput.value);
+                const exit = parseFloat(signalExitInput.value);
+                const leverage = parseFloat(signalLeverageInput.value);
+                const direction = signalDirectionInput.value;
+
+                let pnl_percent;
+                let isLongPosition;
+                let resultType;
+
+                if (direction === 'long') {
+                    pnl_percent = ((exit - entry) / entry) * leverage * 100;
+                    isLongPosition = true;
+                } else if (direction === 'short') {
+                    pnl_percent = ((entry - exit) / entry) * leverage * 100;
+                    isLongPosition = false;
+                }
+                
+                resultType = pnl_percent >= 0 ? 'Win' : 'Loss';
+
                 const data = {
                     date: document.getElementById('signal-date').value,
                     pair: document.getElementById('signal-pair').value,
-                    entry_price: parseFloat(document.getElementById('signal-entry').value),
-                    exit_price: parseFloat(document.getElementById('signal-exit').value),
-                    pnl_percent: document.getElementById('signal-pnl').value,
-                    leverage: document.getElementById('signal-leverage').value,
+                    entry_price: entry,
+                    exit_price: exit,
+                    pnl_percent: `${pnl_percent.toFixed(2)}%`,
+                    leverage: `${leverage}X`,
+                    is_long_position: isLongPosition,
+                    result_type: resultType,
                 };
                 
-                const isLongPosition = data.exit_price > data.entry_price;
-                const resultType = data.pnl_percent.includes('-') ? 'Loss' : 'Win';
-
-                data.is_long_position = isLongPosition;
-                data.result_type = resultType;
-
                 const submitBtn = e.submitter;
                 submitBtn.disabled = true;
 
@@ -636,11 +658,9 @@
                     document.getElementById('signal-pair').value = signal.pair;
                     document.getElementById('signal-entry').value = signal.entry_price;
                     document.getElementById('signal-exit').value = signal.exit_price;
-                    document.getElementById('signal-pnl').value = signal.pnl_percent;
-                    document.getElementById('signal-leverage').value = signal.leverage;
+                    document.getElementById('signal-leverage').value = signal.leverage.replace('X', '');
+                    document.getElementById('signal-direction').value = signal.is_long_position ? 'long' : 'short';
                     
-                    // No longer setting stop_loss or take_profit
-
                     saveSignalBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Update Signal';
                     cancelEditBtn.classList.remove('hidden');
 
