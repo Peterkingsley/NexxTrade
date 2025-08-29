@@ -290,9 +290,14 @@
                             </select>
                         </div>
                     </div>
+                    <!-- Updated section for image upload -->
                     <div>
-                        <label for="featured-image" class="block text-sm font-medium mb-1 text-muted">Featured Image URL</label>
-                        <input type="url" id="featured-image" placeholder="https://example.com/image.jpg" class="input-field">
+                        <label for="featured-image" class="block text-sm font-medium mb-1 text-muted">Featured Image</label>
+                        <input type="file" id="featured-image" name="featured-image" accept="image/*" class="input-field file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-accent file:text-black hover:file:bg-accent-2" />
+                        <div id="image-preview-container" class="mt-4 hidden">
+                            <h4 class="text-sm font-medium mb-2">Image Preview:</h4>
+                            <img id="image-preview" src="" alt="Image Preview" class="rounded-lg max-h-64 object-cover" />
+                        </div>
                     </div>
         
                     <div class="flex justify-end space-x-4">
@@ -354,6 +359,7 @@
         document.addEventListener('DOMContentLoaded', () => {
             lucide.createIcons();
             
+            // Set your API base URL
             const API_BASE_URL = 'https://nexxtrade.onrender.com/api';
             
             const addBlogForm = document.getElementById('add-blog-form');
@@ -362,6 +368,9 @@
             const saveBlogBtn = document.getElementById('save-blog-btn');
             const cancelEditBtn = document.getElementById('cancel-edit-btn');
             const blogMessageBox = document.getElementById('blog-message');
+            const featuredImageInput = document.getElementById('featured-image');
+            const imagePreview = document.getElementById('image-preview');
+            const imagePreviewContainer = document.getElementById('image-preview-container');
 
             function showMessage(container, message, type) {
                 container.innerHTML = `<div class="message-box ${type}">${message}</div>`;
@@ -412,16 +421,15 @@
                 e.preventDefault();
                 const postId = blogIdInput.value;
                 
-                const data = {
-                    title: document.getElementById('blog-title').value,
-                    teaser: document.getElementById('blog-teaser').value,
-                    content: document.getElementById('blog-content').value,
-                    author: document.getElementById('blog-author').value,
-                    published_date: document.getElementById('blog-date').value,
-                    status: document.getElementById('blog-status').value,
-                    featured_image_url: document.getElementById('featured-image').value,
-                };
-
+                // Create a new FormData object
+                const formData = new FormData(addBlogForm);
+                // Remove the hidden blog ID from the form data
+                if (postId) {
+                    formData.set('id', postId);
+                } else {
+                    formData.delete('id');
+                }
+                
                 const submitBtn = e.submitter;
                 submitBtn.disabled = true;
 
@@ -430,14 +438,12 @@
                     if (postId) {
                         response = await fetch(`${API_BASE_URL}/blogs/${postId}`, {
                             method: 'PUT',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(data),
+                            body: formData, // Send FormData object directly
                         });
                     } else {
                         response = await fetch(`${API_BASE_URL}/blogs`, {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(data),
+                            body: formData, // Send FormData object directly
                         });
                     }
 
@@ -456,6 +462,8 @@
                     saveBlogBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Add New Post';
                     cancelEditBtn.classList.add('hidden');
                     submitBtn.disabled = false;
+                    imagePreviewContainer.classList.add('hidden');
+                    imagePreview.src = '';
                     fetchBlogs();
                 }
             };
@@ -472,7 +480,13 @@
                     document.getElementById('blog-content').value = post.content;
                     document.getElementById('blog-date').value = new Date(post.published_date).toISOString().split('T')[0];
                     document.getElementById('blog-status').value = post.status;
-                    document.getElementById('featured-image').value = post.featured_image_url;
+
+                    if (post.featured_image_url) {
+                        imagePreview.src = post.featured_image_url;
+                        imagePreviewContainer.classList.remove('hidden');
+                    } else {
+                        imagePreviewContainer.classList.add('hidden');
+                    }
                     
                     saveBlogBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Update Post';
                     cancelEditBtn.classList.remove('hidden');
@@ -506,6 +520,23 @@
                 blogIdInput.value = '';
                 saveBlogBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Add New Post';
                 cancelEditBtn.classList.add('hidden');
+                imagePreviewContainer.classList.add('hidden');
+                imagePreview.src = '';
+            });
+
+            featuredImageInput.addEventListener('change', (event) => {
+                const file = event.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        imagePreview.src = e.target.result;
+                        imagePreviewContainer.classList.remove('hidden');
+                    };
+                    reader.readAsDataURL(file);
+                } else {
+                    imagePreviewContainer.classList.add('hidden');
+                    imagePreview.src = '';
+                }
             });
             
             window.editPost = editPost;

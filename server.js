@@ -8,6 +8,8 @@ const cors = require('cors'); // Import the cors package
 const { Pool } = require('pg');
 const path = require('path');
 const bcrypt = require('bcrypt'); // Import bcrypt for password hashing
+const multer = require('multer'); // Import multer for handling file uploads
+
 const app = express();
 // Load environment variables from .env file
 require('dotenv').config();
@@ -20,6 +22,18 @@ app.use(cors());
 app.use(express.json());
 // Use express.urlencoded() to parse URL-encoded bodies, important for form submissions
 app.use(express.urlencoded({ extended: true }));
+
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, 'uploads/'); // The destination folder for uploaded files
+  },
+  filename: function (req, file, cb) {
+    // We'll give the file a unique name based on the current timestamp
+    cb(null, Date.now() + '-' + file.originalname);
+  }
+});
+const upload = multer({ storage: storage });
 
 // PostgreSQL database connection pool
 // This uses a connection string from an environment variable for security.
@@ -74,9 +88,18 @@ app.get('/api/blogs/:id', async (req, res) => {
   }
 });
 
-app.post('/api/blogs', async (req, res) => {
+// Updated POST route for blog creation to handle image uploads
+app.post('/api/blogs', upload.single('featured-image'), async (req, res) => {
   try {
-    const { title, teaser, content, author, published_date, status, featured_image_url } = req.body;
+    // The image file information is now available on req.file
+    const featured_image_url = req.file ? `/uploads/${req.file.filename}` : null;
+    const { title, teaser, content, author, published_date, status } = req.body;
+    
+    // Check for required fields
+    if (!title || !teaser || !content || !author || !published_date || !status) {
+      return res.status(400).send('Missing required fields.');
+    }
+
     const { rows } = await pool.query(
       'INSERT INTO blogposts(title, teaser, content, author, published_date, status, featured_image_url) VALUES($1, $2, $3, $4, $5, $6, $7) RETURNING *',
       [title, teaser, content, author, published_date, status, featured_image_url]
@@ -88,10 +111,19 @@ app.post('/api/blogs', async (req, res) => {
   }
 });
 
-app.put('/api/blogs/:id', async (req, res) => {
+// Updated PUT route for blog updates to handle image uploads
+app.put('/api/blogs/:id', upload.single('featured-image'), async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, teaser, content, author, published_date, status, featured_image_url } = req.body;
+    const { title, teaser, content, author, published_date, status } = req.body;
+    
+    let featured_image_url = req.body.featured_image_url; // Use the existing URL by default
+
+    // If a new file was uploaded, use the new file's URL
+    if (req.file) {
+      featured_image_url = `/uploads/${req.file.filename}`;
+    }
+
     const { rows } = await pool.query(
       'UPDATE blogposts SET title = $1, teaser = $2, content = $3, author = $4, published_date = $5, status = $6, featured_image_url = $7 WHERE id = $8 RETURNING *',
       [title, teaser, content, author, published_date, status, featured_image_url, id]
@@ -391,21 +423,18 @@ app.delete('/api/pnlproofs/:id', async (req, res) => {
     if (rowCount === 0) {
       return res.status(404).send('PnL proof not found.');
     }
-    res.status(204).send();
+    res.status(204).send(); // 204 No Content
   } catch (err) {
     console.error(err);
     res.status(500).send('Server Error');
   }
 });
 
-// Serve static files from the 'public' directory
+// Serve static files from the 'public' directory, and also the new 'uploads' directory
 app.use(express.static(path.join(__dirname, 'public')));
+app.use('/uploads', express.static('uploads'));
 
-
-// --- NEW CODE STARTS HERE ---
-// This is the new "catch-all" route. It's crucial for serving your frontend.
-// It tells the server to send the 'index.html' file for any request that
-// doesn't match an API route. This is common for Single-Page Applications (SPAs).
+// This is the "catch-all" route. It's crucial for serving your frontend.
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
@@ -415,4 +444,3 @@ app.get('*', (req, res) => {
 app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);
 });
-// --- NEW CODE ENDS HERE ---
