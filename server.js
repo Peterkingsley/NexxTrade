@@ -65,6 +65,12 @@ const storage = multer.diskStorage({
 // Create the multer middleware instance
 const upload = multer({ storage: storage });
 
+const fs = require('fs');
+const uploadDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir);
+}
+
 // API Routes for Blogs Management
 // Based on the 'blogposts' table from your SQL dump.
 // The columns are: id, title, teaser, content, author, published_date, status, featured_image_url
