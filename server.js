@@ -297,6 +297,20 @@ app.get('/api/performances', async (req, res) => {
   }
 });
 
+app.get('/api/performances/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { rows } = await pool.query('SELECT * FROM performancesignals WHERE id = $1', [id]);
+        if (rows.length === 0) {
+            return res.status(404).send('Performance signal not found.');
+        }
+        res.json(rows[0]);
+    } catch (err) {
+        console.error(err);
+        res.status(500).send('Server Error');
+    }
+});
+
 app.post('/api/performances', async (req, res) => {
   try {
     const { date, pair, entry_price, exit_price, pnl_percent, leverage, is_long_position, result_type } = req.body;
