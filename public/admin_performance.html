@@ -370,7 +370,7 @@
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
                             <label for="signal-entry" class="block text-sm font-medium mb-1 text-muted">Entry Price</label>
                             <input type="number" step="any" id="signal-entry" placeholder="57240" class="input-field" required>
@@ -382,14 +382,6 @@
                         <div>
                             <label for="signal-pnl" class="block text-sm font-medium mb-1 text-muted">P/L % (e.g., +4.6%)</label>
                             <input type="text" id="signal-pnl" placeholder="+4.6%" class="input-field" required>
-                        </div>
-                        <div>
-                            <label for="signal-stop-loss" class="block text-sm font-medium mb-1 text-muted">Stop Loss</label>
-                            <input type="number" step="any" id="signal-stop-loss" placeholder="56500" class="input-field" required>
-                        </div>
-                        <div>
-                            <label for="signal-take-profit" class="block text-sm font-medium mb-1 text-muted">Take Profit</label>
-                            <input type="number" step="any" id="signal-take-profit" placeholder="60500" class="input-field" required>
                         </div>
                     </div>
 
@@ -498,9 +490,6 @@
 
             // --- Constants ---
             const API_BASE_URL = 'https://nexxtrade.onrender.com/api';
-            // NOTE: The backend 'server.js' does not yet have API key authentication.
-            // This key is currently unused but good for future implementation.
-            const ADMIN_API_KEY = 'your_super_secret_admin_key_12345';
 
             // --- HTML Elements ---
             const addSignalForm = document.getElementById('add-signal-form');
@@ -544,31 +533,9 @@
                     const totalSignals = signals.length;
                     const wins = signals.filter(s => s.result_type === 'Win').length;
                     const winRate = totalSignals > 0 ? ((wins / totalSignals) * 100).toFixed(2) : 0;
-
-                    // Calculate Avg R:R
-                    const validSignalsForRR = signals.filter(s => s.stop_loss !== null && s.take_profit !== null);
-                    let totalRR = 0;
-                    let rrCount = 0;
-
-                    validSignalsForRR.forEach(signal => {
-                        let risk = 0;
-                        let reward = 0;
-
-                        if (signal.is_long_position) {
-                            risk = signal.entry_price - signal.stop_loss;
-                            reward = signal.take_profit - signal.entry_price;
-                        } else { // Short position
-                            risk = signal.stop_loss - signal.entry_price;
-                            reward = signal.entry_price - signal.take_profit;
-                        }
-
-                        if (risk > 0) {
-                            totalRR += reward / risk;
-                            rrCount++;
-                        }
-                    });
-
-                    const avgRR = rrCount > 0 ? (totalRR / rrCount).toFixed(2) : 'N/A';
+                    
+                    // No longer calculating Avg R:R
+                    const avgRR = 'N/A';
 
                     winRateStat.textContent = `${winRate}%`;
                     avgRrStat.textContent = avgRR;
@@ -613,14 +580,11 @@
                     exit_price: parseFloat(document.getElementById('signal-exit').value),
                     pnl_percent: document.getElementById('signal-pnl').value,
                     leverage: document.getElementById('signal-leverage').value,
-                    stop_loss: parseFloat(document.getElementById('signal-stop-loss').value),
-                    take_profit: parseFloat(document.getElementById('signal-take-profit').value),
                 };
-
+                
                 const isLongPosition = data.exit_price > data.entry_price;
                 const resultType = data.pnl_percent.includes('-') ? 'Loss' : 'Win';
 
-                // Assign the final data values to the object
                 data.is_long_position = isLongPosition;
                 data.result_type = resultType;
 
@@ -674,8 +638,8 @@
                     document.getElementById('signal-exit').value = signal.exit_price;
                     document.getElementById('signal-pnl').value = signal.pnl_percent;
                     document.getElementById('signal-leverage').value = signal.leverage;
-                    document.getElementById('signal-stop-loss').value = signal.stop_loss;
-                    document.getElementById('signal-take-profit').value = signal.take_profit;
+                    
+                    // No longer setting stop_loss or take_profit
 
                     saveSignalBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Update Signal';
                     cancelEditBtn.classList.remove('hidden');
