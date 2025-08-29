@@ -290,7 +290,6 @@
                             </select>
                         </div>
                     </div>
-                    <!-- Updated section for image upload -->
                     <div>
                         <label for="featured-image" class="block text-sm font-medium mb-1 text-muted">Featured Image</label>
                         <input type="file" id="featured-image" name="featured-image" accept="image/*" class="input-field file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-accent file:text-black hover:file:bg-accent-2" />
@@ -381,6 +380,48 @@
                 }, 5000);
             }
 
+            // NEW: Function to compress and resize the image
+            const compressImage = (file, quality, maxWidth, maxHeight) => {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        const img = new Image();
+                        img.src = event.target.result;
+
+                        img.onload = () => {
+                            const canvas = document.createElement('canvas');
+                            let width = img.width;
+                            let height = img.height;
+
+                            // Calculate new dimensions while maintaining aspect ratio
+                            if (width > height) {
+                                if (width > maxWidth) {
+                                    height = Math.round(height * (maxWidth / width));
+                                    width = maxWidth;
+                                }
+                            } else {
+                                if (height > maxHeight) {
+                                    width = Math.round(width * (maxHeight / height));
+                                    height = maxHeight;
+                                }
+                            }
+
+                            canvas.width = width;
+                            canvas.height = height;
+                            const ctx = canvas.getContext('2d');
+                            ctx.drawImage(img, 0, 0, width, height);
+
+                            // Get the base64 data from the canvas with compression
+                            const compressedBase64 = canvas.toDataURL('image/jpeg', quality);
+                            resolve(compressedBase64);
+                        };
+                        img.onerror = (err) => reject(err);
+                    };
+                    reader.onerror = (err) => reject(err);
+                    reader.readAsDataURL(file);
+                });
+            };
+
             const fetchBlogs = async () => {
                 try {
                     const response = await fetch(`${API_BASE_URL}/blogs`);
@@ -417,33 +458,58 @@
                 }
             };
 
+            // MODIFIED: addUpdatePost to use JSON and handle Base64 image
             const addUpdatePost = async (e) => {
                 e.preventDefault();
                 const postId = blogIdInput.value;
-                
-                // Create a new FormData object
-                const formData = new FormData(addBlogForm);
-                // Remove the hidden blog ID from the form data
-                if (postId) {
-                    formData.set('id', postId);
-                } else {
-                    formData.delete('id');
-                }
-                
                 const submitBtn = e.submitter;
                 submitBtn.disabled = true;
 
+                const file = featuredImageInput.files[0];
+                let featured_image_url = null;
+
+                // Check if a new file is uploaded
+                if (file) {
+                    try {
+                        featured_image_url = await compressImage(file, 0.7, 1024, 1024);
+                    } catch (error) {
+                        console.error('Image compression failed:', error);
+                        showMessage(blogMessageBox, 'Image compression failed.', 'error');
+                        submitBtn.disabled = false;
+                        return;
+                    }
+                } else if (postId) {
+                    // For edits, if no new file is uploaded, keep the existing image URL
+                    // The editPost function should store this somewhere, e.g., a hidden input or data attribute.
+                    // For this example, we'll retrieve it directly from the preview source.
+                    featured_image_url = imagePreview.src;
+                }
+
+                const data = {
+                    title: document.getElementById('blog-title').value,
+                    author: document.getElementById('blog-author').value,
+                    teaser: document.getElementById('blog-teaser').value,
+                    content: document.getElementById('blog-content').value,
+                    published_date: document.getElementById('blog-date').value,
+                    status: document.getElementById('blog-status').value,
+                    featured_image_url: featured_image_url,
+                };
+                
                 try {
                     let response;
+                    const headers = { 'Content-Type': 'application/json' };
+
                     if (postId) {
                         response = await fetch(`${API_BASE_URL}/blogs/${postId}`, {
                             method: 'PUT',
-                            body: formData, // Send FormData object directly
+                            headers: headers,
+                            body: JSON.stringify(data),
                         });
                     } else {
                         response = await fetch(`${API_BASE_URL}/blogs`, {
                             method: 'POST',
-                            body: formData, // Send FormData object directly
+                            headers: headers,
+                            body: JSON.stringify(data),
                         });
                     }
 

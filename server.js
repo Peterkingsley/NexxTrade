@@ -13,9 +13,6 @@ const app = express();
 require('dotenv').config();
 const port = process.env.PORT || 3000;
 
-// NEW: Import multer for handling file uploads
-const multer = require('multer');
-
 // Middleware setup
 // Use the CORS middleware to allow cross-origin requests
 app.use(cors());
@@ -50,27 +47,6 @@ async function connectToDatabase() {
 // Call the function to test the database connection on server start
 connectToDatabase();
 
-// NEW: Multer configuration for file uploads
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    // Specify the directory where uploaded files will be stored
-    cb(null, 'uploads/');
-  },
-  filename: function (req, file, cb) {
-    // Generate a unique filename by appending a timestamp to the original filename
-    cb(null, Date.now() + '-' + file.originalname);
-  }
-});
-
-// Create the multer middleware instance
-const upload = multer({ storage: storage });
-
-const fs = require('fs');
-const uploadDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir);
-}
-
 // API Routes for Blogs Management
 // Based on the 'blogposts' table from your SQL dump.
 // The columns are: id, title, teaser, content, author, published_date, status, featured_image_url
@@ -98,12 +74,10 @@ app.get('/api/blogs/:id', async (req, res) => {
   }
 });
 
-// NEW: Change POST route to handle file uploads
-app.post('/api/blogs', upload.single('featured-image'), async (req, res) => {
+// MODIFIED: POST route to handle JSON body with Base64 image string
+app.post('/api/blogs', async (req, res) => {
   try {
-    // req.file contains the uploaded file info, and req.body contains the other form data
-    const { title, teaser, content, author, published_date, status } = req.body;
-    const featured_image_url = req.file ? `/uploads/${req.file.filename}` : null;
+    const { title, teaser, content, author, published_date, status, featured_image_url } = req.body;
     
     const { rows } = await pool.query(
       'INSERT INTO blogposts(title, teaser, content, author, published_date, status, featured_image_url) VALUES($1, $2, $3, $4, $5, $6, $7) RETURNING *',
@@ -116,17 +90,11 @@ app.post('/api/blogs', upload.single('featured-image'), async (req, res) => {
   }
 });
 
-// NEW: Change PUT route to handle file uploads
-app.put('/api/blogs/:id', upload.single('featured-image'), async (req, res) => {
+// MODIFIED: PUT route to handle JSON body with Base64 image string
+app.put('/api/blogs/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, teaser, content, author, published_date, status } = req.body;
-    let featured_image_url = req.body.featured_image_url; // Use existing URL by default
-
-    if (req.file) {
-      // A new file was uploaded, so update the URL
-      featured_image_url = `/uploads/${req.file.filename}`;
-    }
+    const { title, teaser, content, author, published_date, status, featured_image_url } = req.body;
 
     const { rows } = await pool.query(
       'UPDATE blogposts SET title = $1, teaser = $2, content = $3, author = $4, published_date = $5, status = $6, featured_image_url = $7 WHERE id = $8 RETURNING *',
@@ -436,14 +404,10 @@ app.delete('/api/pnlproofs/:id', async (req, res) => {
 
 // Serve static files from the 'public' directory
 app.use(express.static(path.join(__dirname, 'public')));
-// NEW: Serve uploaded files from the 'uploads' directory
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// Removed serving uploaded files since they are now Base64 strings in the database
+// app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-
-// --- NEW CODE STARTS HERE ---
 // This is the new "catch-all" route. It's crucial for serving your frontend.
-// It tells the server to send the 'index.html' file for any request that
-// doesn't match an API route. This is common for Single-Page Applications (SPAs).
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
