@@ -1,73 +1,63 @@
-// server.js
-// This file sets up a Node.js backend server using Express and a PostgreSQL database.
-// It handles API routes for managing blogs, pricing plans, roles, and performance data.
-
-// Import required modules
 const express = require('express');
-const cors = require('cors'); // Import the cors package
+const cors = require('cors');
 const { Pool } = require('pg');
 const path = require('path');
-const bcrypt = require('bcrypt'); // Import bcrypt for password hashing
-const multer = require('multer'); // Import multer for handling file uploads
-
+const bcrypt = require('bcrypt');
+const multer = require('multer');
+const fs = require('fs'); // Import the file system module
 const app = express();
-// Load environment variables from .env file
+
 require('dotenv').config();
 const port = process.env.PORT || 3000;
 
-// Middleware setup
-// Use the CORS middleware to allow cross-origin requests
-app.use(cors());
-// Use express.json() to parse incoming JSON payloads
-app.use(express.json());
-// Use express.urlencoded() to parse URL-encoded bodies, important for form submissions
-app.use(express.urlencoded({ extended: true }));
-
-// Configure multer for file uploads
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, 'uploads/'); // The destination folder for uploaded files
-  },
-  filename: function (req, file, cb) {
-    // We'll give the file a unique name based on the current timestamp
-    cb(null, Date.now() + '-' + file.originalname);
-  }
-});
-const upload = multer({ storage: storage });
-
-// PostgreSQL database connection pool
-// This uses a connection string from an environment variable for security.
-// Remember to set DATABASE_URL in your environment before running the server.
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: {
-    // This setting is often needed for cloud-hosted databases that use self-signed certificates.
-    // It tells the client to not reject the connection based on the certificate authority.
     rejectUnauthorized: false
   }
 });
 
-// Function to connect to the database and handle errors
 async function connectToDatabase() {
   try {
     const client = await pool.connect();
     console.log('Successfully connected to the PostgreSQL database.');
-    client.release(); // Release the client back to the pool
+    client.release();
   } catch (error) {
     console.error('Database connection failed:', error.stack);
   }
 }
 
-// Call the function to test the database connection on server start
 connectToDatabase();
 
+// --- Multer setup for file uploads ---
+// Create the uploads directory if it doesn't exist
+const uploadsDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir);
+}
+
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, uploadsDir);
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({ storage: storage });
+
 // API Routes for Blogs Management
-// Based on the 'blogposts' table from your SQL dump.
-// The columns are: id, title, teaser, content, author, published_date, status, featured_image_url
 app.get('/api/blogs', async (req, res) => {
   try {
     const { rows } = await pool.query('SELECT * FROM blogposts ORDER BY published_date DESC');
-    res.json(rows);
+    // Prepend the base URL to the image URL for correct display
+    const blogsWithImageUrls = rows.map(blog => {
+      const featured_image_url = blog.featured_image_url ? `${req.protocol}://${req.get('host')}/${blog.featured_image_url}` : null;
+      return { ...blog, featured_image_url };
+    });
+    res.json(blogsWithImageUrls);
   } catch (err) {
     console.error(err);
     res.status(500).send('Server Error');
@@ -81,24 +71,19 @@ app.get('/api/blogs/:id', async (req, res) => {
     if (rows.length === 0) {
       return res.status(404).send('Blog post not found.');
     }
-    res.json(rows[0]);
+    const blog = rows[0];
+    const featured_image_url = blog.featured_image_url ? `${req.protocol}://${req.get('host')}/${blog.featured_image_url}` : null;
+    res.json({ ...blog, featured_image_url });
   } catch (err) {
     console.error(err);
     res.status(500).send('Server Error');
   }
 });
 
-// Updated POST route for blog creation to handle image uploads
 app.post('/api/blogs', upload.single('featured-image'), async (req, res) => {
   try {
-    // The image file information is now available on req.file
-    const featured_image_url = req.file ? `/uploads/${req.file.filename}` : null;
     const { title, teaser, content, author, published_date, status } = req.body;
-    
-    // Check for required fields
-    if (!title || !teaser || !content || !author || !published_date || !status) {
-      return res.status(400).send('Missing required fields.');
-    }
+    const featured_image_url = req.file ? path.join('uploads', req.file.filename) : null;
 
     const { rows } = await pool.query(
       'INSERT INTO blogposts(title, teaser, content, author, published_date, status, featured_image_url) VALUES($1, $2, $3, $4, $5, $6, $7) RETURNING *',
@@ -111,17 +96,15 @@ app.post('/api/blogs', upload.single('featured-image'), async (req, res) => {
   }
 });
 
-// Updated PUT route for blog updates to handle image uploads
 app.put('/api/blogs/:id', upload.single('featured-image'), async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, teaser, content, author, published_date, status } = req.body;
+    const { title, teaser, content, author, published_date, status, existing_image_url } = req.body;
+    let featured_image_url = existing_image_url;
     
-    let featured_image_url = req.body.featured_image_url; // Use the existing URL by default
-
-    // If a new file was uploaded, use the new file's URL
+    // If a new file is uploaded, use the new file path
     if (req.file) {
-      featured_image_url = `/uploads/${req.file.filename}`;
+      featured_image_url = path.join('uploads', req.file.filename);
     }
 
     const { rows } = await pool.query(
@@ -145,17 +128,14 @@ app.delete('/api/blogs/:id', async (req, res) => {
     if (rowCount === 0) {
       return res.status(404).send('Blog post not found.');
     }
-    res.status(204).send(); // 204 No Content
+    res.status(204).send();
   } catch (err) {
     console.error(err);
     res.status(500).send('Server Error');
   }
 });
 
-
 // API Routes for Pricing Plans Management
-// Based on the 'pricingplans' table from your SQL dump.
-// The columns are: id, plan_name, price, term, description, features, is_best_value
 app.get('/api/pricing', async (req, res) => {
   try {
     const { rows } = await pool.query('SELECT * FROM pricingplans ORDER BY price ASC');
@@ -212,13 +192,9 @@ app.delete('/api/pricing/:id', async (req, res) => {
   }
 });
 
-
 // API Routes for User Roles Management
-// Based on the 'adminusers' table from your SQL dump.
-// The columns are: id, username, hashed_password, role, permissions
 app.get('/api/roles', async (req, res) => {
   try {
-    // Note: Do not expose sensitive data like hashed_password.
     const { rows } = await pool.query('SELECT id, username, role, permissions FROM adminusers');
     res.json(rows);
   } catch (err) {
@@ -227,27 +203,19 @@ app.get('/api/roles', async (req, res) => {
   }
 });
 
-// NEW ROUTE: Create a new admin user
 app.post('/api/roles', async (req, res) => {
   try {
     const { username, password, role, permissions } = req.body;
     const saltRounds = 10;
-    
-    // Hash the password before saving to the database
     const hashedPassword = await bcrypt.hash(password, saltRounds);
-    
-    // Insert the new user into the adminusers table
     const { rows } = await pool.query(
       'INSERT INTO adminusers(username, hashed_password, role, permissions) VALUES($1, $2, $3, $4) RETURNING id, username, role, permissions',
       [username, hashedPassword, role, permissions]
     );
-    
-    // Send a 201 Created status and the new user's info (without password)
     res.status(201).json(rows[0]);
   } catch (err) {
     console.error('Error creating new user:', err);
-    // Handle specific errors, e.g., duplicate username
-    if (err.code === '23505') { // PostgreSQL error code for unique violation
+    if (err.code === '23505') {
         return res.status(409).json({ message: 'Username already exists.' });
     }
     res.status(500).json({ message: 'Server Error' });
@@ -272,12 +240,9 @@ app.put('/api/roles/:id', async (req, res) => {
   }
 });
 
-// NEW ROUTE: Handle admin login
 app.post('/api/login', async (req, res) => {
     try {
         const { username, password } = req.body;
-        
-        // Find the user by username
         const { rows } = await pool.query(
             'SELECT * FROM adminusers WHERE username = $1', 
             [username]
@@ -285,11 +250,9 @@ app.post('/api/login', async (req, res) => {
 
         if (rows.length > 0) {
             const user = rows[0];
-            // Compare the provided password with the stored hashed password
             const match = await bcrypt.compare(password, user.hashed_password);
 
             if (match) {
-                // Return user data including permissions on successful login
                 res.status(200).json({ 
                     message: 'Login successful',
                     user: {
@@ -311,10 +274,7 @@ app.post('/api/login', async (req, res) => {
     }
 });
 
-
 // API Routes for Performance Signals
-// Based on the 'performancesignals' table from your SQL dump.
-// The columns are: id, date, pair, entry_price, exit_price, pnl_percent, leverage, is_long_position, result_type
 app.get('/api/performances', async (req, res) => {
   try {
     const { rows } = await pool.query('SELECT * FROM performancesignals ORDER BY date DESC');
@@ -372,8 +332,6 @@ app.delete('/api/performances/:id', async (req, res) => {
 });
 
 // API Routes for PnL Proofs
-// Based on the 'pnlproofs' table from your SQL dump.
-// The columns are: id, description, image_url
 app.get('/api/pnlproofs', async (req, res) => {
   try {
     const { rows } = await pool.query('SELECT * FROM pnlproofs ORDER BY id DESC');
@@ -423,24 +381,20 @@ app.delete('/api/pnlproofs/:id', async (req, res) => {
     if (rowCount === 0) {
       return res.status(404).send('PnL proof not found.');
     }
-    res.status(204).send(); // 204 No Content
+    res.status(204).send();
   } catch (err) {
     console.error(err);
     res.status(500).send('Server Error');
   }
 });
 
-// Serve static files from the 'public' directory, and also the new 'uploads' directory
 app.use(express.static(path.join(__dirname, 'public')));
-app.use('/uploads', express.static('uploads'));
+app.use('/uploads', express.static(uploadsDir));
 
-// This is the "catch-all" route. It's crucial for serving your frontend.
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Start the server
-// NOTE: Make sure this is the last app.listen() call in your file.
 app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);
 });
