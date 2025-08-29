@@ -402,6 +402,47 @@ app.delete('/api/pnlproofs/:id', async (req, res) => {
   }
 });
 
+// NEW API routes for the users table
+app.get('/api/users', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM users ORDER BY registration_date DESC');
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server Error');
+  }
+});
+
+app.get('/api/users/stats', async (req, res) => {
+  try {
+    const now = new Date();
+    const today = now.toISOString().split('T')[0];
+    const firstDayOfWeek = new Date(now.setDate(now.getDate() - now.getDay())).toISOString().split('T')[0];
+    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+
+    // Total users registered today
+    const todayQuery = await pool.query('SELECT COUNT(*) FROM users WHERE registration_date = $1', [today]);
+    const todayCount = parseInt(todayQuery.rows[0].count, 10);
+
+    // Total users registered this week (Sunday to today)
+    const weekQuery = await pool.query('SELECT COUNT(*) FROM users WHERE registration_date >= $1', [firstDayOfWeek]);
+    const weekCount = parseInt(weekQuery.rows[0].count, 10);
+
+    // Total users registered this month
+    const monthQuery = await pool.query('SELECT COUNT(*) FROM users WHERE registration_date >= $1', [firstDayOfMonth]);
+    const monthCount = parseInt(monthQuery.rows[0].count, 10);
+
+    res.json({
+      daily: todayCount,
+      weekly: weekCount,
+      monthly: monthCount,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server Error');
+  }
+});
+
 // Serve static files from the 'public' directory
 app.use(express.static(path.join(__dirname, 'public')));
 // Removed serving uploaded files since they are now Base64 strings in the database
