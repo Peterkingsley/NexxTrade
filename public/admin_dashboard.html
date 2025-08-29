@@ -249,7 +249,14 @@
         <div class="space-y-8">
             <h2 class="text-2xl font-semibold">Dashboard Overview</h2>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div class="card p-6 flex flex-col items-center justify-center text-center space-y-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent-2">
+                        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                    </svg>
+                    <div class="text-3xl font-bold" id="total-users-stat">...</div>
+                    <p class="text-muted">Total Users</p>
+                </div>
                 <div class="card p-6 flex flex-col items-center justify-center text-center space-y-2">
                     <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent-2">
                         <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
@@ -271,6 +278,50 @@
                     </svg>
                     <div class="text-3xl font-bold" id="total-plans-stat">...</div>
                     <p class="text-muted">Active Pricing Plans</p>
+                </div>
+            </div>
+            
+            <div class="card p-6">
+                <h3 class="text-xl font-semibold mb-4 flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent-2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                    User Registration Stats
+                </h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+                    <div class="p-4 border border-line rounded-lg">
+                        <div class="text-2xl font-bold" id="users-today-stat">...</div>
+                        <p class="text-muted">Today</p>
+                    </div>
+                    <div class="p-4 border border-line rounded-lg">
+                        <div class="text-2xl font-bold" id="users-week-stat">...</div>
+                        <p class="text-muted">This Week</p>
+                    </div>
+                    <div class="p-4 border border-line rounded-lg">
+                        <div class="text-2xl font-bold" id="users-month-stat">...</div>
+                        <p class="text-muted">This Month</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card p-6">
+                <h3 class="text-xl font-semibold mb-4 flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                    All Registered Users
+                </h3>
+                <div class="overflow-x-auto">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Email</th>
+                                <th>Telegram Handle</th>
+                                <th>Registered On</th>
+                                <th>Subscription Expires</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="users-table">
+                            <tr><td colspan="5" class="text-muted text-center py-4">Loading user data...</td></tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
 
@@ -350,6 +401,19 @@
             lucide.createIcons();
             const API_BASE_URL = 'https://nexxtrade.onrender.com/api';
 
+            // Function to format date to YYYY-MM-DD
+            function formatDate(dateString) {
+                const date = new Date(dateString);
+                return date.toISOString().split('T')[0];
+            }
+
+            // Function to check subscription status
+            function getSubscriptionStatus(expirationDate) {
+                const now = new Date();
+                const expiration = new Date(expirationDate);
+                return expiration > now ? '<span class="text-accent">Active</span>' : '<span class="text-danger">Expired</span>';
+            }
+
             // Function to fetch all data and update the dashboard
             const fetchData = async () => {
                 // Fetch stats
@@ -366,6 +430,35 @@
                     const plans = await pricingResponse.json();
                     document.getElementById('total-plans-stat').textContent = plans.length;
 
+                    const usersResponse = await fetch(`${API_BASE_URL}/users`);
+                    const users = await usersResponse.json();
+                    document.getElementById('total-users-stat').textContent = users.length;
+                    
+                    const userStatsResponse = await fetch(`${API_BASE_URL}/users/stats`);
+                    const userStats = await userStatsResponse.json();
+                    document.getElementById('users-today-stat').textContent = userStats.daily;
+                    document.getElementById('users-week-stat').textContent = userStats.weekly;
+                    document.getElementById('users-month-stat').textContent = userStats.monthly;
+
+                    // Populate all registered users table
+                    const usersTableBody = document.getElementById('users-table');
+                    usersTableBody.innerHTML = '';
+                    if (users.length === 0) {
+                        usersTableBody.innerHTML = `<tr><td colspan="5" class="text-muted text-center py-4">No registered users found.</td></tr>`;
+                    } else {
+                        users.forEach(user => {
+                            const row = document.createElement('tr');
+                            row.innerHTML = `
+                                <td>${user.email}</td>
+                                <td>${user.telegram_handle}</td>
+                                <td>${formatDate(user.registration_date)}</td>
+                                <td>${formatDate(user.subscription_expiration)}</td>
+                                <td>${getSubscriptionStatus(user.subscription_expiration)}</td>
+                            `;
+                            usersTableBody.appendChild(row);
+                        });
+                    }
+
                     // Populate recent blog posts table (limit to 5)
                     const blogsTableBody = document.getElementById('blogs-table');
                     blogsTableBody.innerHTML = '';
@@ -378,7 +471,7 @@
                             row.innerHTML = `
                                 <td>${post.title}</td>
                                 <td>${post.author}</td>
-                                <td>${new Date(post.published_date).toISOString().split('T')[0]}</td>
+                                <td>${formatDate(post.published_date)}</td>
                                 <td>${post.status}</td>
                                 <td><a href="admin_blogs.html" class="text-muted hover:text-text p-1">Edit</a></td>
                             `;
@@ -397,7 +490,7 @@
                             const row = document.createElement('tr');
                             const pnlClass = parseFloat(signal.pnl_percent) > 0 ? 'gain' : 'loss';
                             row.innerHTML = `
-                                <td>${new Date(signal.date).toISOString().split('T')[0]}</td>
+                                <td>${formatDate(signal.date)}</td>
                                 <td>${signal.pair}</td>
                                 <td>${signal.entry_price}</td>
                                 <td>${signal.exit_price}</td>
@@ -412,9 +505,14 @@
                 } catch (error) {
                     console.error('Error fetching dashboard data:', error);
                     // Update all stat and table elements to show an error state
+                    document.getElementById('total-users-stat').textContent = 'Error';
+                    document.getElementById('users-today-stat').textContent = 'Error';
+                    document.getElementById('users-week-stat').textContent = 'Error';
+                    document.getElementById('users-month-stat').textContent = 'Error';
                     document.getElementById('total-blogs-stat').textContent = 'Error';
                     document.getElementById('total-signals-stat').textContent = 'Error';
                     document.getElementById('total-plans-stat').textContent = 'Error';
+                    document.getElementById('users-table').innerHTML = `<tr><td colspan="5" class="text-danger text-center py-4">Failed to load user data.</td></tr>`;
                     document.getElementById('blogs-table').innerHTML = `<tr><td colspan="5" class="text-danger text-center py-4">Failed to load data.</td></tr>`;
                     document.getElementById('signals-table').innerHTML = `<tr><td colspan="7" class="text-danger text-center py-4">Failed to load data.</td></tr>`;
                 }
