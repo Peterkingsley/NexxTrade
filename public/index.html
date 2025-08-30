@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>NexxTrade — Futures Signals, Done Right</title>
   <meta name="description" content="Join NexxTrade: actionable futures signals with clear risk management and automated Telegram access. OPay & Crypto supported." />
-  <!-- Lucide Icons for a clean, professional look -->
   <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
   <style>
     :root{
@@ -148,8 +147,8 @@
       /* Using flexbox to center content */
       display: flex;
       flex-direction: column;
-      align-items: center; 
-      text-align: center; 
+      align-items: center;
+      text-align: center;
     }
     .plan:hover{transform:translateY(-3px)}
     .plan .tag{position:absolute;top:12px;right:12px;background:rgba(240,199,94,.15);color:var(--accent-2);border:1px solid rgba(240,199,94,.35);padding:.3rem .6rem;border-radius:999px;font-size:.78rem;font-weight:700}
@@ -231,12 +230,12 @@
       .hero-wrap, .perf-wrap, .f-grid{grid-template-columns:1fr; }
       .benefit-grid, .steps, .t-grid{grid-template-columns:repeat(2,1fr)}
       .plans{grid-template-columns:1fr}
-      
+
       .blog-section .content {
         grid-template-columns: 1fr;
         text-align: center;
       }
-      
+
       /* Header & Nav */
       .nav-links{display:none;}
       .nav{padding:12px 16px;}
@@ -257,7 +256,7 @@
         padding: 10px 20px;
         text-align: center;
       }
-      
+
       /* Spacing and sections */
       .testimonials, .pricing, .how, .faq, .peek{
         padding: 48px 20px;
@@ -274,11 +273,11 @@
       footer{
         padding: 36px 20px 12px;
       }
-      
+
       /* Hero section */
       .hero-panel{display:none;}
       .hero-wrap{padding: 32px 20px;}
-      
+
       /* Sticky CTA */
       .sticky-cta{display:block;}
 
@@ -306,7 +305,6 @@
   </style>
 </head>
 <body>
-  <!-- Header -->
   <header>
     <div class="container nav">
       <a class="brand" href="#" aria-label="NexxTrade home">
@@ -326,7 +324,6 @@
     </div>
   </header>
 
-  <!-- Hero -->
   <section class="hero">
     <div class="container hero-wrap">
       <div class="reveal">
@@ -341,12 +338,10 @@
         </div>
       </div>
       <div class="hero-panel reveal" aria-hidden="true">
-        <!-- abstract preview panel -->
         <div class="scan"></div>
         <div class="spark"></div>
         <div class="spark spark2"></div>
         <svg viewBox="0 0 600 360" width="100%" height="100%" style="position:absolute;inset:0;opacity:.7">
-          <!-- Candlestick-like shapes -->
           <g fill="none" stroke="#2ad678" stroke-width="2">
             <line x1="50" y1="220" x2="50" y2="140"/>
             <rect x="40" y="160" width="20" height="40" fill="rgba(42,214,120,.35)"/>
@@ -363,7 +358,6 @@
     </div>
   </section>
 
-  <!-- Social Proof Bar -->
   <div class="proof">
     <div class="container proof-wrap" id="social-proof">
       <div class="kpi"><span class="num" data-count="7500">7500</span><span class="muted">members</span></div>
@@ -373,7 +367,6 @@
     </div>
   </div>
 
-  <!-- Benefits -->
   <section class="benefits container">
     <h2 class="center reveal">Why Traders Choose NexxTrade</h2>
     <div class="grid benefit-grid">
@@ -408,7 +401,6 @@
     </div>
   </section>
 
-  <!-- Performance Snapshot -->
   <section id="performance" class="performance container">
     <div class="perf-wrap">
       <div class="card reveal" style="padding:18px">
@@ -419,7 +411,6 @@
               <tr><th>Date</th><th>Pair</th><th>Entry</th><th>Exit</th><th>P/L %</th></tr>
             </thead>
             <tbody id="signals-table">
-              <!-- Signals will be dynamically inserted here -->
               <tr><td colspan="5" class="text-center text-muted py-4">Loading signals...</td></tr>
             </tbody>
           </table>
@@ -429,7 +420,6 @@
       <div class="card reveal" style="padding:18px">
         <h3 style="margin:6px 0 10px">PNL Proof (blurred)</h3>
         <div class="grid" style="grid-template-columns:repeat(2,1fr);gap:12px" id="pnl-gallery">
-          <!-- PNL proofs will be dynamically inserted here -->
           <div class="text-muted text-center py-8 col-span-2">Loading PNL proofs...</div>
         </div>
         <p class="muted" style="margin-top:12px">Sensitive details intentionally blurred. Full gallery on the Performance page.</p>
@@ -437,7 +427,6 @@
     </div>
   </section>
 
-  <!-- How it works -->
   <section class="how container">
     <h2 class="center reveal">How It Works</h2>
     <div class="grid steps">
@@ -472,7 +461,6 @@
     </div>
   </section>
 
-  <!-- Pricing -->
   <section id="pricing" class="pricing container">
     <h2 class="center reveal">Simple Pricing</h2>
     <div class="grid plans">
@@ -550,7 +538,6 @@
     <p class="center subtle" style="margin-top:12px">Payments: OPay & Crypto supported • Instant invite after payment</p>
   </section>
 
-  <!-- Testimonials -->
   <section class="testimonials container">
     <h2 class="center reveal">What Members Say</h2>
     <div class="grid t-grid">
@@ -569,7 +556,6 @@
     </div>
   </section>
 
-  <!-- Blog section -->
   <section class="blog-section container reveal">
     <div class="content card">
       <div class="cta-panel">
@@ -583,8 +569,7 @@
       </div>
     </div>
   </section>
-  
-  <!-- FAQ -->
+
   <section id="faq" class="faq container">
     <h2 class="center reveal">FAQ</h2>
     <div class="accordion">
@@ -607,12 +592,10 @@
     </div>
   </section>
 
-  <!-- Disclaimer -->
   <div class="disclaimer container">
     <strong>Risk Notice:</strong> Trading involves risk. Past performance does not guarantee future results. This is not financial advice.
   </div>
 
-  <!-- Footer -->
   <footer id="contact">
     <div class="container grid f-grid">
       <div>
@@ -652,7 +635,6 @@
     </div>
   </footer>
 
-  <!-- Sticky CTA (mobile) -->
   <div class="sticky-cta" id="join">
     <div class="inner">
       <div>
@@ -667,7 +649,7 @@
     document.addEventListener('DOMContentLoaded', () => {
       // Initialize Lucide icons
       lucide.createIcons();
-      
+
       const API_BASE_URL = 'https://nexxtrade.onrender.com/api';
 
       // Function to fetch and display signals
@@ -725,8 +707,8 @@
             const panel = document.createElement('div');
             panel.className = 'panel';
             panel.innerHTML = `
-              <img src="${proof.image_url}" alt="${proof.description}" class="w-full h-full object-cover filter blur-sm brightness-75">
-              <div class="blurbar">${proof.description}</div>
+              <img src="${proof.image_url}" alt="${proof.description}" class="w-full h-full object-cover">
+              <div class="blurbar" style="backdrop-filter:none; background:none;"></div>
             `;
             pnlGallery.appendChild(panel);
           });
@@ -755,17 +737,17 @@
           if(!e.isIntersecting) return;
           const el = e.target;
           // Use dataset to get the target value
-          const target = +el.dataset.count; 
+          const target = +el.dataset.count;
           let cur = 0;
           const step = Math.ceil(target/40);
-          const tick = ()=>{ 
+          const tick = ()=>{
             cur += step;
-            if(cur>=target){ 
-              el.textContent = target; 
-            } else { 
-              el.textContent = cur; 
+            if(cur>=target){
+              el.textContent = target;
+            } else {
+              el.textContent = cur;
               requestAnimationFrame(tick);
-            } 
+            }
           };
           requestAnimationFrame(tick);
           iok.unobserve(el);
@@ -793,7 +775,7 @@
           if(el){ e.preventDefault(); el.scrollIntoView({behavior:'smooth', block:'start'}); }
         })
       });
-      
+
       // Mobile navigation toggle
       document.querySelector('.nav-toggle-btn').addEventListener('click', () => {
           const header = document.querySelector('header');
