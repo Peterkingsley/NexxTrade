@@ -418,11 +418,11 @@
         <div style="margin-top:12px"><a class="btn btn-ghost" href="performance.html" aria-label="View full performance">View full performance <svg style="width:16px; height:16px" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></a></div>
       </div>
       <div class="card reveal" style="padding:18px">
-        <h3 style="margin:6px 0 10px">PNL Proof (blurred)</h3>
+        <h3 style="margin:6px 0 10px">PNL Proof</h3>
         <div class="grid" style="grid-template-columns:repeat(2,1fr);gap:12px" id="pnl-gallery">
           <div class="text-muted text-center py-8 col-span-2">Loading PNL proofs...</div>
         </div>
-        <p class="muted" style="margin-top:12px">Sensitive details intentionally blurred. Full gallery on the Performance page.</p>
+        <p class="muted" style="margin-top:12px">Full gallery available on the Performance page.</p>
       </div>
     </div>
   </section>
@@ -707,8 +707,8 @@
             const panel = document.createElement('div');
             panel.className = 'panel';
             panel.innerHTML = `
-              <img src="${proof.image_url}" alt="${proof.description}" class="w-full h-full object-cover filter blur-sm brightness-75">
-              <div class="blurbar">${proof.description}</div>
+              <img src="${proof.image_url}" alt="${proof.description}" class="w-full h-full object-cover">
+              <div class="blurbar" style="backdrop-filter:none; background:none;"></div>
             `;
             pnlGallery.appendChild(panel);
           });
