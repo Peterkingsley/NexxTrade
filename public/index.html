@@ -701,14 +701,14 @@
             return;
           }
 
-          // Take the top 4 proofs for the homepage gallery
-          const recentProofs = proofs.slice(0, 4);
+          // Take the top 2 proofs for the homepage gallery
+          const recentProofs = proofs.slice(0, 2);
           recentProofs.forEach(proof => {
             const panel = document.createElement('div');
             panel.className = 'panel';
             panel.innerHTML = `
-              <img src="${proof.image_url}" alt="${proof.description}" class="w-full h-full object-cover">
-              <div class="blurbar" style="backdrop-filter:none; background:none;"></div>
+              <img src="${proof.image_url}" alt="${proof.description}" class="w-full h-full object-cover filter blur-sm brightness-75">
+              <div class="blurbar">${proof.description}</div>
             `;
             pnlGallery.appendChild(panel);
           });
