@@ -475,14 +475,14 @@ app.post('/api/payments/opay', async (req, res) => {
 app.post('/api/payments/opay/webhook', async (req, res) => {
     // In a real scenario, you would perform a signature validation here
     // to ensure the request is genuinely from OPay.
-    
+
     // Assume the webhook body contains 'reference' and 'status'
     const { reference, status } = req.body;
-    
+
     if (!reference || !status) {
         return res.status(400).send('Invalid webhook payload');
     }
-    
+
     if (status === 'success') {
         try {
             // Find the user in the database using the transaction reference
