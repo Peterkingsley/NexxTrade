@@ -358,66 +358,7 @@ app.delete('/api/performances/:id', async (req, res) => {
   }
 });
 
-// API Routes for PnL Proofs
-// Based on the 'pnlproofs' table from your SQL dump.
-// The columns are: id, description, image_url
-app.get('/api/pnlproofs', async (req, res) => {
-  try {
-    const { rows } = await pool.query('SELECT * FROM pnlproofs ORDER BY id DESC');
-    res.json(rows);
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('Server Error');
-  }
-});
-
-app.post('/api/pnlproofs', async (req, res) => {
-  try {
-    const { description, image_url } = req.body;
-    const { rows } = await pool.query(
-      'INSERT INTO pnlproofs(description, image_url) VALUES($1, $2) RETURNING *',
-      [description, image_url]
-    );
-    res.status(201).json(rows[0]);
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('Server Error');
-  }
-});
-
-app.put('/api/pnlproofs/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { description, image_url } = req.body;
-    const { rows } = await pool.query(
-      'UPDATE pnlproofs SET description = $1, image_url = $2 WHERE id = $3 RETURNING *',
-      [description, image_url, id]
-    );
-    if (rows.length === 0) {
-      return res.status(404).send('PnL proof not found.');
-    }
-    res.json(rows[0]);
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('Server Error');
-  }
-});
-
-app.delete('/api/pnlproofs/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { rowCount } = await pool.query('DELETE FROM pnlproofs WHERE id = $1', [id]);
-    if (rowCount === 0) {
-      return res.status(404).send('PnL proof not found.');
-    }
-    res.status(204).send();
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('Server Error');
-  }
-});
-
-// NEW API routes for the users table
+// MODIFIED: API routes for the users table to handle the new subscription fields
 app.get('/api/users', async (req, res) => {
   try {
     const { rows } = await pool.query('SELECT * FROM users ORDER BY registration_date DESC');
