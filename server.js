@@ -531,6 +531,40 @@ app.post('/api/payments/opay/webhook', async (req, res) => {
     }
 });
 
+app.get('/api/users/status-by-telegram-handle/:telegram_handle', async (req, res) => {
+    try {
+        const { telegram_handle } = req.params;
+        const { rows } = await pool.query(
+            'SELECT subscription_status, subscription_expiration FROM users WHERE telegram_handle = $1',
+            [`@${telegram_handle}`]
+        );
+        if (rows.length === 0) {
+            return res.status(404).json({ message: 'User not found.' });
+        }
+        res.json(rows[0]);
+    } catch (err) {
+        console.error('Error finding user status by Telegram handle:', err);
+        res.status(500).json({ message: 'Server Error' });
+    }
+});
+
+app.get('/api/users/find-by-telegram-handle/:telegram_handle', async (req, res) => {
+    try {
+        const { telegram_handle } = req.params;
+        const { rows } = await pool.query(
+            'SELECT id, telegram_handle FROM users WHERE telegram_handle = $1', 
+            [telegram_handle]
+        );
+        if (rows.length === 0) {
+            return res.status(404).json({ message: 'User not found.' });
+        }
+        res.json(rows[0]);
+    } catch (err) {
+        console.error('Error finding user by Telegram handle:', err);
+        res.status(500).json({ message: 'Server Error' });
+    }
+});
+
 // NEW ENDPOINT: Verify Telegram user and redeem token
 app.post('/api/users/verify-telegram', async (req, res) => {
     const { telegram_handle, telegram_invite_token } = req.body;
