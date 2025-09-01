@@ -531,6 +531,49 @@ app.post('/api/payments/opay/webhook', async (req, res) => {
     }
 });
 
+// NEW ENDPOINT: Verify Telegram user and redeem token
+app.post('/api/users/verify-telegram', async (req, res) => {
+    const { telegram_handle, telegram_invite_token } = req.body;
+
+    if (!telegram_handle || !telegram_invite_token) {
+        return res.status(400).json({ message: 'Missing Telegram handle or token.' });
+    }
+
+    try {
+        const { rows } = await pool.query(
+            'SELECT * FROM users WHERE telegram_handle = $1 AND telegram_invite_token = $2 AND subscription_status = $3',
+            [telegram_handle, telegram_invite_token, 'active']
+        );
+
+        if (rows.length > 0) {
+            const user = rows[0];
+
+            // In a real-world scenario, you would redeem the token here
+            // to prevent it from being used again.
+            await pool.query(
+                'UPDATE users SET telegram_invite_token = NULL WHERE id = $1',
+                [user.id]
+            );
+
+            // Respond to the bot with success
+            res.status(200).json({
+                message: 'Verification successful. User is active.',
+                user: {
+                    id: user.id,
+                    email: user.email,
+                    telegram_handle: user.telegram_handle,
+                    plan_name: user.plan_name
+                }
+            });
+        } else {
+            res.status(404).json({ message: 'User not found or token is invalid.' });
+        }
+    } catch (err) {
+        console.error('Error verifying Telegram user:', err);
+        res.status(500).json({ message: 'Server Error' });
+    }
+});
+
 
 // Serve static files from the 'public' directory
 app.use(express.static(path.join(__dirname, 'public')));
