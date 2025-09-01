@@ -8,6 +8,7 @@ const cors = require('cors'); // Import the cors package
 const { Pool } = require('pg');
 const path = require('path');
 const bcrypt = require('bcrypt'); // Import bcrypt for password hashing
+const crypto = require('crypto'); // Import crypto for generating unique tokens
 const app = express();
 // Load environment variables from .env file
 require('dotenv').config();
@@ -456,6 +457,139 @@ app.get('/api/users/stats', async (req, res) => {
     res.status(500).send('Server Error');
   }
 });
+
+// NEW ROUTE: Endpoint for OPay payment initiation
+// This route is called by the frontend form submission
+app.post('/api/payments/opay', async (req, res) => {
+    try {
+        const { fullname, email, telegram, plan } = req.body;
+
+        // Approximate conversion rate (1 USD to NGN)
+        const USD_TO_NGN_RATE = 750;
+        
+        const prices = {
+            monthly: 39,
+            quarterly: 99,
+            yearly: 299
+        };
+        const amountUSD = prices[plan];
+        
+        if (!amountUSD) {
+            return res.status(400).json({ message: 'Invalid plan selected.' });
+        }
+
+        // Convert the USD price to NGN for OPay
+        const amountNGN = amountUSD * USD_TO_NGN_RATE;
+        
+        // Generate a unique token for this transaction. This will be used to
+        // securely identify the user later when OPay's webhook pings us.
+        const transactionRef = crypto.randomBytes(16).toString('hex');
+        const telegramInviteToken = crypto.randomBytes(32).toString('hex');
+        
+        // --- 1. Save the user to the database with a 'pending' status ---
+        const registrationDate = new Date().toISOString().split('T')[0];
+        const { rows } = await pool.query(
+            `INSERT INTO users (full_name, email, telegram_handle, plan_name, subscription_status, registration_date, telegram_invite_token)
+             VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+            [fullname, email, telegram, plan, 'pending', registrationDate, telegramInviteToken]
+        );
+        
+        // --- 2. Make a real API call to OPay (this is a placeholder for now) ---
+        // You would uncomment this block and replace the placeholder with your actual OPay API call
+        
+        // const opayResponse = await fetch('https://api.opay.com/v1/checkout/initiate', {
+        //     method: 'POST',
+        //     headers: {
+        //         'Authorization': `Bearer ${process.env.OPAY_API_KEY}`,
+        //         'Merchant-ID': process.env.OPAY_MERCHANT_ID,
+        //         'Content-Type': 'application/json'
+        //     },
+        //     body: JSON.stringify({
+        //         amount: amountNGN,
+        //         currency: 'NGN',
+        //         reference: transactionRef,
+        //         callback_url: `${process.env.APP_BASE_URL}/api/payments/opay/webhook`,
+        //         // other OPay specific details
+        //     })
+        // });
+        // const opayData = await opayResponse.json();
+        
+        // --- 3. Return the redirect URL from OPay to the frontend ---
+        // For now, we'll return a mock URL.
+        const mockRedirectUrl = `https://mock-opay.com/pay?ref=${transactionRef}&amount=${amountNGN}`;
+        
+        res.status(200).json({ 
+            message: 'Payment initiated successfully.',
+            redirectUrl: mockRedirectUrl,
+            transactionRef: transactionRef
+        });
+
+    } catch (err) {
+        console.error('Error initiating OPay payment:', err);
+        res.status(500).json({ message: 'Server Error during payment initiation.' });
+    }
+});
+
+// NEW ROUTE: OPay Webhook Handler for payment confirmation
+app.post('/api/payments/opay/webhook', async (req, res) => {
+    // In a real scenario, you would perform a signature validation here
+    // to ensure the request is genuinely from OPay.
+    
+    // Assume the webhook body contains 'reference' and 'status'
+    const { reference, status } = req.body;
+    
+    if (!reference || !status) {
+        return res.status(400).send('Invalid webhook payload');
+    }
+    
+    if (status === 'success') {
+        try {
+            // Find the user in the database using the transaction reference
+            const { rows } = await pool.query(
+                'SELECT * FROM users WHERE telegram_invite_token = $1',
+                [reference]
+            );
+
+            if (rows.length === 0) {
+                return res.status(404).send('User not found for this transaction reference.');
+            }
+            
+            const user = rows[0];
+            
+            // Calculate subscription expiration date
+            let expirationDate = new Date();
+            if (user.plan_name === 'monthly') {
+                expirationDate.setMonth(expirationDate.getMonth() + 1);
+            } else if (user.plan_name === 'quarterly') {
+                expirationDate.setMonth(expirationDate.getMonth() + 3);
+            } else if (user.plan_name === 'yearly') {
+                expirationDate.setFullYear(expirationDate.getFullYear() + 1);
+            }
+
+            // Update the user's subscription status and expiration date
+            await pool.query(
+                `UPDATE users SET subscription_status = 'active', subscription_expiration_date = $1 WHERE telegram_invite_token = $2`,
+                [expirationDate.toISOString().split('T')[0], reference]
+            );
+            
+            // Log the successful update
+            console.log(`User ${user.email} subscription activated successfully.`);
+            
+            // Respond to OPay to acknowledge receipt of the webhook.
+            // This is a crucial step to prevent OPay from resending the webhook.
+            res.status(200).send('Webhook received and processed successfully.');
+            
+        } catch (err) {
+            console.error('Error processing OPay webhook:', err);
+            res.status(500).send('Server Error');
+        }
+    } else {
+        // Handle other statuses like 'failed' or 'cancelled'
+        console.log(`Received webhook for reference ${reference} with status: ${status}`);
+        res.status(200).send('Webhook received, but payment was not successful.');
+    }
+});
+
 
 // Serve static files from the 'public' directory
 app.use(express.static(path.join(__dirname, 'public')));
