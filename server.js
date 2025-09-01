@@ -509,7 +509,7 @@ app.post('/api/payments/opay/webhook', async (req, res) => {
 
             // Update the user's subscription status and expiration date
             await pool.query(
-                `UPDATE users SET subscription_status = 'active', subscription_expiration_date = $1 WHERE telegram_invite_token = $2`,
+                `UPDATE users SET subscription_status = 'active', subscription_expiration = $1 WHERE telegram_invite_token = $2`,
                 [expirationDate.toISOString().split('T')[0], reference]
             );
             
