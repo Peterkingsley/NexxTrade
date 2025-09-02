@@ -358,6 +358,7 @@ app.delete('/api/performances/:id', async (req, res) => {
   }
 });
 
+
 // MODIFIED: API routes for the users table to handle the new subscription fields
 app.get('/api/users', async (req, res) => {
   try {
@@ -531,6 +532,44 @@ app.post('/api/payments/opay/webhook', async (req, res) => {
     }
 });
 
+
+// NEW ROUTE: Endpoint for cleaning up expired subscriptions
+app.post('/api/subscriptions/cleanup', async (req, res) => {
+    try {
+        const today = new Date().toISOString().split('T')[0];
+        
+        // Find all users with active subscriptions that have expired
+        const { rows } = await pool.query(
+            "SELECT id, telegram_handle FROM users WHERE subscription_status = 'active' AND subscription_expiration < $1",
+            [today]
+        );
+        
+        if (rows.length === 0) {
+            return res.status(200).json({ message: 'No expired subscriptions found.' });
+        }
+        
+        // Update their status to 'expired'
+        await pool.query(
+            "UPDATE users SET subscription_status = 'expired' WHERE subscription_status = 'active' AND subscription_expiration < $1",
+            [today]
+        );
+
+        // This is a placeholder for a notification system. In a real application, you might
+        // want to notify a separate service or a Telegram function to handle removals.
+        console.log(`Updated ${rows.length} users with expired subscriptions.`);
+        res.json({ 
+            message: `Processed ${rows.length} expired subscriptions.`, 
+            expired_users: rows 
+        });
+        
+    } catch (err) {
+        console.error('Error processing subscription cleanup:', err);
+        res.status(500).json({ message: 'Server Error' });
+    }
+});
+
+
+// NEW ROUTE: Endpoint to find a user's status by Telegram handle
 app.get('/api/users/status-by-telegram-handle/:telegram_handle', async (req, res) => {
     try {
         const { telegram_handle } = req.params;
@@ -548,6 +587,7 @@ app.get('/api/users/status-by-telegram-handle/:telegram_handle', async (req, res
     }
 });
 
+// NEW ROUTE: Endpoint to find a user's ID by Telegram handle
 app.get('/api/users/find-by-telegram-handle/:telegram_handle', async (req, res) => {
     try {
         const { telegram_handle } = req.params;
@@ -575,8 +615,8 @@ app.post('/api/users/verify-telegram', async (req, res) => {
 
     try {
         const { rows } = await pool.query(
-            'SELECT * FROM users WHERE telegram_handle = $1 AND telegram_invite_token = $2 AND subscription_status = $3',
-            [telegram_handle, telegram_invite_token, 'active']
+            'SELECT * FROM users WHERE telegram_handle = $1 AND telegram_invite_token = $2',
+            [telegram_handle, telegram_invite_token]
         );
 
         if (rows.length > 0) {
