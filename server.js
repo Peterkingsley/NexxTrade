@@ -14,6 +14,9 @@ const app = express();
 require('dotenv').config();
 const port = process.env.PORT || 3000;
 
+// NEW: Import the Telegram bot and webhook setup function
+const { bot, setupWebhook } = require('./telegram_bot.js');
+
 // Middleware setup
 // Use the CORS middleware to allow cross-origin requests
 app.use(cors());
@@ -689,6 +692,15 @@ app.post('/api/users/verify-telegram', async (req, res) => {
     }
 });
 
+// NEW: Add a POST route to handle Telegram webhooks.
+// This route will receive updates from Telegram.
+app.post(`/bot${token}`, (req, res) => {
+    // Process the incoming update from Telegram
+    bot.processUpdate(req.body);
+    // Send a 200 OK response to Telegram to acknowledge the update
+    res.sendStatus(200);
+});
+
 
 // Serve static files from the 'public' directory
 app.use(express.static(path.join(__dirname, 'public')));
@@ -702,6 +714,8 @@ app.get('*', (req, res) => {
 
 // Start the server
 // NOTE: Make sure this is the last app.listen() call in your file.
-app.listen(port, () => {
+app.listen(port, async () => {
   console.log(`Server is running on http://localhost:${port}`);
+  // IMPORTANT: Set up the webhook once the server is listening.
+  await setupWebhook();
 });

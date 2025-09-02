@@ -1,23 +1,37 @@
 // telegram_bot.js
+// This file is now used to set up the webhook and define the bot's logic.
+// It will not be run with `node telegram_bot.js` as a standalone script.
+// Instead, its webhook initialization logic will be called from server.js.
 
 // Load environment variables from .env file
 require('dotenv').config();
 
 // Import the Telegram Bot API library
 const TelegramBot = require('node-telegram-bot-api');
-
-// Get the bot token and server URL from your .env file
 const token = process.env.TELEGRAM_BOT_TOKEN;
+
+// Get the server URL from your .env file
+// We'll use this to construct the webhook URL.
 const serverUrl = process.env.APP_BASE_URL;
 const privateChannelId = process.env.PRIVATE_CHANNEL_ID;
 
-// Create a new Telegram bot instance
-// The 'polling' option is great for development, but for production, you would typically use a webhook.
-const bot = new TelegramBot(token, { polling: true });
+// Create a new Telegram bot instance without polling.
+// The webhook will handle incoming messages.
+const bot = new TelegramBot(token, { polling: false });
 
-console.log('Telegram bot is now running...');
+// This function sets up the webhook on Telegram's side.
+// It should only be run once when the server starts.
+const setupWebhook = async () => {
+    try {
+        const webhookUrl = `${serverUrl}/bot${token}`;
+        await bot.setWebHook(webhookUrl);
+        console.log(`Webhook set to: ${webhookUrl}`);
+    } catch (error) {
+        console.error('Failed to set webhook:', error);
+    }
+};
 
-// NEW: Listen for a simple '/start' command
+// Listen for a simple '/start' command
 bot.onText(/\/start/, async (msg) => {
     const chatId = msg.chat.id;
     const telegramHandle = msg.from.username;
@@ -26,38 +40,32 @@ bot.onText(/\/start/, async (msg) => {
         bot.sendMessage(chatId, "Please set a public Telegram username in your profile settings before proceeding.");
         return;
     }
-    
+
     try {
-        // Step 1: Check if the user is already a member of the group
         const chatMember = await bot.getChatMember(privateChannelId, msg.from.id);
         
-        // If the user is a member (not 'left' or 'kicked'), return a message.
         if (chatMember.status !== 'left' && chatMember.status !== 'kicked') {
             bot.sendMessage(chatId, "You are already a member of the group!");
             return;
         }
     } catch (error) {
-        // This is expected if the user is not in the group. We can ignore this error.
         console.log(`User @${telegramHandle} is not a member of the chat. Proceeding with verification.`);
     }
 
     try {
-        // Step 2: Check the user's subscription status via the backend API
         const response = await fetch(`${serverUrl}/api/users/status-by-telegram-handle/${telegramHandle}`);
         const data = await response.json();
 
         if (response.ok && data.subscription_status === 'active') {
-            // Step 3: If the subscription is active, generate a new one-time invite link.
             const inviteLink = await bot.createChatInviteLink(privateChannelId, {
-                member_limit: 1, // Ensure the link is single-use
-                expire_date: Math.floor(Date.now() / 1000) + 600 // Expire in 10 minutes
+                member_limit: 1,
+                expire_date: Math.floor(Date.now() / 1000) + 600
             });
             
             bot.sendMessage(chatId, 
                 `Hello @${telegramHandle}! Your subscription is active. Here is your private, one-time invite link: ${inviteLink.invite_link}`
             );
         } else {
-            // If the subscription is not active or user not found
             bot.sendMessage(chatId, `Your status could not be found or your subscription is inactive. Please contact support via our website.`);
         }
     } catch (error) {
@@ -94,27 +102,22 @@ bot.onText(/\/status/, async (msg) => {
 
 
 // Listen for the '/remove' command
-// Your bot must be an admin in the group with 'Restrict members' permission.
 bot.onText(/\/remove (.+)/, async (msg, match) => {
     const chatId = msg.chat.id;
     const adminTelegramHandle = msg.from.username;
     const usernameToRemove = match[1];
 
-    // Only allow this command from a designated admin (e.g., your own Telegram handle)
     if (adminTelegramHandle !== 'PeterKingsley') {
         bot.sendMessage(chatId, "You do not have permission to use this command.");
         return;
     }
 
     try {
-        // Call the backend API to find the user's ID
         const response = await fetch(`${serverUrl}/api/users/find-by-telegram-handle/${usernameToRemove}`);
         const data = await response.json();
 
         if (response.ok) {
             const userToRemoveId = data.id;
-
-            // Use the Telegram Bot API to ban (remove) the member
             await bot.banChatMember(privateChannelId, userToRemoveId);
 
             bot.sendMessage(chatId, `@${usernameToRemove} has been successfully removed from the group.`);
@@ -130,10 +133,15 @@ bot.onText(/\/remove (.+)/, async (msg, match) => {
 // Respond to any other messages
 bot.on('message', (msg) => {
     const chatId = msg.chat.id;
-    // Don't send a message if it's a known command
     if (msg.text.toString().toLowerCase().startsWith("/start") || msg.text.toString().toLowerCase().startsWith("/status") || msg.text.toString().toLowerCase().startsWith("/remove")) {
         return;
     }
     
     bot.sendMessage(chatId, "Hello! I am the NexxTrade bot. To gain access to our private channels, please sign up and pay via our website. Your unique invite link will be sent to you automatically after payment.");
 });
+
+// Export the bot instance and the setup function so they can be used in server.js
+module.exports = {
+    bot,
+    setupWebhook
+};
