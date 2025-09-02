@@ -659,6 +659,47 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+// NEW ROUTE: API routes for PNL proofs management
+// Based on the 'pnlproofs' table from your SQL dump.
+// The columns are: id, image_url, description
+app.get('/api/pnlproofs', async (req, res) => {
+    try {
+        const { rows } = await pool.query('SELECT * FROM pnlproofs ORDER BY date DESC');
+        res.json(rows);
+    } catch (err) {
+        console.error(err);
+        res.status(500).send('Server Error');
+    }
+});
+
+app.post('/api/pnlproofs', async (req, res) => {
+    try {
+        const { date, image_url, description } = req.body;
+        const { rows } = await pool.query(
+            'INSERT INTO pnlproofs(date, image_url, description) VALUES($1, $2, $3) RETURNING *',
+            [date, image_url, description]
+        );
+        res.status(201).json(rows[0]);
+    } catch (err) {
+        console.error(err);
+        res.status(500).send('Server Error');
+    }
+});
+
+app.delete('/api/pnlproofs/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { rowCount } = await pool.query('DELETE FROM pnlproofs WHERE id = $1', [id]);
+        if (rowCount === 0) {
+            return res.status(404).send('PNL proof not found.');
+        }
+        res.status(204).send();
+    } catch (err) {
+        console.error(err);
+        res.status(500).send('Server Error');
+    }
+});
+
 // Start the server
 // NOTE: Make sure this is the last app.listen() call in your file.
 app.listen(port, () => {
