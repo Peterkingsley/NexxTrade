@@ -1,869 +1,706 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>NexxTrade — Futures Signals, Done Right</title>
-  <meta name="description" content="Join NexxTrade: actionable futures signals with clear risk management and automated Telegram access. OPay & Crypto supported." />
-  <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
-  <style>
-    :root{
-      --bg:#0b0f14;           /* deep navy/charcoal */
-      --bg-2:#0f141b;         /* card background */
-      --text:#e9edf3;         /* off-white */
-      --muted:#a8b3c7;        /* muted text */
-      --accent:#2ad678;       /* profit green */
-      --accent-2:#f0c75e;     /* gold for badges */
-      --danger:#ff5d5d;       /* soft red */
-      --line:#1b2330;         /* subtle borders */
-      --shadow:0 8px 24px rgba(0,0,0,.35);
-      --radius:16px;
-      --radius-lg:20px;
-      --max:1200px;
+// server.js
+// This file sets up a Node.js backend server using Express and a PostgreSQL database.
+// It handles API routes for managing blogs, pricing plans, roles, and performance data.
+
+// Import required modules
+const express = require('express');
+const cors = require('cors'); // Import the cors package
+const { Pool } = require('pg');
+const path = require('path');
+const bcrypt = require('bcrypt'); // Import bcrypt for password hashing
+const crypto = require('crypto'); // Import crypto for generating unique tokens
+const app = express();
+// Load environment variables from .env file
+require('dotenv').config();
+const port = process.env.PORT || 3000;
+
+// Middleware setup
+// Use the CORS middleware to allow cross-origin requests
+app.use(cors());
+// Use express.json() to parse incoming JSON payloads
+app.use(express.json());
+// Use express.urlencoded() to parse URL-encoded bodies, important for form submissions
+app.use(express.urlencoded({ extended: true }));
+
+// PostgreSQL database connection pool
+// This uses a connection string from an environment variable for security.
+// Remember to set DATABASE_URL in your environment before running the server.
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    // This setting is often needed for cloud-hosted databases that use self-signed certificates.
+    // It tells the client to not reject the connection based on the certificate authority.
+    rejectUnauthorized: false
+  }
+});
+
+// Function to connect to the database and handle errors
+async function connectToDatabase() {
+  try {
+    const client = await pool.connect();
+    console.log('Successfully connected to the PostgreSQL database.');
+    client.release(); // Release the client back to the pool
+  } catch (error) {
+    console.error('Database connection failed:', error.stack);
+  }
+}
+
+// Call the function to test the database connection on server start
+connectToDatabase();
+
+// API Routes for Blogs Management
+// Based on the 'blogposts' table from your SQL dump.
+// The columns are: id, title, teaser, content, author, published_date, status, featured_image_url
+app.get('/api/blogs', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM blogposts ORDER BY published_date DESC');
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server Error');
+  }
+});
+
+app.get('/api/blogs/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rows } = await pool.query('SELECT * FROM blogposts WHERE id = $1', [id]);
+    if (rows.length === 0) {
+      return res.status(404).send('Blog post not found.');
     }
-    *{box-sizing:border-box}
-    html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial,sans-serif;overflow-x:hidden}
-    a{color:inherit;text-decoration:none}
-    img{max-width:100%;display:block}
-    button{font:inherit}
+    res.json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server Error');
+  }
+});
 
-    /* Utility */
-    .container{width:100%;max-width:var(--max);margin-inline:auto;padding-inline:20px}
-    .grid{display:grid;gap:20px}
-    .btn{display:inline-flex;align-items:center;gap:.6rem;padding:.9rem .9rem;border-radius:999px;border:1px solid transparent;cursor:pointer;transition:.2s ease;white-space:nowrap}
-    .btn-primary{background:var(--accent);color:#04140a;font-weight:600}
-    .btn-primary:hover{filter:brightness(1.1);transform:translateY(-1px)}
-    .btn-ghost{background:transparent;border-color:var(--line);color:var(--text)}
-    .btn-ghost:hover{background:#0f151d}
-    .badge{display:inline-flex;align-items:center;gap:.4rem;background:rgba(42,214,120,.1);color:var(--accent);border:1px solid rgba(42,214,120,.25);padding:.35rem .6rem;border-radius:999px;font-size:.78rem;font-weight:600; margin: 10px 0;}
-    .card{background:var(--bg-2);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
-    .muted{color:var(--muted)}
-    .center{text-align:center}
+// MODIFIED: POST route to handle JSON body with Base64 image string
+app.post('/api/blogs', async (req, res) => {
+  try {
+    const { title, teaser, content, author, published_date, status, featured_image_url } = req.body;
 
-    /* Reveal animations */
-    .reveal{opacity:0;transform:translateY(12px);transition:opacity .5s ease, transform .5s ease}
-    .reveal.in{opacity:1;transform:none}
+    const { rows } = await pool.query(
+      'INSERT INTO blogposts(title, teaser, content, author, published_date, status, featured_image_url) VALUES($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+      [title, teaser, content, author, published_date, status, featured_image_url]
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server Error');
+  }
+});
 
-    /* Header */
-    header{position:sticky;top:0;z-index:50;background:linear-gradient(180deg, rgba(11,15,20,.9), rgba(11,15,20,.6));backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
-    .nav{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 20px;}
-    .brand{display:flex;align-items:center;gap:.6rem; flex-direction: column; align-items: flex-start;}
-    .brand span.tagline { font-size: 0.8rem; color: var(--muted); margin-top: -5px; }
-    .logo{width:28px;height:28px;border-radius:7px;background:conic-gradient(from 30deg, #12b886, #2ad678, #8ef7bf);box-shadow:0 0 0 2px rgba(42,214,120,.15)}
-    nav a{opacity:.9}
-    nav a:hover{opacity:1}
-    .nav-links{display:flex;gap:18px;align-items:center}
-    .nav-toggle-btn { display: none; }
+// MODIFIED: PUT route to handle JSON body with Base64 image string
+app.put('/api/blogs/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, teaser, content, author, published_date, status, featured_image_url } = req.body;
 
-    /* Hero */
-    .hero{position:relative;overflow:hidden}
-    .hero::before{content:"";position:absolute;inset:0;background:radial-gradient(1000px 400px at 20% -10%, rgba(42,214,120,.15), rgba(0,0,0,0)), radial-gradient(900px 400px at 80% -20%, rgba(240,199,94,.08), rgba(0,0,0,0));pointer-events:none}
-    .hero-wrap{display:grid;grid-template-columns:1.2fr .8fr;gap:32px;align-items:center;padding:56px 20px;}
-    .hero h1{font-size:clamp(1.9rem, 4vw, 3rem);line-height:1.1;margin:0 0 10px}
-    .hero p{font-size:clamp(1rem, 1.4vw, 1.15rem);color:var(--muted);margin:0 0 24px}
-    .hero .cta{display:flex;gap:12px;flex-wrap:wrap}
-    .hero-panel{aspect-ratio:16/10;background:linear-gradient(180deg,#0f151d,#0b141b);border:1px solid var(--line);border-radius:var(--radius-lg);position:relative;overflow:hidden}
-    .scan{position:absolute;inset:0;background:repeating-linear-gradient( to bottom, rgba(42,214,120,.05) 0 2px, transparent 2px 4px);animation:scan 8s linear infinite;mix-blend:overlay}
-    @keyframes scan{0%{transform:translateY(-30%)}100%{transform:translateY(30%)}}
-    .spark{position:absolute;width:120px;height:120px;border-radius:50%;filter:blur(40px);background:radial-gradient(circle, rgba(42,214,120,.35), rgba(42,214,120,0));top:20%;left:15%}
-    .spark2{top:60%;left:auto;right:10%;background:radial-gradient(circle, rgba(240,199,94,.25), rgba(240,199,94,0))}
-
-    /* Social proof bar */
-    .proof{border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:#0d1219}
-    .proof-wrap{display:flex;gap:24px;justify-content:center;align-items:center;padding:14px 20px;flex-wrap:wrap}
-    .kpi{display:flex;align-items:baseline;gap:.5rem}
-    .kpi .num{font-weight:800;font-size:1.25rem}
-
-    /* Benefits */
-    .benefits{padding:64px 0px;}
-    .benefit-grid{grid-template-columns:repeat(4,1fr)}
-    .benefit{padding:20px}
-    .benefit .icon{width:36px;height:36px;display:grid;place-items:center;border-radius:10px;background:rgba(42,214,120,.08);border:1px solid rgba(42,214,120,.25);margin-bottom:10px}
-    .benefit h4{margin:6px 0 6px}
-    .benefit p{margin:0;color:var(--muted)}
-
-    /* Performance snapshot */
-    .performance{padding:48px 0;}
-    .perf-wrap{display:grid;grid-template-columns:1fr .9fr;gap:24px}
-    table{width:100%;border-collapse:collapse}
-    th,td{padding:12px;border-bottom:1px solid var(--line);text-align:left}
-    th{color:var(--muted);font-weight:600}
-    .gain{color:var(--accent);font-weight:700}
-    .loss{color:var(--danger);font-weight:700}
-
-    /* How it works */
-    .how{padding:56px 20px;}
-    .steps{grid-template-columns:repeat(4,1fr)}
-    .step{padding:20px;border:1px dashed var(--line);border-radius:var(--radius)}
-    .step .icon{width:34px;height:34px;margin-bottom:10px;display:grid;place-items:center}
-    .step .icon svg { width: 20px; height: 20px; }
-
-    /* Blog section styling */
-    .blog-section {
-      padding: 56px 20px;
+    const { rows } = await pool.query(
+      'UPDATE blogposts SET title = $1, teaser = $2, content = $3, author = $4, published_date = $5, status = $6, featured_image_url = $7 WHERE id = $8 RETURNING *',
+      [title, teaser, content, author, published_date, status, featured_image_url, id]
+    );
+    if (rows.length === 0) {
+      return res.status(404).send('Blog post not found.');
     }
-    .blog-section .content {
-      display: grid;
-      grid-template-columns: 1fr;
-      align-items: center;
-      gap: 32px;
+    res.json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server Error');
+  }
+});
+
+app.delete('/api/blogs/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rowCount } = await pool.query('DELETE FROM blogposts WHERE id = $1', [id]);
+    if (rowCount === 0) {
+      return res.status(404).send('Blog post not found.');
     }
-    .blog-section .cta-panel {
-      padding: 24px;
-      text-align: center;
+    res.status(204).send(); // 204 No Content
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server Error');
+  }
+});
+
+
+// API Routes for Pricing Plans Management
+// Based on the 'pricingplans' table from your SQL dump.
+// The columns are: id, plan_name, price, term, description, features, is_best_value
+app.get('/api/pricing', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM pricingplans ORDER BY price ASC');
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server Error');
+  }
+});
+
+app.post('/api/pricing', async (req, res) => {
+  try {
+    const { plan_name, price, term, description, features, is_best_value } = req.body;
+    const { rows } = await pool.query(
+      'INSERT INTO pricingplans(plan_name, price, term, description, features, is_best_value) VALUES($1, $2, $3, $4, $5, $6) RETURNING *',
+      [plan_name, price, term, description, features, is_best_value]
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server Error');
+  }
+});
+
+app.put('/api/pricing/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { plan_name, price, term, description, features, is_best_value } = req.body;
+    const { rows } = await pool.query(
+      'UPDATE pricingplans SET plan_name = $1, price = $2, term = $3, description = $4, features = $5, is_best_value = $6 WHERE id = $7 RETURNING *',
+      [plan_name, price, term, description, features, is_best_value, id]
+    );
+    if (rows.length === 0) {
+      return res.status(404).send('Pricing plan not found.');
     }
-    .blog-section .cta-panel h3 {
-      font-size: 1.5rem;
-      font-weight: 700;
-      margin-top: 0;
-      margin-bottom: 8px;
+    res.json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server Error');
+  }
+});
+
+app.delete('/api/pricing/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rowCount } = await pool.query('DELETE FROM pricingplans WHERE id = $1', [id]);
+    if (rowCount === 0) {
+      return res.status(404).send('Pricing plan not found.');
     }
-    .blog-card {
-      padding: 20px;
-      text-align: left;
+    res.status(204).send();
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server Error');
+  }
+});
+
+
+// API Routes for User Roles Management
+// Based on the 'adminusers' table from your SQL dump.
+// The columns are: id, username, hashed_password, role, permissions
+app.get('/api/roles', async (req, res) => {
+  try {
+    // Note: Do not expose sensitive data like hashed_password.
+    const { rows } = await pool.query('SELECT id, username, role, permissions FROM adminusers');
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server Error');
+  }
+});
+
+// NEW ROUTE: Create a new admin user
+app.post('/api/roles', async (req, res) => {
+  try {
+    const { username, password, role, permissions } = req.body;
+    const saltRounds = 10;
+
+    // Hash the password before saving to the database
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+    // Insert the new user into the adminusers table
+    const { rows } = await pool.query(
+      'INSERT INTO adminusers(username, hashed_password, role, permissions) VALUES($1, $2, $3, $4) RETURNING id, username, role, permissions',
+      [username, hashedPassword, role, permissions]
+    );
+
+    // Send a 201 Created status and the new user's info (without password)
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    console.error('Error creating new user:', err);
+    // Handle specific errors, e.g., duplicate username
+    if (err.code === '23505') { // PostgreSQL error code for unique violation
+        return res.status(409).json({ message: 'Username already exists.' });
     }
-    .blog-card img {
-      width: 100%;
-      height: 200px;
-      object-fit: cover;
-      border-radius: var(--radius);
-      margin-bottom: 15px;
+    res.status(500).json({ message: 'Server Error' });
+  }
+});
+
+app.put('/api/roles/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { role, permissions } = req.body;
+    const { rows } = await pool.query(
+      'UPDATE adminusers SET role = $1, permissions = $2 WHERE id = $3 RETURNING id, username, role, permissions',
+      [role, permissions, id]
+    );
+    if (rows.length === 0) {
+      return res.status(404).send('User not found.');
     }
-    .blog-card h4 {
-      margin-top: 0;
-      margin-bottom: 8px;
-    }
-    .blog-card .teaser {
-      color: var(--muted);
-      font-size: 0.95rem;
-    }
+    res.json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server Error');
+  }
+});
 
-    /* Pricing */
-    .pricing{padding:56px 20px;}
-    .plans{grid-template-columns:repeat(3,1fr)}
-    .plan{
-      padding:24px;
-      position:relative;
-      transition:transform .15s ease;
-      /* Using flexbox to center content */
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      text-align: center;
-    }
-    .plan:hover{transform:translateY(-3px)}
-    .plan .tag{position:absolute;top:12px;right:12px;background:rgba(240,199,94,.15);color:var(--accent-2);border:1px solid rgba(240,199,94,.35);padding:.3rem .6rem;border-radius:999px;font-size:.78rem;font-weight:700}
-    
-    .features{
-      list-style:none;
-      padding:0;
-      margin:12px 0 16px;
-      /*
-        Updated for better alignment
-        The main change is using flexbox to distribute space evenly.
-      */
-      display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 10px;
-    }
-    .features li{
-      display: flex;
-      gap: 10px;
-      align-items: center;
-      /* Add flex-grow to make each list item take up equal space */
-      flex-grow: 1;
-    }
-    .feature-icon{
-      width: 1.1em;
-      height: 1.1em;
-      color: var(--accent);
-      flex-shrink: 0;
-    }
+// NEW ROUTE: Handle admin login
+app.post('/api/login', async (req, res) => {
+    try {
+        const { username, password } = req.body;
 
-    /* New CSS for price layout */
-    .price-group {
-      display: flex;
-      align-items: flex-end;
-      gap: 8px;
-    }
-    .price-group .price-val {
-      font-size: 2rem;
-      font-weight: 800;
-      margin: 0;
-    }
-    .price-group .price-term {
-      color: var(--muted);
-      font-size: 1rem;
-      margin-bottom: 4px;
-    }
+        // Find the user by username
+        const { rows } = await pool.query(
+            'SELECT * FROM adminusers WHERE username = $1',
+            [username]
+        );
 
-    /* Testimonials */
-    .testimonials{padding:56px 20px;}
-    .t-grid{grid-template-columns:repeat(3,1fr)}
-    .quote{padding:20px}
-    .quote p{color:var(--muted)}
+        if (rows.length > 0) {
+            const user = rows[0];
+            // Compare the provided password with the stored hashed password
+            const match = await bcrypt.compare(password, user.hashed_password);
 
-    /* Community peek */
-    .peek{padding:48px 20px;}
-    .peek .panel{min-height:220px;background:linear-gradient(180deg,#0f141b,#0c1016);border:1px solid var(--line);border-radius:var(--radius);position:relative;overflow:hidden}
-    .blurbar{position:absolute;inset:0;background:rgba(0,0,0,.3);backdrop-filter:blur(2px)}
-
-    /* FAQ */
-    .faq{padding:56px 20px;}
-    .accordion{display:grid;gap:12px}
-    .acc-item{background:var(--bg-2);border:1px solid var(--line);border-radius:12px;overflow:hidden}
-    .acc-head{background:#0e141c;display:flex;justify-content:space-between;align-items:center;padding:14px 16px;cursor:pointer; color:var(--text)}
-    .acc-body{max-height:0;overflow:hidden;background:#0c1118;transition:max-height .25s ease}
-    .acc-body-inner{padding:14px 16px;color:var(--muted)}
-
-    /* Disclaimer */
-    .disclaimer{padding:20px;border-top:1px solid var(--line);background:#0c1118;color:var(--muted);font-size:.92rem}
-
-    /* Footer */
-    footer{border-top:1px solid var(--line);background:#0b1017;padding:36px 20px 12px;}
-    .f-grid{display:grid;grid-template-columns:2fr 1fr 1fr 1.2fr;gap:20px;}
-    footer ul{list-style:none;margin:0;padding:0;display:grid;gap:8px}
-    footer li a{color:var(--muted)}
-    footer li a:hover{color:var(--text)}
-    .subtle{font-size:.88rem;color:var(--muted)}
-
-    /* Sticky CTA (mobile) */
-    .sticky-cta{position:fixed;bottom:10px;left:10px;right:10px;z-index:60;display:none}
-    .sticky-cta .inner{display:flex;gap:10px;justify-content:space-between;align-items:center;background:#0e151e;border:1px solid var(--line);padding:10px 12px;border-radius:14px;box-shadow:var(--shadow)}
-    .sticky-cta .price{font-weight:800}
-
-    /* Responsive */
-    @media (max-width: 980px){
-      /* General layout */
-      .container { padding-inline: 0; } /* Increased for better spacing */
-      .hero-wrap, .perf-wrap, .f-grid{grid-template-columns:1fr; }
-      .benefit-grid, .steps, .t-grid{grid-template-columns:repeat(2,1fr)}
-      .plans{grid-template-columns:1fr}
-
-      .blog-section .content {
-        grid-template-columns: 1fr;
-        text-align: center;
-      }
-
-      /* Header & Nav */
-      .nav-links{display:none;}
-      .nav{padding:12px 16px;}
-      .nav-toggle-btn{display:block; cursor: pointer; background: transparent; border: none; font-size: 1.5rem; color: var(--text);}
-      header.mobile-nav-open .nav-links{
-        display:flex;
-        flex-direction: column;
-        position: absolute;
-        top: 100%;
-        left: 0;
-        width: 100%;
-        background-color: var(--bg-2);
-        padding: 10px 0;
-        border-bottom: 1px solid var(--line);
-        box-shadow: var(--shadow);
-      }
-      header.mobile-nav-open .nav-links a{
-        padding: 10px 20px;
-        text-align: center;
-      }
-      .brand {
-        flex-direction: row;
-        align-items: center;
-      }
-      .brand span.tagline {
-        display: none;
-      }
-
-      /* Spacing and sections */
-      .testimonials, .pricing, .how, .faq, .peek{
-        padding: 48px 20px;
-      }
-      .proof-wrap{
-        padding: 14px 20px;
-      }
-      .proof{
-        padding: 32px 20px;
-      }
-      .disclaimer{
-        padding: 20px 20px;
-      }
-      footer{
-        padding: 36px 20px 12px;
-      }
-
-      /* Hero section */
-      .hero-panel{display:none;}
-      .hero-wrap{padding: 32px 20px;}
-
-      /* Sticky CTA */
-      .sticky-cta{display:block;}
-
-      /* Performance adjustments */
-      .performance table {
-        font-size: 0.85rem;
-        white-space: nowrap;
-      }
-      .performance th, .performance td {
-        padding: 8px;
-      }
-    }
-
-    /* Even smaller mobile adjustments */
-    @media (max-width: 580px){
-      .benefit-grid, .steps, .t-grid, .f-grid{grid-template-columns:1fr;}
-      .hero h1{font-size: 2rem;}
-      .proof-wrap{flex-direction: column; align-items: flex-start; padding: 14px 0;}
-
-      /* PNL Proof grid to single column */
-      .performance .grid {
-        grid-template-columns: 1fr;
-      }
-    }
-  </style>
-</head>
-<body>
-  <header>
-    <div class="container nav">
-      <a class="brand" href="#" aria-label="NexxTrade home">
-        <span class="logo" aria-hidden="true"></span>
-        <strong>NexxTrade</strong>
-        <span class="tagline">Trade the NexxTrade way</span>
-      </a>
-      <button class="nav-toggle-btn" aria-label="Toggle navigation" aria-controls="nav-menu">
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
-      </button>
-      <nav class="nav-links" id="nav-menu" aria-label="primary">
-        <a href="#performance">Performance</a>
-        <a href="#pricing">Pricing</a>
-        <a href="#faq">FAQ</a>
-        <a href="blog.html">Blog</a>
-        <a class="btn btn-primary" href="#join">Get Access</a>
-      </nav>
-    </div>
-  </header>
-
-  <section class="hero">
-    <div class="container hero-wrap">
-      <div class="reveal">
-        <span class="badge">Trade smarter, win bigger.</span>
-        <h1>Futures Signals with <span style="color:var(--accent)">Accuracy</span> & High Conviction Set-ups</h1>
-        <p>Actionable entries, exits, and stops — delivered in real time. Pay with OPay or Crypto and get your unique Telegram invite instantly.</p>
-        <div class="cta">
-          <a class="btn btn-primary" href="#pricing">Get Access</a>
-          <a class="btn btn-ghost" href="performance.html">See Performance</a>
-        </div>
-        <div style="margin-top:14px" class="muted">Transparent results. Risk-first.
-        </div>
-      </div>
-      <div class="hero-panel reveal" aria-hidden="true">
-        <div class="scan"></div>
-        <div class="spark"></div>
-        <div class="spark spark2"></div>
-        <svg viewBox="0 0 600 360" width="100%" height="100%" style="position:absolute;inset:0;opacity:.7">
-          <g fill="none" stroke="#2ad678" stroke-width="2">
-            <line x1="50" y1="220" x2="50" y2="140"/>
-            <rect x="40" y="160" width="20" height="40" fill="rgba(42,214,120,.35)"/>
-            <line x1="120" y1="200" x2="120" y2="110"/>
-            <rect x="110" y="130" width="20" height="50" fill="rgba(42,214,120,.25)"/>
-            <line x1="190" y1="250" x2="190" y2="170"/>
-            <rect x="180" y="190" width="20" height="40" fill="rgba(255,93,93,.25)" stroke="#ff5d5d"/>
-            <line x1="260" y1="210" x2="260" y2="120"/>
-            <rect x="250" y="140" width="20" height="48" fill="rgba(42,214,120,.25)"/>
-            <polyline points="50,180 120,140 190,200 260,160 330,130 400,170 470,120 540,150" stroke="#8ef7bf" fill="none"/>
-          </g>
-        </svg>
-      </div>
-    </div>
-  </section>
-
-  <div class="proof">
-    <div class="container proof-wrap" id="social-proof">
-      <div class="kpi"><span class="num" data-count="6500">6500+</span><span class="muted">members</span></div>
-      <div class="kpi"><span class="num" data-count="85">75-85%</span><span class="muted">win rate</span></div>
-      <div class="kpi"><span class="num" data-count="3">3</span><span class="muted">min avg. response</span></div>
-      <div class="kpi"><span class="num" data-count="24">24</span><span class="muted">/7 active chat</span></div>
-    </div>
-  </div>
-
-  <section class="benefits container">
-    <h2 class="center reveal">Why Traders Choose NexxTrade</h2>
-    <div class="grid benefit-grid">
-      <article class="card benefit reveal">
-        <div class="icon" aria-hidden="true">
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
-        </div>
-        <h4>Signal Clarity</h4>
-        <p>Structures, Entries, invalidations, and targets you can act on without guesswork.</p>
-      </article>
-      <article class="card benefit reveal">
-        <div class="icon" aria-hidden="true">
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M21 12H3"/></svg>
-        </div>
-        <h4>Risk First</h4>
-        <p>Every call includes a stop-loss framework and risk context.</p>
-      </article>
-      <article class="card benefit reveal">
-        <div class="icon" aria-hidden="true">
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m13 2-3 8-6 3.5L14 10l-2 5h8l-2 5"/><circle cx="12" cy="12" r="10"/></svg>
-        </div>
-        <h4>Timely Alerts</h4>
-        <p>Real-time updates so you don’t chase; you plan.</p>
-      </article>
-      <article class="card benefit reveal">
-        <div class="icon" aria-hidden="true">
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a5 5 0 0 0-5 5v3.1A2 2 0 0 1 5 12a2 2 0 0 1-2-2.3c3.1-.9 6.2-1.7 8.3-4.4C10.6 3.7 11.2 2 12 2z"/><path d="M21 15c0 1.2-.6 2.3-1.6 3l-1.4 1.4a1 1 0 0 1-1.4 0L15 18l-1.4 1.4a1 1 0 0 1-1.4 0L11 18l-1.4 1.4a1 1 0 0 1-1.4 0L7 18l-1.4 1.4a1 1 0 0 1-1.4 0L3 18c-1.2-1.2-2-3-2-5a5 5 0 0 1 5-5h3a2 2 0 0 0 2-2V2"/></svg>
-        </div>
-        <h4>Automated Access</h4>
-        <p>Choose your plan, get auto invite, join private Telegram and WhatsApp instantly.</p>
-      </article>
-    </div>
-  </section>
-
-  <section id="performance" class="performance container">
-    <div class="perf-wrap">
-      <div class="card reveal" style="padding:18px">
-        <h3 style="margin:6px 0 10px">Recent Signals (preview)</h3>
-        <div style="overflow:auto">
-          <table aria-label="Recent signals">
-            <thead>
-              <tr><th>Date</th><th>Pair</th><th>Entry</th><th>Exit</th><th>P/L %</th></tr>
-            </thead>
-            <tbody id="signals-table">
-              <tr><td colspan="5" class="text-center text-muted py-4">Loading signals...</td></tr>
-            </tbody>
-          </table>
-        </div>
-        <div style="margin-top:12px"><a class="btn btn-ghost" href="performance.html" aria-label="View full performance">View full performance <svg style="width:16px; height:16px" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></a></div>
-      </div>
-      <div class="card reveal" style="padding:18px">
-        <h3 style="margin:6px 0 10px">PNL Proof</h3>
-        <div class="grid" style="grid-template-columns:repeat(2,1fr);gap:12px" id="pnl-gallery">
-          <div class="text-muted text-center py-8 col-span-2">Loading PNL proofs...</div>
-        </div>
-        <p class="muted" style="margin-top:12px">Full gallery available on the Performance page.</p>
-      </div>
-    </div>
-  </section>
-
-  <section class="how container">
-    <h2 class="center reveal">How It Works</h2>
-    <div class="grid steps">
-      <div class="card step reveal">
-        <div class="icon">
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-        </div>
-        <h4>Create Account</h4>
-        <p class="muted">30 seconds to sign up with your email and Telegram @handle.</p>
-      </div>
-      <div class="card step reveal">
-        <div class="icon">
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16"/><path d="M16 11h-3.5a2 2 0 0 0 0 4H18"/><path d="M12 5v14"/></svg>
-        </div>
-        <h4>Choose a Plan</h4>
-        <p class="muted">Pay via OPay or Crypto — monthly, quarterly, or yearly.</p>
-      </div>
-      <div class="card step reveal">
-        <div class="icon">
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 16 2-2 2 2"/><path d="m2 16 2-2 2 2"/><path d="M7 16V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v12a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2v-2a2 2 0 0 0-2-2h-3"/><path d="M2 12h17a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2h-2"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></svg>
-        </div>
-        <h4>Auto‑Invite Link</h4>
-        <p class="muted">Get a unique and secured Telegram and WhatsApp invite instantly after payment.</p>
-      </div>
-      <div class="card step reveal">
-        <div class="icon">
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-3"/><path d="m18 16 2-2 2 2"/><path d="m2 16 2-2 2 2"/><path d="M7 16V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v12a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2v-2a2 2 0 0 0-2-2h-3"/><path d="M2 12h17a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2h-2"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></svg>
-        </div>
-        <h4>Start Trading</h4>
-        <p class="muted">Receive real‑time signals and discuss with the community.</p>
-      </article>
-    </div>
-  </section>
-
-  <section id="pricing" class="pricing container">
-    <h2 class="center reveal">Simple Pricing</h2>
-    <div class="grid plans">
-      <div class="card plan reveal">
-        <h3>Monthly / Basic</h3>
-        <p class="muted">It’s okay to start small.</p>
-        <div class="price-group">
-          <p class="price-val">$35</p>
-          <p class="price-term muted">per month</p>
-        </div>
-        <ul class="features">
-          <li>
-            <svg class="feature-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            Real‑time signals
-          </li>
-          <li>
-            <svg class="feature-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            Automated Telegram access
-          </li>
-          <li>
-            <svg class="feature-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            Risk framework on every call
-          </li>
-          <li>
-            <svg class="feature-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            3-5 signals per week
-          </li>
-          <li>
-            <svg class="feature-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            12-20 signals monthly
-          </li>
-        </ul>
-        <a class="btn btn-primary" href="registration.html">Join Monthly</a>
-      </div>
-      <div class="card plan reveal" style="outline:2px solid rgba(240,199,94,.25)">
-        <div class="tag">Best value</div>
-        <h3>Quarterly / Pro</h3>
-        <p class="muted">Commit and save 15.2%</p>
-        <div class="price-group">
-          <p class="price-val">$89</p>
-          <p class="price-term muted">per 3 months</p>
-        </div>
-        <ul class="features">
-          <li>
-            <svg class="feature-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            Everything in Basic
-          </li>
-          <li>
-            <svg class="feature-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            Priority support
-          </li>
-          <li>
-            <svg class="feature-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            Member‑only Q&As
-          </li>
-          <li>
-            <svg class="feature-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            3 months Access
-          </li>
-          <li>
-            <svg class="feature-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            At $29.6/ per month
-          </li>
-          <li>
-            <svg class="feature-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            5-7 signals weekly
-          </li>
-          <li>
-            <svg class="feature-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            20-30 signals monthly
-          </li>
-          <li>
-            <svg class="feature-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            Technical and Macroeconomics Analysis
-          </li>
-        </ul>
-        <a class="btn btn-primary" href="registration.html">Join Quarterly</a>
-      </div>
-      <div class="card plan reveal">
-        <h3>Elite / 6 months</h3>
-        <p class="muted">For Elite Traders</p>
-        <div class="price-group">
-          <p class="price-val">$210</p>
-          <p class="price-term muted">bi-annually</p>
-        </div>
-        <ul class="features">
-          <li>
-            <svg class="feature-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            Everything in Pro
-          </li>
-          <li>
-            <svg class="feature-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            VIP role in community
-          </li>
-          <li>
-            <svg class="feature-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            Bonus market notes
-          </li>
-          <li>
-            <svg class="feature-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            180days Access
-          </li>
-          <li>
-            <svg class="feature-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            7-10 signals weekly
-          </li>
-          <li>
-            <svg class="feature-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            30-40 signals monthly
-          </li>
-          <li>
-            <svg class="feature-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            Weekly Newsletter: Macro data and analysis
-          </li>
-        </ul>
-        <a class="btn btn-primary" href="registration.html">Join Elites</a>
-      </div>
-    </div>
-    <p class="center subtle" style="margin-top:12px">Payments: OPay & Crypto supported • Instant invite after payment</p>
-  </section>
-
-  <section class="testimonials container">
-    <h2 class="center reveal">What Members Say</h2>
-    <div class="grid t-grid">
-      <article class="card quote reveal">
-        <p>“Clear entries & stops — finally consistent.”</p>
-        <div class="subtle">— Ahmed O.</div>
-      </article>
-      <article class="card quote reveal">
-        <p>“Auto access saved me time. Signals are timely.”</p>
-        <div class="subtle">— Ifeoluwa A.</div>
-      </article>
-      <article class="card quote reveal">
-        <p>“Transparency on wins & losses = real trust.”</p>
-        <div class="subtle">— Grace K.</div>
-      </article>
-    </div>
-  </section>
-
-  <section class="blog-section container reveal">
-    <div class="content card">
-      <div class="cta-panel">
-        <h3 class="text-white">What are you waiting for?</h3>
-        <p class="muted max-w-sm mx-auto">
-          Trading alone is risky. Trading with NexxTrade means you’re backed by our group of experts, years of experience, proven strategies and records. And you also belong to a community of expert NexxTraders who win together.
-        </p>
-        <a href="#pricing" class="btn btn-primary mt-4">
-          Get access NOW
-        </a>
-      </div>
-    </div>
-  </section>
-
-  <section id="faq" class="faq container">
-    <h2 class="center reveal">FAQ</h2>
-    <div class="accordion">
-      <div class="acc-item reveal">
-        <button class="acc-head" aria-expanded="false"><span>How do I know your signals are reliable?</span><span>＋</span></button>
-        <div class="acc-body"><div class="acc-body-inner">Our past performance is public. Our team consists of expert analysts on Macro, technical, and fundamentals. Our signals are backed by data-driven analysis, tested strategies, and real-time geopolitical and market monitoring. We don’t guess.</div></div>
-      </div>
-      <div class="acc-item reveal">
-        <button class="acc-head" aria-expanded="false"><span>I’ve tried different signal groups before and lost money.</span><span>＋</span></button>
-        <div class="acc-body"><div class="acc-body-inner">Many signal providers are gamblers who throw random calls; that’s why the majority of them use high leverage of 40x, 50x, and even 100x. We focus on a consistent 5-10x leverage, prioritizing quality over quantity. Every NexxTrade signal is backed by risk management guidelines and trade setups with clear stop-loss and take-profit points — so you trade with confidence, not emotion.</div></div>
-      </div>
-      <div class="acc-item reveal">
-        <button class="acc-head" aria-expanded="false"><span>What makes your team qualified to give signals?</span><span>＋</span></button>
-        <div class="acc-body"><div class="acc-body-inner">NexxTrade is run by experienced and seasoned traders who specialize in futures, Macroeconomics, geopolitical events for leverage, and on-chain data tracking. The NexxTrade team consists of economists and traders who have firsthand experience with institutional trading, trades for the banks, and are National TV financial market analysts. We combine technical analysis, market sentiment, and smart money insights to deliver signals that keep you ahead of the crowd.</div></div>
-      </div>
-      <div class="acc-item reveal">
-        <button class="acc-head" aria-expanded="false"><span>Is it worth paying for signals when I can find free ones online?</span><span>＋</span></button>
-        <div class="acc-body"><div class="acc-body-inner">Free signals often lack reliability, consistency, and accountability. If you need structured, quality calls, with full trade management, and support, then NexxTrade is your one-stop answer. Free signals are just signals that often lack a trading edge. NexxTrade preserves your capital, saves you time, money, and costly mistakes that can make you blow your account.</div></div>
-      </div>
-      <div class="acc-item reveal">
-        <button class="acc-head" aria-expanded="false"><span>Do you guarantee profits?</span><span>＋</span></button>
-        <div class="acc-body"><div class="acc-body-inner">No one can guarantee profits in trading — anyone who does is not being honest. What we guarantee is high-quality, consistent, and data-backed signals that significantly improve your chances of profitability when followed with discipline. High-conviction plays only.</div></div>
-      </div>
-      <div class="acc-item reveal">
-        <button class="acc-head" aria-expanded="false"><span>How much capital do I need to start trading with your signals?</span><span>＋</span></button>
-        <div class="acc-body"><div class="acc-body-inner">You can start with as little as $50–$100 on most exchanges. NexxTrade signals are structured so that both small and large capital traders can benefit. In trading, there’s really no minimum or maximum capital. You start based on your capital and level. The key is proper risk management.</div></div>
-      </div>
-    </div>
-  </section>
-
-  <div class="disclaimer container">
-    <strong>Risk Notice:</strong> Trading involves risk. This is not financial advice.
-  </div>
-
-  <footer id="contact">
-    <div class="container grid f-grid">
-      <div>
-        <div class="brand" style="margin-bottom:10px"><span class="logo"></span><strong>NexxTrade</strong></div>
-        <p class="subtle">Signals with structure. Trade like the Banks.</p>
-      </div>
-      <div>
-        <h4>Links</h4>
-        <ul>
-          <li><a href="#">Home</a></li>
-          <li><a href="#performance">Performance</a></li>
-          <li><a href="#pricing">Pricing</a></li>
-          <li><a href="#faq">FAQ</a></li>
-          <li><a href="blog.html">Blog</a></li>
-        </ul>
-      </div>
-      <div>
-        <h4>Legal</h4>
-        <ul>
-          <li><a href="#">Terms</a></li>
-          <li><a href="#">Privacy</a></li>
-          <li><a href="#">Risk Disclaimer</a></li>
-        </ul>
-      </div>
-      <div>
-        <h4>Payments & Social</h4>
-        <ul>
-          <li class="subtle">OPay • Crypto</li>
-          <li><a href="#">Telegram</a></li>
-          <li><a href="#">X (Twitter)</a></li>
-          <li><a href="#">Support Email</a></li>
-        </ul>
-      </div>
-    </div>
-    <div class="container" style="border-top:1px solid var(--line);margin-top:18px;padding-top:12px">
-      <div class="subtle">© <span id="year"></span> NexxTrade. All rights reserved.</div>
-    </div>
-  </footer>
-
-  <div class="sticky-cta" id="join">
-    <div class="inner">
-      <div>
-        <div style="font-weight:700">Join NexxTrade</div>
-        <div class="subtle">Instant Telegram access</div>
-      </div>
-      <a class="btn btn-primary" href="#pricing">Get Access</a>
-    </div>
-  </div>
-
-  <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      // Initialize Lucide icons
-      lucide.createIcons();
-
-      const API_BASE_URL = 'https://nexxtrade.onrender.com/api';
-
-      // Function to fetch and display signals
-      const fetchSignals = async () => {
-        try {
-          const response = await fetch(`${API_BASE_URL}/performances`);
-          const signals = await response.json();
-          const signalsTableBody = document.getElementById('signals-table');
-          signalsTableBody.innerHTML = ''; // Clear loading text
-
-          if (signals.length === 0) {
-            signalsTableBody.innerHTML = `<tr><td colspan="5" class="text-center text-muted py-4">No signals available.</td></tr>`;
-            return;
-          }
-
-          // Take only the top 5 signals for the preview
-          const recentSignals = signals.slice(0, 5);
-          recentSignals.forEach(signal => {
-            const row = document.createElement('tr');
-            const pnlClass = parseFloat(signal.pnl_percent) > 0 ? 'gain' : 'loss';
-            const formattedDate = new Date(signal.date).toLocaleDateString('en-GB');
-
-            row.innerHTML = `
-              <td>${formattedDate}</td>
-              <td>${signal.pair}</td>
-              <td>${signal.entry_price}</td>
-              <td>${signal.exit_price}</td>
-              <td class="${pnlClass}">${signal.pnl_percent}</td>
-            `;
-            signalsTableBody.appendChild(row);
-          });
-        } catch (error) {
-          console.error('Error fetching signals:', error);
-          const signalsTableBody = document.getElementById('signals-table');
-          signalsTableBody.innerHTML = `<tr><td colspan="5" class="text-center text-muted py-4">Error loading signals.</td></tr>`;
-        }
-      };
-
-      // Function to fetch and display PNL proofs
-      const fetchPnlProofs = async () => {
-        try {
-          const response = await fetch(`${API_BASE_URL}/pnlproofs`);
-          const proofs = await response.json();
-          const pnlGallery = document.getElementById('pnl-gallery');
-          pnlGallery.innerHTML = ''; // Clear loading text
-
-          if (proofs.length === 0) {
-            pnlGallery.innerHTML = '<div class="text-muted text-center py-8 col-span-2">No PNL proofs available.</div>';
-            return;
-          }
-
-          // Take the top 2 proofs for the homepage gallery
-          const recentProofs = proofs.slice(0, 2);
-          recentProofs.forEach(proof => {
-            const panel = document.createElement('div');
-            panel.className = 'panel';
-            panel.innerHTML = `
-              <img src="${proof.image_url}" alt="${proof.description}" class="w-full h-full object-cover">
-              <div class="blurbar" style="backdrop-filter:none; background:none;"></div>
-            `;
-            pnlGallery.appendChild(panel);
-          });
-        } catch (error) {
-          console.error('Error fetching PNL proofs:', error);
-          const pnlGallery = document.getElementById('pnl-gallery');
-          pnlGallery.innerHTML = '<div class="text-muted text-center py-8 col-span-2">Error loading PNL proofs.</div>';
-        }
-      };
-
-      // --- Original Scripting from the provided file ---
-
-      // Current year
-      document.getElementById('year').textContent = new Date().getFullYear();
-
-      // Reveal on scroll
-      const io = new IntersectionObserver((entries)=>{
-        entries.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target);} });
-      },{threshold:.12});
-      document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
-
-      // Count-up KPIs
-      const nums = document.querySelectorAll('.kpi .num');
-      const iok = new IntersectionObserver((entries)=>{
-        entries.forEach(e=>{
-          if(!e.isIntersecting) return;
-          const el = e.target;
-          // Use dataset to get the target value
-          const target = +el.dataset.count;
-          let cur = 0;
-          const step = Math.ceil(target/40);
-          const tick = ()=>{
-            cur += step;
-            if(cur>=target){
-              el.textContent = target;
+            if (match) {
+                // Return user data including permissions on successful login
+                res.status(200).json({
+                    message: 'Login successful',
+                    user: {
+                        id: user.id,
+                        username: user.username,
+                        role: user.role,
+                        permissions: user.permissions
+                    }
+                });
             } else {
-              el.textContent = cur;
-              requestAnimationFrame(tick);
+                res.status(401).json({ message: 'Invalid credentials' });
             }
-          };
-          requestAnimationFrame(tick);
-          iok.unobserve(el);
-        })
-      },{threshold:.8});
-      nums.forEach(n=>iok.observe(n));
+        } else {
+            res.status(401).json({ message: 'Invalid credentials' });
+        }
+    } catch (err) {
+        console.error('Login error:', err);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
 
-      // FAQ accordion
-      document.querySelectorAll('.acc-item').forEach(item=>{
-        const head = item.querySelector('.acc-head');
-        const body = item.querySelector('.acc-body');
-        head.addEventListener('click', ()=>{
-          const expanded = head.getAttribute('aria-expanded') === 'true';
-          head.setAttribute('aria-expanded', !expanded);
-          body.style.maxHeight = expanded ? '0' : body.scrollHeight + 'px';
-        });
-      });
 
-      // Smooth anchor scroll (basic)
-      document.querySelectorAll('a[href^="#"]').forEach(a=>{
-        a.addEventListener('click', (e)=>{
-          const id = a.getAttribute('href').slice(1);
-          if(!id) return;
-          const el = document.getElementById(id);
-          if(el){ e.preventDefault(); el.scrollIntoView({behavior:'smooth', block:'start'}); }
-        })
-      });
+// API Routes for Performance Signals
+// Based on the 'performancesignals' table from your SQL dump.
+// The columns are: id, date, pair, entry_price, exit_price, pnl_percent, leverage, is_long_position, result_type
+app.get('/api/performances', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM performancesignals ORDER BY date DESC');
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server Error');
+  }
+});
 
-      // Mobile navigation toggle
-      document.querySelector('.nav-toggle-btn').addEventListener('click', () => {
-          const header = document.querySelector('header');
-          header.classList.toggle('mobile-nav-open');
-      });
+app.get('/api/performances/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { rows } = await pool.query('SELECT * FROM performancesignals WHERE id = $1', [id]);
+        if (rows.length === 0) {
+            return res.status(404).send('Performance signal not found.');
+        }
+        res.json(rows[0]);
+    } catch (err) {
+        console.error(err);
+        res.status(500).send('Server Error');
+    }
+});
 
-      // Close mobile menu on link click
-      document.querySelectorAll('.nav-links a').forEach(link => {
-        link.addEventListener('click', () => {
-          const header = document.querySelector('header');
-          header.classList.remove('mobile-nav-open');
-        });
-      });
+app.post('/api/performances', async (req, res) => {
+  try {
+    const { date, pair, entry_price, exit_price, pnl_percent, leverage, is_long_position, result_type } = req.body;
+    const { rows } = await pool.query(
+      'INSERT INTO performancesignals(date, pair, entry_price, exit_price, pnl_percent, leverage, is_long_position, result_type) VALUES($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+      [date, pair, entry_price, exit_price, pnl_percent, leverage, is_long_position, result_type]
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server Error');
+  }
+});
 
-      // Fetch data on page load
-      fetchSignals();
-      fetchPnlProofs();
+app.put('/api/performances/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { date, pair, entry_price, exit_price, pnl_percent, leverage, is_long_position, result_type } = req.body;
+    const { rows } = await pool.query(
+      'UPDATE performancesignals SET date = $1, pair = $2, entry_price = $3, exit_price = $4, pnl_percent = $5, leverage = $6, is_long_position = $7, result_type = $8 WHERE id = $9 RETURNING *',
+      [date, pair, entry_price, exit_price, pnl_percent, leverage, is_long_position, result_type, id]
+    );
+    if (rows.length === 0) {
+      return res.status(404).send('Performance signal not found.');
+    }
+    res.json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server Error');
+  }
+});
+
+app.delete('/api/performances/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rowCount } = await pool.query('DELETE FROM performancesignals WHERE id = $1', [id]);
+    if (rowCount === 0) {
+      return res.status(404).send('Performance signal not found.');
+    }
+    res.status(204).send();
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server Error');
+  }
+});
+
+// NEW ROUTES: API routes for PNL Proofs
+// The columns are: id, image_url, description
+app.get('/api/pnlproofs', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM pnlproofs');
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server Error');
+  }
+});
+
+app.post('/api/pnlproofs', async (req, res) => {
+  try {
+    const { date, image_url, description } = req.body;
+    const { rows } = await pool.query(
+      'INSERT INTO pnlproofs(date, image_url, description) VALUES($1, $2, $3) RETURNING *',
+      [date, image_url, description]
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server Error');
+  }
+});
+
+app.delete('/api/pnlproofs/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rowCount } = await pool.query('DELETE FROM pnlproofs WHERE id = $1', [id]);
+    if (rowCount === 0) {
+      return res.status(404).send('PNL proof not found.');
+    }
+    res.status(204).send();
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server Error');
+  }
+});
+
+
+// MODIFIED: API routes for the users table to handle the new subscription fields
+app.get('/api/users', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM users ORDER BY registration_date DESC');
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server Error');
+  }
+});
+
+app.get('/api/users/stats', async (req, res) => {
+  try {
+    const now = new Date();
+    const today = now.toISOString().split('T')[0];
+    const firstDayOfWeek = new Date(now.setDate(now.getDate() - now.getDay())).toISOString().split('T')[0];
+    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+
+    // Total users registered today
+    const todayQuery = await pool.query('SELECT COUNT(*) FROM users WHERE registration_date = $1', [today]);
+    const todayCount = parseInt(todayQuery.rows[0].count, 10);
+
+    // Total users registered this week (Sunday to today)
+    const weekQuery = await pool.query('SELECT COUNT(*) FROM users WHERE registration_date >= $1', [firstDayOfWeek]);
+    const weekCount = parseInt(weekQuery.rows[0].count, 10);
+
+    // Total users registered this month
+    const monthQuery = await pool.query('SELECT COUNT(*) FROM users WHERE registration_date >= $1', [firstDayOfMonth]);
+    const monthCount = parseInt(monthQuery.rows[0].count, 10);
+
+    res.json({
+      daily: todayCount,
+      weekly: weekCount,
+      monthly: monthCount,
     });
-  </script>
-</body>
-</html>
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server Error');
+  }
+});
+
+// NEW ROUTE: Endpoint for OPay payment initiation
+// This route is called by the frontend form submission
+app.post('/api/payments/opay', async (req, res) => {
+    try {
+        const { fullname, email, telegram, plan } = req.body;
+
+        // Approximate conversion rate (1 USD to NGN)
+        const USD_TO_NGN_RATE = 750;
+
+        const prices = {
+            monthly: 39,
+            quarterly: 99,
+            yearly: 299
+        };
+        const amountUSD = prices[plan];
+
+        if (!amountUSD) {
+            return res.status(400).json({ message: 'Invalid plan selected.' });
+        }
+
+        // Convert the USD price to NGN for OPay
+        const amountNGN = amountUSD * USD_TO_NGN_RATE;
+
+        // Generate a unique token for this transaction. This will be used to
+        // securely identify the user later when OPay's webhook pings us.
+        const transactionRef = crypto.randomBytes(16).toString('hex');
+        const telegramInviteToken = crypto.randomBytes(32).toString('hex');
+
+        // --- 1. Save the user to the database with a 'pending' status ---
+        const registrationDate = new Date().toISOString().split('T')[0];
+        const { rows } = await pool.query(
+            `INSERT INTO users (full_name, email, telegram_handle, plan_name, subscription_status, registration_date, telegram_invite_token)
+             VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+            [fullname, email, telegram, plan, 'pending', registrationDate, telegramInviteToken]
+        );
+
+        // --- 2. Make a real API call to OPay (this is a placeholder for now) ---
+        // You would uncomment this block and replace the placeholder with your actual OPay API call
+
+        // const opayResponse = await fetch('https://api.opay.com/v1/checkout/initiate', {
+        //     method: 'POST',
+        //     headers: {
+        //         'Authorization': `Bearer ${process.env.OPAY_API_KEY}`,
+        //         'Merchant-ID': process.env.OPAY_MERCHANT_ID,
+        //         'Content-Type': 'application/json'
+        //     },
+        //     body: JSON.stringify({
+        //         amount: amountNGN,
+        //         currency: 'NGN',
+        //         reference: transactionRef,
+        //         callback_url: `${process.env.APP_BASE_URL}/api/payments/opay/webhook`,
+        //         // other OPay specific details
+        //     })
+        // });
+        // const opayData = await opayResponse.json();
+
+        // --- 3. Return the redirect URL from OPay to the frontend ---
+        // For now, we'll return a mock URL.
+        const mockRedirectUrl = `https://mock-opay.com/pay?ref=${transactionRef}&amount=${amountNGN}`;
+
+        res.status(200).json({
+            message: 'Payment initiated successfully.',
+            redirectUrl: mockRedirectUrl,
+            transactionRef: transactionRef
+        });
+
+    } catch (err) {
+        console.error('Error initiating OPay payment:', err);
+        res.status(500).json({ message: 'Server Error during payment initiation.' });
+    }
+});
+
+// NEW ROUTE: OPay Webhook Handler for payment confirmation
+app.post('/api/payments/opay/webhook', async (req, res) => {
+    // In a real scenario, you would perform a signature validation here
+    // to ensure the request is genuinely from OPay.
+
+    // Assume the webhook body contains 'reference' and 'status'
+    const { reference, status } = req.body;
+
+    if (!reference || !status) {
+        return res.status(400).send('Invalid webhook payload');
+    }
+
+    if (status === 'success') {
+        try {
+            // Find the user in the database using the transaction reference
+            const { rows } = await pool.query(
+                'SELECT * FROM users WHERE telegram_invite_token = $1',
+                [reference]
+            );
+
+            if (rows.length === 0) {
+                return res.status(404).send('User not found for this transaction reference.');
+            }
+
+            const user = rows[0];
+
+            // Calculate subscription expiration date
+            let expirationDate = new Date();
+            if (user.plan_name === 'monthly') {
+                expirationDate.setMonth(expirationDate.getMonth() + 1);
+            } else if (user.plan_name === 'quarterly') {
+                expirationDate.setMonth(expirationDate.getMonth() + 3);
+            } else if (user.plan_name === 'yearly') {
+                expirationDate.setFullYear(expirationDate.getFullYear() + 1);
+            }
+
+            // Update the user's subscription status and expiration date
+            await pool.query(
+                `UPDATE users SET subscription_status = 'active', subscription_expiration = $1 WHERE telegram_invite_token = $2`,
+                [expirationDate.toISOString().split('T')[0], reference]
+            );
+
+            // Log the successful update
+            console.log(`User ${user.email} subscription activated successfully.`);
+
+            // Respond to OPay to acknowledge receipt of the webhook.
+            // This is a crucial step to prevent OPay from resending the webhook.
+            res.status(200).send('Webhook received and processed successfully.');
+
+        } catch (err) {
+            console.error('Error processing OPay webhook:', err);
+            res.status(500).send('Server Error');
+        }
+    } else {
+        // Handle other statuses like 'failed' or 'cancelled'
+        console.log(`Received webhook for reference ${reference} with status: ${status}`);
+        res.status(200).send('Webhook received, but payment was not successful.');
+    }
+});
+
+
+// NEW ROUTE: Endpoint for cleaning up expired subscriptions
+app.post('/api/subscriptions/cleanup', async (req, res) => {
+    try {
+        const today = new Date().toISOString().split('T')[0];
+
+        // Find all users with active subscriptions that have expired
+        const { rows } = await pool.query(
+            "SELECT id, telegram_handle FROM users WHERE subscription_status = 'active' AND subscription_expiration < $1",
+            [today]
+        );
+
+        if (rows.length === 0) {
+            return res.status(200).json({ message: 'No expired subscriptions found.' });
+        }
+
+        // Update their status to 'expired'
+        await pool.query(
+            "UPDATE users SET subscription_status = 'expired' WHERE subscription_status = 'active' AND subscription_expiration < $1",
+            [today]
+        );
+
+        // This is a placeholder for a notification system. In a real application, you might
+        // want to notify a separate service or a Telegram function to handle removals.
+        console.log(`Updated ${rows.length} users with expired subscriptions.`);
+        res.json({
+            message: `Processed ${rows.length} expired subscriptions.`,
+            expired_users: rows
+        });
+
+    } catch (err) {
+        console.error('Error processing subscription cleanup:', err);
+        res.status(500).json({ message: 'Server Error' });
+    }
+});
+
+
+// NEW ROUTE: Endpoint to find a user's status by Telegram handle
+app.get('/api/users/status-by-telegram-handle/:telegram_handle', async (req, res) => {
+    try {
+        const { telegram_handle } = req.params;
+        const { rows } = await pool.query(
+            'SELECT subscription_status, subscription_expiration FROM users WHERE telegram_handle = $1',
+            [`@${telegram_handle}`]
+        );
+        if (rows.length === 0) {
+            return res.status(404).json({ message: 'User not found.' });
+        }
+        res.json(rows[0]);
+    } catch (err) {
+        console.error('Error finding user status by Telegram handle:', err);
+        res.status(500).json({ message: 'Server Error' });
+    }
+});
+
+// NEW ROUTE: Endpoint to find a user's ID by Telegram handle
+app.get('/api/users/find-by-telegram-handle/:telegram_handle', async (req, res) => {
+    try {
+        const { telegram_handle } = req.params;
+        const { rows } = await pool.query(
+            'SELECT id, telegram_handle FROM users WHERE telegram_handle = $1',
+            [telegram_handle]
+        );
+        if (rows.length === 0) {
+            return res.status(404).json({ message: 'User not found.' });
+        }
+        res.json(rows[0]);
+    } catch (err) {
+        console.error('Error finding user by Telegram handle:', err);
+        res.status(500).json({ message: 'Server Error' });
+    }
+});
+
+// NEW ENDPOINT: Verify Telegram user and redeem token
+app.post('/api/users/verify-telegram', async (req, res) => {
+    const { telegram_handle, telegram_invite_token } = req.body;
+
+    if (!telegram_handle || !telegram_invite_token) {
+        return res.status(400).json({ message: 'Missing Telegram handle or token.' });
+    }
+
+    try {
+        const { rows } = await pool.query(
+            'SELECT * FROM users WHERE telegram_handle = $1 AND telegram_invite_token = $2',
+            [telegram_handle, telegram_invite_token]
+        );
+
+        if (rows.length > 0) {
+            const user = rows[0];
+
+            // In a real-world scenario, you would redeem the token here
+            // to prevent it from being used again.
+            await pool.query(
+                'UPDATE users SET telegram_invite_token = NULL WHERE id = $1',
+                [user.id]
+            );
+
+            // Respond to the bot with success
+            res.status(200).json({
+                message: 'Verification successful. User is active.',
+                user: {
+                    id: user.id,
+                    email: user.email,
+                    telegram_handle: user.telegram_handle,
+                    plan_name: user.plan_name
+                }
+            });
+        } else {
+            res.status(404).json({ message: 'User not found or token is invalid.' });
+        }
+    } catch (err) {
+        console.error('Error verifying Telegram user:', err);
+        res.status(500).json({ message: 'Server Error' });
+    }
+});
+
+
+// Serve static files from the 'public' directory
+app.use(express.static(path.join(__dirname, 'public')));
+// Removed serving uploaded files since they are now Base64 strings in the database
+// app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// This is the new "catch-all" route. It's crucial for serving your frontend.
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// Start the server
+// NOTE: Make sure this is the last app.listen() call in your file.
+app.listen(port, () => {
+  console.log(`Server is running on http://localhost:${port}`);
+});
