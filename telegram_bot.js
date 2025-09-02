@@ -101,7 +101,7 @@ bot.onText(/\/remove (.+)/, async (msg, match) => {
     const usernameToRemove = match[1];
 
     // Only allow this command from a designated admin (e.g., your own Telegram handle)
-    if (adminTelegramHandle !== 'KingsleyPeter') {
+    if (adminTelegramHandle !== 'PeterKingsley') {
         bot.sendMessage(chatId, "You do not have permission to use this command.");
         return;
     }
