@@ -370,12 +370,13 @@ app.get('/api/pnlproofs', async (req, res) => {
   }
 });
 
+// FIXED: Removed 'date' from the INSERT query to match the pnlproofs table schema.
 app.post('/api/pnlproofs', async (req, res) => {
   try {
-    const { date, image_url, description } = req.body;
+    const { image_url, description } = req.body;
     const { rows } = await pool.query(
-      'INSERT INTO pnlproofs(date, image_url, description) VALUES($1, $2, $3) RETURNING *',
-      [date, image_url, description]
+      'INSERT INTO pnlproofs(image_url, description) VALUES($1, $2) RETURNING *',
+      [image_url, description]
     );
     res.status(201).json(rows[0]);
   } catch (err) {
