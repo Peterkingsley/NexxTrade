@@ -236,11 +236,11 @@
     const urlParams = new URLSearchParams(window.location.search);
     const selectedPlanFromUrl = urlParams.get('plan') || 'monthly';
 
-    // Define plan details
+    // Define plan details with USD and NGN prices
     const plans = {
-      monthly: { name: 'Monthly Plan', price: '$39', term: 'per month' },
-      quarterly: { name: 'Quarterly Plan', price: '$99', term: 'per month' },
-      yearly: { name: 'Yearly Plan', price: '$299', term: 'per year' }
+      monthly: { name: 'Monthly Plan', priceUSD: 35, priceNGN: 53656.75, term: 'per month' },
+      quarterly: { name: 'Quarterly Plan', priceUSD: 89, priceNGN: 136441.45, term: 'per month' },
+      yearly: { name: 'Bi-annually Plan', priceUSD: 210, priceNGN: 321940.50, term: 'per year' }
     };
     
     // Get references to all relevant elements
@@ -255,12 +255,19 @@
     const payButton = document.getElementById('pay-button');
 
     let activePaymentMethod = 'opay';
+    let currency = 'USD'; // Default currency
 
     // Function to update the displayed plan and UI
     function updatePlanDisplay(planKey) {
       const plan = plans[planKey] || plans.monthly;
       planNameElement.textContent = plan.name;
-      planPriceElement.textContent = plan.price;
+      
+      if (currency === 'USD') {
+        planPriceElement.textContent = `$${plan.priceUSD}`;
+      } else {
+        planPriceElement.textContent = `₦${plan.priceNGN.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      }
+
       planInput.value = planKey; // Update hidden input for form submission
 
       // Update active class on plan buttons
@@ -282,6 +289,37 @@
         const planKey = button.dataset.plan;
         updatePlanDisplay(planKey);
       });
+    });
+
+    // Add a toggle for currency
+    const currencyToggle = document.createElement('div');
+    currencyToggle.className = 'flex justify-center mt-4';
+    currencyToggle.innerHTML = `
+        <div class="flex items-center space-x-2">
+            <span id="usd-toggle" class="cursor-pointer text-accent font-semibold">USD</span>
+            <span class="text-muted">|</span>
+            <span id="ngn-toggle" class="cursor-pointer text-muted">NGN</span>
+        </div>
+    `;
+    document.querySelector('.card').insertBefore(currencyToggle, document.getElementById('checkout-form'));
+
+    const usdToggle = document.getElementById('usd-toggle');
+    const ngnToggle = document.getElementById('ngn-toggle');
+
+    usdToggle.addEventListener('click', () => {
+        currency = 'USD';
+        usdToggle.classList.add('text-accent', 'font-semibold');
+        ngnToggle.classList.remove('text-accent', 'font-semibold');
+        ngnToggle.classList.add('text-muted');
+        updatePlanDisplay(planInput.value);
+    });
+
+    ngnToggle.addEventListener('click', () => {
+        currency = 'NGN';
+        ngnToggle.classList.add('text-accent', 'font-semibold');
+        usdToggle.classList.remove('text-accent', 'font-semibold');
+        usdToggle.classList.add('text-muted');
+        updatePlanDisplay(planInput.value);
     });
 
     // Function to set the active payment method
