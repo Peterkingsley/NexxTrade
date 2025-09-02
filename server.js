@@ -362,7 +362,7 @@ app.delete('/api/performances/:id', async (req, res) => {
 // The columns are: id, image_url, description
 app.get('/api/pnlproofs', async (req, res) => {
   try {
-    const { rows } = await pool.query('SELECT * FROM pnlproofs ORDER BY date DESC');
+    const { rows } = await pool.query('SELECT * FROM pnlproofs');
     res.json(rows);
   } catch (err) {
     console.error(err);
