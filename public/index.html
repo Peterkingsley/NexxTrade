@@ -47,7 +47,8 @@
     /* Header */
     header{position:sticky;top:0;z-index:50;background:linear-gradient(180deg, rgba(11,15,20,.9), rgba(11,15,20,.6));backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
     .nav{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 20px;}
-    .brand{display:flex;align-items:center;gap:.6rem}
+    .brand{display:flex;align-items:center;gap:.6rem; flex-direction: column; align-items: flex-start;}
+    .brand span.tagline { font-size: 0.8rem; color: var(--muted); margin-top: -5px; }
     .logo{width:28px;height:28px;border-radius:7px;background:conic-gradient(from 30deg, #12b886, #2ad678, #8ef7bf);box-shadow:0 0 0 2px rgba(42,214,120,.15)}
     nav a{opacity:.9}
     nav a:hover{opacity:1}
@@ -256,6 +257,13 @@
         padding: 10px 20px;
         text-align: center;
       }
+      .brand {
+        flex-direction: row;
+        align-items: center;
+      }
+      .brand span.tagline {
+        display: none;
+      }
 
       /* Spacing and sections */
       .testimonials, .pricing, .how, .faq, .peek{
@@ -310,6 +318,7 @@
       <a class="brand" href="#" aria-label="NexxTrade home">
         <span class="logo" aria-hidden="true"></span>
         <strong>NexxTrade</strong>
+        <span class="tagline">Trade the NexxTrade way</span>
       </a>
       <button class="nav-toggle-btn" aria-label="Toggle navigation" aria-controls="nav-menu">
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
@@ -327,14 +336,14 @@
   <section class="hero">
     <div class="container hero-wrap">
       <div class="reveal">
-        <span class="badge">Automated Telegram Access</span>
+        <span class="badge">Trade smarter, win bigger.</span>
         <h1>Futures Signals with <span style="color:var(--accent)">Accuracy</span> & High Conviction Set-ups</h1>
         <p>Actionable entries, exits, and stops — delivered in real time. Pay with OPay or Crypto and get your unique Telegram invite instantly.</p>
         <div class="cta">
           <a class="btn btn-primary" href="#pricing">Get Access</a>
           <a class="btn btn-ghost" href="performance.html">See Performance</a>
         </div>
-        <div style="margin-top:14px" class="muted">No fluff. Transparent results. Risk-first.
+        <div style="margin-top:14px" class="muted">Transparent results. Risk-first.
         </div>
       </div>
       <div class="hero-panel reveal" aria-hidden="true">
@@ -360,8 +369,8 @@
 
   <div class="proof">
     <div class="container proof-wrap" id="social-proof">
-      <div class="kpi"><span class="num" data-count="7500">7500</span><span class="muted">members</span></div>
-      <div class="kpi"><span class="num" data-count="92">92</span><span class="muted">win rate</span></div>
+      <div class="kpi"><span class="num" data-count="6500">6500+</span><span class="muted">members</span></div>
+      <div class="kpi"><span class="num" data-count="85">75-85%</span><span class="muted">win rate</span></div>
       <div class="kpi"><span class="num" data-count="3">3</span><span class="muted">min avg. response</span></div>
       <div class="kpi"><span class="num" data-count="24">24</span><span class="muted">/7 active chat</span></div>
     </div>
@@ -375,7 +384,7 @@
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
         </div>
         <h4>Signal Clarity</h4>
-        <p>Entries, invalidation, and targets you can act on without guesswork.</p>
+        <p>Structures, Entries, invalidations, and targets you can act on without guesswork.</p>
       </article>
       <article class="card benefit reveal">
         <div class="icon" aria-hidden="true">
@@ -396,7 +405,7 @@
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a5 5 0 0 0-5 5v3.1A2 2 0 0 1 5 12a2 2 0 0 1-2-2.3c3.1-.9 6.2-1.7 8.3-4.4C10.6 3.7 11.2 2 12 2z"/><path d="M21 15c0 1.2-.6 2.3-1.6 3l-1.4 1.4a1 1 0 0 1-1.4 0L15 18l-1.4 1.4a1 1 0 0 1-1.4 0L11 18l-1.4 1.4a1 1 0 0 1-1.4 0L7 18l-1.4 1.4a1 1 0 0 1-1.4 0L3 18c-1.2-1.2-2-3-2-5a5 5 0 0 1 5-5h3a2 2 0 0 0 2-2V2"/></svg>
         </div>
         <h4>Automated Access</h4>
-        <p>Pay → auto invite → join private Telegram instantly.</p>
+        <p>Choose your plan, get auto invite, join private Telegram and WhatsApp instantly.</p>
       </article>
     </div>
   </section>
@@ -449,7 +458,7 @@
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 16 2-2 2 2"/><path d="m2 16 2-2 2 2"/><path d="M7 16V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v12a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2v-2a2 2 0 0 0-2-2h-3"/><path d="M2 12h17a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2h-2"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></svg>
         </div>
         <h4>Auto‑Invite Link</h4>
-        <p class="muted">Get a unique, secure Telegram invite instantly after payment.</p>
+        <p class="muted">Get a unique and secured Telegram and WhatsApp invite instantly after payment.</p>
       </div>
       <div class="card step reveal">
         <div class="icon">
@@ -465,10 +474,10 @@
     <h2 class="center reveal">Simple Pricing</h2>
     <div class="grid plans">
       <div class="card plan reveal">
-        <h3>Monthly</h3>
-        <p class="muted">Good to try us out</p>
+        <h3>Monthly / Basic</h3>
+        <p class="muted">It’s okay to start small.</p>
         <div class="price-group">
-          <p class="price-val">$39</p>
+          <p class="price-val">$35</p>
           <p class="price-term muted">per month</p>
         </div>
         <ul class="features">
@@ -484,21 +493,29 @@
             <svg class="feature-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
             Risk framework on every call
           </li>
+          <li>
+            <svg class="feature-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            3-5 signals per week
+          </li>
+          <li>
+            <svg class="feature-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            12-20 signals monthly
+          </li>
         </ul>
         <a class="btn btn-primary" href="registration.html">Join Monthly</a>
       </div>
       <div class="card plan reveal" style="outline:2px solid rgba(240,199,94,.25)">
         <div class="tag">Best value</div>
-        <h3>Quarterly</h3>
-        <p class="muted">Commit and save</p>
+        <h3>Quarterly / Pro</h3>
+        <p class="muted">Commit and save 15.2%</p>
         <div class="price-group">
-          <p class="price-val">$99</p>
-          <p class="price-term muted">per month</p>
+          <p class="price-val">$89</p>
+          <p class="price-term muted">per 3 months</p>
         </div>
         <ul class="features">
           <li>
             <svg class="feature-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            Everything in Monthly
+            Everything in Basic
           </li>
           <li>
             <svg class="feature-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
@@ -508,20 +525,40 @@
             <svg class="feature-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
             Member‑only Q&As
           </li>
+          <li>
+            <svg class="feature-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            3 months Access
+          </li>
+          <li>
+            <svg class="feature-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            At $29.6/ per month
+          </li>
+          <li>
+            <svg class="feature-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            5-7 signals weekly
+          </li>
+          <li>
+            <svg class="feature-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            20-30 signals monthly
+          </li>
+          <li>
+            <svg class="feature-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            Technical and Macroeconomics Analysis
+          </li>
         </ul>
         <a class="btn btn-primary" href="registration.html">Join Quarterly</a>
       </div>
       <div class="card plan reveal">
-        <h3>Yearly</h3>
-        <p class="muted">Maximum savings</p>
+        <h3>Elite / 6 months</h3>
+        <p class="muted">For Elite Traders</p>
         <div class="price-group">
-          <p class="price-val">$299</p>
-          <p class="price-term muted">per year</p>
+          <p class="price-val">$210</p>
+          <p class="price-term muted">bi-annually</p>
         </div>
         <ul class="features">
           <li>
             <svg class="feature-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            Everything in Quarterly
+            Everything in Pro
           </li>
           <li>
             <svg class="feature-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
@@ -531,8 +568,24 @@
             <svg class="feature-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
             Bonus market notes
           </li>
+          <li>
+            <svg class="feature-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            180days Access
+          </li>
+          <li>
+            <svg class="feature-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            7-10 signals weekly
+          </li>
+          <li>
+            <svg class="feature-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            30-40 signals monthly
+          </li>
+          <li>
+            <svg class="feature-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            Weekly Newsletter: Macro data and analysis
+          </li>
         </ul>
-        <a class="btn btn-primary" href="registration.html">Join Yearly</a>
+        <a class="btn btn-primary" href="registration.html">Join Elites</a>
       </div>
     </div>
     <p class="center subtle" style="margin-top:12px">Payments: OPay & Crypto supported • Instant invite after payment</p>
@@ -559,12 +612,12 @@
   <section class="blog-section container reveal">
     <div class="content card">
       <div class="cta-panel">
-        <h3 class="text-white">Learn to Trade Smarter</h3>
+        <h3 class="text-white">What are you waiting for?</h3>
         <p class="muted max-w-sm mx-auto">
-          Our blog offers market analysis, trading strategies, and educational content to help you sharpen your skills and stay informed.
+          Trading alone is risky. Trading with NexxTrade means you’re backed by our group of experts, years of experience, proven strategies and records. And you also belong to a community of expert NexxTraders who win together.
         </p>
-        <a href="blog.html" class="btn btn-primary mt-4">
-          Read the Blog
+        <a href="#pricing" class="btn btn-primary mt-4">
+          Get access NOW
         </a>
       </div>
     </div>
@@ -574,26 +627,34 @@
     <h2 class="center reveal">FAQ</h2>
     <div class="accordion">
       <div class="acc-item reveal">
+        <button class="acc-head" aria-expanded="false"><span>How do I know your signals are reliable?</span><span>＋</span></button>
+        <div class="acc-body"><div class="acc-body-inner">Our past performance is public. Our team consists of expert analysts on Macro, technical, and fundamentals. Our signals are backed by data-driven analysis, tested strategies, and real-time geopolitical and market monitoring. We don’t guess.</div></div>
+      </div>
+      <div class="acc-item reveal">
+        <button class="acc-head" aria-expanded="false"><span>I’ve tried different signal groups before and lost money.</span><span>＋</span></button>
+        <div class="acc-body"><div class="acc-body-inner">Many signal providers are gamblers who throw random calls; that’s why the majority of them use high leverage of 40x, 50x, and even 100x. We focus on a consistent 5-10x leverage, prioritizing quality over quantity. Every NexxTrade signal is backed by risk management guidelines and trade setups with clear stop-loss and take-profit points — so you trade with confidence, not emotion.</div></div>
+      </div>
+      <div class="acc-item reveal">
+        <button class="acc-head" aria-expanded="false"><span>What makes your team qualified to give signals?</span><span>＋</span></button>
+        <div class="acc-body"><div class="acc-body-inner">NexxTrade is run by experienced and seasoned traders who specialize in futures, Macroeconomics, geopolitical events for leverage, and on-chain data tracking. The NexxTrade team consists of economists and traders who have firsthand experience with institutional trading, trades for the banks, and are National TV financial market analysts. We combine technical analysis, market sentiment, and smart money insights to deliver signals that keep you ahead of the crowd.</div></div>
+      </div>
+      <div class="acc-item reveal">
+        <button class="acc-head" aria-expanded="false"><span>Is it worth paying for signals when I can find free ones online?</span><span>＋</span></button>
+        <div class="acc-body"><div class="acc-body-inner">Free signals often lack reliability, consistency, and accountability. If you need structured, quality calls, with full trade management, and support, then NexxTrade is your one-stop answer. Free signals are just signals that often lack a trading edge. NexxTrade preserves your capital, saves you time, money, and costly mistakes that can make you blow your account.</div></div>
+      </div>
+      <div class="acc-item reveal">
         <button class="acc-head" aria-expanded="false"><span>Do you guarantee profits?</span><span>＋</span></button>
-        <div class="acc-body"><div class="acc-body-inner">No. Trading involves risk and results vary. We focus on clarity and risk management, not promises.</div></div>
+        <div class="acc-body"><div class="acc-body-inner">No one can guarantee profits in trading — anyone who does is not being honest. What we guarantee is high-quality, consistent, and data-backed signals that significantly improve your chances of profitability when followed with discipline. High-conviction plays only.</div></div>
       </div>
       <div class="acc-item reveal">
-        <button class="acc-head" aria-expanded="false"><span>How fast is access after payment?</span><span>＋</span></button>
-        <div class="acc-body"><div class="acc-body-inner">Instant. Our system generates a one‑time Telegram invite once payment is confirmed.</div></div>
-      </div>
-      <div class="acc-item reveal">
-        <button class="acc-head" aria-expanded="false"><span>What exchanges do you support?</span><span>＋</span></button>
-        <div class="acc-body"><div class="acc-body-inner">Any exchange that supports the pairs we trade. We share entries, stops, and targets; you execute on your preferred platform.</div></div>
-      </div>
-      <div class="acc-item reveal">
-        <button class="acc-head" aria-expanded="false"><span>Refund policy?</span><span>＋</span></button>
-        <div class="acc-body"><div class="acc-body-inner">Subscriptions provide immediate value (signals & access). Refunds are not guaranteed, but contact support and we’ll review case‑by‑case.</div></div>
+        <button class="acc-head" aria-expanded="false"><span>How much capital do I need to start trading with your signals?</span><span>＋</span></button>
+        <div class="acc-body"><div class="acc-body-inner">You can start with as little as $50–$100 on most exchanges. NexxTrade signals are structured so that both small and large capital traders can benefit. In trading, there’s really no minimum or maximum capital. You start based on your capital and level. The key is proper risk management.</div></div>
       </div>
     </div>
   </section>
 
   <div class="disclaimer container">
-    <strong>Risk Notice:</strong> Trading involves risk. Past performance does not guarantee future results. This is not financial advice.
+    <strong>Risk Notice:</strong> Trading involves risk. This is not financial advice.
   </div>
 
   <footer id="contact">
