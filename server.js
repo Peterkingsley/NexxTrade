@@ -79,7 +79,7 @@ app.get('/api/blogs/:id', async (req, res) => {
 app.post('/api/blogs', async (req, res) => {
   try {
     const { title, teaser, content, author, published_date, status, featured_image_url } = req.body;
-    
+
     const { rows } = await pool.query(
       'INSERT INTO blogposts(title, teaser, content, author, published_date, status, featured_image_url) VALUES($1, $2, $3, $4, $5, $6, $7) RETURNING *',
       [title, teaser, content, author, published_date, status, featured_image_url]
@@ -205,16 +205,16 @@ app.post('/api/roles', async (req, res) => {
   try {
     const { username, password, role, permissions } = req.body;
     const saltRounds = 10;
-    
+
     // Hash the password before saving to the database
     const hashedPassword = await bcrypt.hash(password, saltRounds);
-    
+
     // Insert the new user into the adminusers table
     const { rows } = await pool.query(
       'INSERT INTO adminusers(username, hashed_password, role, permissions) VALUES($1, $2, $3, $4) RETURNING id, username, role, permissions',
       [username, hashedPassword, role, permissions]
     );
-    
+
     // Send a 201 Created status and the new user's info (without password)
     res.status(201).json(rows[0]);
   } catch (err) {
@@ -249,10 +249,10 @@ app.put('/api/roles/:id', async (req, res) => {
 app.post('/api/login', async (req, res) => {
     try {
         const { username, password } = req.body;
-        
+
         // Find the user by username
         const { rows } = await pool.query(
-            'SELECT * FROM adminusers WHERE username = $1', 
+            'SELECT * FROM adminusers WHERE username = $1',
             [username]
         );
 
@@ -263,7 +263,7 @@ app.post('/api/login', async (req, res) => {
 
             if (match) {
                 // Return user data including permissions on successful login
-                res.status(200).json({ 
+                res.status(200).json({
                     message: 'Login successful',
                     user: {
                         id: user.id,
@@ -358,6 +358,46 @@ app.delete('/api/performances/:id', async (req, res) => {
   }
 });
 
+// NEW ROUTES: API routes for PNL Proofs
+// The columns are: id, image_url, description
+app.get('/api/pnlproofs', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM pnlproofs ORDER BY date DESC');
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server Error');
+  }
+});
+
+app.post('/api/pnlproofs', async (req, res) => {
+  try {
+    const { date, image_url, description } = req.body;
+    const { rows } = await pool.query(
+      'INSERT INTO pnlproofs(date, image_url, description) VALUES($1, $2, $3) RETURNING *',
+      [date, image_url, description]
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server Error');
+  }
+});
+
+app.delete('/api/pnlproofs/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rowCount } = await pool.query('DELETE FROM pnlproofs WHERE id = $1', [id]);
+    if (rowCount === 0) {
+      return res.status(404).send('PNL proof not found.');
+    }
+    res.status(204).send();
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server Error');
+  }
+});
+
 
 // MODIFIED: API routes for the users table to handle the new subscription fields
 app.get('/api/users', async (req, res) => {
@@ -408,26 +448,26 @@ app.post('/api/payments/opay', async (req, res) => {
 
         // Approximate conversion rate (1 USD to NGN)
         const USD_TO_NGN_RATE = 750;
-        
+
         const prices = {
             monthly: 39,
             quarterly: 99,
             yearly: 299
         };
         const amountUSD = prices[plan];
-        
+
         if (!amountUSD) {
             return res.status(400).json({ message: 'Invalid plan selected.' });
         }
 
         // Convert the USD price to NGN for OPay
         const amountNGN = amountUSD * USD_TO_NGN_RATE;
-        
+
         // Generate a unique token for this transaction. This will be used to
         // securely identify the user later when OPay's webhook pings us.
         const transactionRef = crypto.randomBytes(16).toString('hex');
         const telegramInviteToken = crypto.randomBytes(32).toString('hex');
-        
+
         // --- 1. Save the user to the database with a 'pending' status ---
         const registrationDate = new Date().toISOString().split('T')[0];
         const { rows } = await pool.query(
@@ -435,10 +475,10 @@ app.post('/api/payments/opay', async (req, res) => {
              VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
             [fullname, email, telegram, plan, 'pending', registrationDate, telegramInviteToken]
         );
-        
+
         // --- 2. Make a real API call to OPay (this is a placeholder for now) ---
         // You would uncomment this block and replace the placeholder with your actual OPay API call
-        
+
         // const opayResponse = await fetch('https://api.opay.com/v1/checkout/initiate', {
         //     method: 'POST',
         //     headers: {
@@ -455,12 +495,12 @@ app.post('/api/payments/opay', async (req, res) => {
         //     })
         // });
         // const opayData = await opayResponse.json();
-        
+
         // --- 3. Return the redirect URL from OPay to the frontend ---
         // For now, we'll return a mock URL.
         const mockRedirectUrl = `https://mock-opay.com/pay?ref=${transactionRef}&amount=${amountNGN}`;
-        
-        res.status(200).json({ 
+
+        res.status(200).json({
             message: 'Payment initiated successfully.',
             redirectUrl: mockRedirectUrl,
             transactionRef: transactionRef
@@ -495,9 +535,9 @@ app.post('/api/payments/opay/webhook', async (req, res) => {
             if (rows.length === 0) {
                 return res.status(404).send('User not found for this transaction reference.');
             }
-            
+
             const user = rows[0];
-            
+
             // Calculate subscription expiration date
             let expirationDate = new Date();
             if (user.plan_name === 'monthly') {
@@ -513,14 +553,14 @@ app.post('/api/payments/opay/webhook', async (req, res) => {
                 `UPDATE users SET subscription_status = 'active', subscription_expiration = $1 WHERE telegram_invite_token = $2`,
                 [expirationDate.toISOString().split('T')[0], reference]
             );
-            
+
             // Log the successful update
             console.log(`User ${user.email} subscription activated successfully.`);
-            
+
             // Respond to OPay to acknowledge receipt of the webhook.
             // This is a crucial step to prevent OPay from resending the webhook.
             res.status(200).send('Webhook received and processed successfully.');
-            
+
         } catch (err) {
             console.error('Error processing OPay webhook:', err);
             res.status(500).send('Server Error');
@@ -537,17 +577,17 @@ app.post('/api/payments/opay/webhook', async (req, res) => {
 app.post('/api/subscriptions/cleanup', async (req, res) => {
     try {
         const today = new Date().toISOString().split('T')[0];
-        
+
         // Find all users with active subscriptions that have expired
         const { rows } = await pool.query(
             "SELECT id, telegram_handle FROM users WHERE subscription_status = 'active' AND subscription_expiration < $1",
             [today]
         );
-        
+
         if (rows.length === 0) {
             return res.status(200).json({ message: 'No expired subscriptions found.' });
         }
-        
+
         // Update their status to 'expired'
         await pool.query(
             "UPDATE users SET subscription_status = 'expired' WHERE subscription_status = 'active' AND subscription_expiration < $1",
@@ -557,11 +597,11 @@ app.post('/api/subscriptions/cleanup', async (req, res) => {
         // This is a placeholder for a notification system. In a real application, you might
         // want to notify a separate service or a Telegram function to handle removals.
         console.log(`Updated ${rows.length} users with expired subscriptions.`);
-        res.json({ 
-            message: `Processed ${rows.length} expired subscriptions.`, 
-            expired_users: rows 
+        res.json({
+            message: `Processed ${rows.length} expired subscriptions.`,
+            expired_users: rows
         });
-        
+
     } catch (err) {
         console.error('Error processing subscription cleanup:', err);
         res.status(500).json({ message: 'Server Error' });
@@ -592,7 +632,7 @@ app.get('/api/users/find-by-telegram-handle/:telegram_handle', async (req, res) 
     try {
         const { telegram_handle } = req.params;
         const { rows } = await pool.query(
-            'SELECT id, telegram_handle FROM users WHERE telegram_handle = $1', 
+            'SELECT id, telegram_handle FROM users WHERE telegram_handle = $1',
             [telegram_handle]
         );
         if (rows.length === 0) {
@@ -657,47 +697,6 @@ app.use(express.static(path.join(__dirname, 'public')));
 // This is the new "catch-all" route. It's crucial for serving your frontend.
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-
-// NEW ROUTE: API routes for PNL proofs management
-// Based on the 'pnlproofs' table from your SQL dump.
-// The columns are: id, image_url, description
-app.get('/api/pnlproofs', async (req, res) => {
-    try {
-        const { rows } = await pool.query('SELECT * FROM pnlproofs ORDER BY date DESC');
-        res.json(rows);
-    } catch (err) {
-        console.error(err);
-        res.status(500).send('Server Error');
-    }
-});
-
-app.post('/api/pnlproofs', async (req, res) => {
-    try {
-        const { date, image_url, description } = req.body;
-        const { rows } = await pool.query(
-            'INSERT INTO pnlproofs(date, image_url, description) VALUES($1, $2, $3) RETURNING *',
-            [date, image_url, description]
-        );
-        res.status(201).json(rows[0]);
-    } catch (err) {
-        console.error(err);
-        res.status(500).send('Server Error');
-    }
-});
-
-app.delete('/api/pnlproofs/:id', async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { rowCount } = await pool.query('DELETE FROM pnlproofs WHERE id = $1', [id]);
-        if (rowCount === 0) {
-            return res.status(404).send('PNL proof not found.');
-        }
-        res.status(204).send();
-    } catch (err) {
-        console.error(err);
-        res.status(500).send('Server Error');
-    }
 });
 
 // Start the server
