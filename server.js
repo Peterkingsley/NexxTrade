@@ -271,7 +271,7 @@ app.post('/api/login', async (req, res) => {
                     user: {
                         id: user.id,
                         username: user.username,
-                        role: user.role,
+                                                role: user.role,
                         permissions: user.permissions
                     }
                 });
@@ -694,7 +694,8 @@ app.post('/api/users/verify-telegram', async (req, res) => {
 
 // NEW: Add a POST route to handle Telegram webhooks.
 // This route will receive updates from Telegram.
-app.post(`/bot${token}`, (req, res) => {
+const telegramToken = process.env.TELEGRAM_BOT_TOKEN;
+app.post(`/bot${telegramToken}`, (req, res) => {
     // Process the incoming update from Telegram
     bot.processUpdate(req.body);
     // Send a 200 OK response to Telegram to acknowledge the update
