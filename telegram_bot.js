@@ -89,7 +89,7 @@ ${plan.is_best_value ? '🏆 Best Value! 🏆\n' : ''}
 bot.onText(/Pay Now/, (msg) => {
     const chatId = msg.chat.id;
     const message = `Ready to get started? You can sign up and choose your plan here:
-www.nexxtrade.io/registration`;
+www.nexxtrade.io/join`;
     bot.sendMessage(chatId, message);
 });
 
