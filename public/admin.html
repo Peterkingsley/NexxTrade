@@ -180,7 +180,7 @@
       border: 1px solid rgba(255, 93, 93, 0.2);
     }
 
-    /* Styles for the brand logo from index */
+    /* Styles for the brand logo from index.html */
     .brand {
       display: flex;
       align-items: center;
@@ -248,7 +248,7 @@
   <div id="login-screen" class="login-container">
     <div class="card p-6 w-full max-w-sm space-y-6 text-center">
       <div class="flex flex-col items-center gap-2">
-        <a class="brand" href="index" aria-label="NexxTrade home">
+        <a class="brand" href="/" aria-label="NexxTrade home">
           <span class="logo" aria-hidden="true"></span>
         </a>
         <h1 class="text-2xl font-bold">Admin Login</h1>
@@ -289,7 +289,7 @@
         if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
           // On successful login, store a token and redirect
           sessionStorage.setItem('isAdminLoggedIn', 'true');
-          window.location.href = 'admin_dashboard';
+          window.location.href = '/admin/dashboard';
         } else {
           loginMessage.textContent = 'Invalid username or password.';
         }
