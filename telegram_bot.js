@@ -1,592 +1,666 @@
-// server.js
-// This file sets up a Node.js backend server using Express and a PostgreSQL database.
-// It handles API routes for managing blogs, pricing plans, roles, and performance data.
+// telegram_bot.js
+// This file defines all the handlers and logic for the Telegram bot's interactions.
 
-// Import required modules
-const express = require('express');
-const cors = require('cors');
-const { Pool } = require('pg');
-const path = require('path');
-const bcrypt = require('bcrypt');
-const crypto = require('crypto');
-const TelegramBot = require('node-telegram-bot-api'); // Import TelegramBot here
-const { setupBotHandlers } = require('./telegram_bot.js'); // Import the handler setup function
+const axios = require('axios');
 
-// Load environment variables from .env file
-require('dotenv').config();
+// This object will map chat IDs to the next expected message handler for conversational flows.
+const nextStepHandlers = {};
+const gameSessions = {}; // In-memory storage for game sessions. Keyed by chat ID.
 
-const app = express();
-const port = process.env.PORT || 3000;
-const token = process.env.TELEGRAM_BOT_TOKEN;
-const serverUrl = process.env.APP_BASE_URL;
-const privateChannelId = process.env.PRIVATE_CHANNEL_ID;
+// --- HELPER FUNCTIONS ---
 
-// --- BOT AND WEBHOOK SETUP ---
-// Create the bot instance here
-const bot = new TelegramBot(token, { polling: false });
-
-// This function sets up the webhook on Telegram's side.
-const setupWebhook = async () => {
-    try {
-        const webhookUrl = `${serverUrl}/bot${token}`;
-        await bot.setWebHook(webhookUrl);
-        console.log(`Webhook set to: ${webhookUrl}`);
-    } catch (error) {
-        console.error('Failed to set webhook:', error);
-    }
-};
-
-// Pass the bot instance to the handler setup function
-setupBotHandlers(bot, serverUrl, privateChannelId);
-
-// --- MIDDLEWARE ---
-app.use(cors());
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-
-// --- DATABASE CONNECTION ---
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false
-  }
-});
-
-async function connectToDatabase() {
-  try {
-    const client = await pool.connect();
-    console.log('Successfully connected to the PostgreSQL database.');
-    client.release();
-  } catch (error) {
-    console.error('Database connection failed:', error.stack);
-  }
+function setNextStep(chatId, handler) {
+    nextStepHandlers[chatId] = handler;
 }
-connectToDatabase();
 
-// --- API ROUTES ---
-
-// Blogs Management
-app.get('/api/blogs', async (req, res) => {
-  try {
-    const { rows } = await pool.query('SELECT * FROM blogposts ORDER BY published_date DESC');
-    res.json(rows);
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('Server Error');
-  }
-});
-
-app.get('/api/blogs/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { rows } = await pool.query('SELECT * FROM blogposts WHERE id = $1', [id]);
-    if (rows.length === 0) {
-      return res.status(404).send('Blog post not found.');
+function getSession(chatId) {
+    if (!gameSessions[chatId]) {
+        gameSessions[chatId] = {
+            balance: 10000,
+            positions: [],
+            tradeHistory: [],
+            tradeSetup: {}
+        };
     }
-    res.json(rows[0]);
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('Server Error');
-  }
-});
+    return gameSessions[chatId];
+}
 
-app.post('/api/blogs', async (req, res) => {
-  try {
-    const { title, teaser, content, author, published_date, status, featured_image_url } = req.body;
-    const { rows } = await pool.query(
-      'INSERT INTO blogposts(title, teaser, content, author, published_date, status, featured_image_url) VALUES($1, $2, $3, $4, $5, $6, $7) RETURNING *',
-      [title, teaser, content, author, published_date, status, featured_image_url]
-    );
-    res.status(201).json(rows[0]);
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('Server Error');
-  }
-});
+function resetTradeSetup(chatId) {
+    if (gameSessions[chatId]) gameSessions[chatId].tradeSetup = {};
+}
 
-app.put('/api/blogs/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { title, teaser, content, author, published_date, status, featured_image_url } = req.body;
-    const { rows } = await pool.query(
-      'UPDATE blogposts SET title = $1, teaser = $2, content = $3, author = $4, published_date = $5, status = $6, featured_image_url = $7 WHERE id = $8 RETURNING *',
-      [title, teaser, content, author, published_date, status, featured_image_url, id]
-    );
-    if (rows.length === 0) {
-      return res.status(404).send('Blog post not found.');
-    }
-    res.json(rows[0]);
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('Server Error');
-  }
-});
-
-app.delete('/api/blogs/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { rowCount } = await pool.query('DELETE FROM blogposts WHERE id = $1', [id]);
-    if (rowCount === 0) {
-      return res.status(404).send('Blog post not found.');
-    }
-    res.status(204).send();
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('Server Error');
-  }
-});
-
-
-// Pricing Plans Management
-app.get('/api/pricing', async (req, res) => {
-  try {
-    const { rows } = await pool.query('SELECT * FROM pricingplans ORDER BY price ASC');
-    res.json(rows);
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('Server Error');
-  }
-});
-
-app.post('/api/pricing', async (req, res) => {
-  try {
-    const { plan_name, price, term, description, features, is_best_value } = req.body;
-    const { rows } = await pool.query(
-      'INSERT INTO pricingplans(plan_name, price, term, description, features, is_best_value) VALUES($1, $2, $3, $4, $5, $6) RETURNING *',
-      [plan_name, price, term, description, features, is_best_value]
-    );
-    res.status(201).json(rows[0]);
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('Server Error');
-  }
-});
-
-app.put('/api/pricing/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { plan_name, price, term, description, features, is_best_value } = req.body;
-    const { rows } = await pool.query(
-      'UPDATE pricingplans SET plan_name = $1, price = $2, term = $3, description = $4, features = $5, is_best_value = $6 WHERE id = $7 RETURNING *',
-      [plan_name, price, term, description, features, is_best_value, id]
-    );
-    if (rows.length === 0) {
-      return res.status(404).send('Pricing plan not found.');
-    }
-    res.json(rows[0]);
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('Server Error');
-  }
-});
-
-app.delete('/api/pricing/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { rowCount } = await pool.query('DELETE FROM pricingplans WHERE id = $1', [id]);
-    if (rowCount === 0) {
-      return res.status(404).send('Pricing plan not found.');
-    }
-    res.status(204).send();
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('Server Error');
-  }
-});
-
-
-// User Roles Management
-app.get('/api/roles', async (req, res) => {
-  try {
-    const { rows } = await pool.query('SELECT id, username, role, permissions FROM adminusers');
-    res.json(rows);
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('Server Error');
-  }
-});
-
-app.post('/api/roles', async (req, res) => {
-  try {
-    const { username, password, role, permissions } = req.body;
-    const saltRounds = 10;
-    const hashedPassword = await bcrypt.hash(password, saltRounds);
-    const { rows } = await pool.query(
-      'INSERT INTO adminusers(username, hashed_password, role, permissions) VALUES($1, $2, $3, $4) RETURNING id, username, role, permissions',
-      [username, hashedPassword, role, permissions]
-    );
-    res.status(201).json(rows[0]);
-  } catch (err) {
-    console.error('Error creating new user:', err);
-    if (err.code === '23505') {
-        return res.status(409).json({ message: 'Username already exists.' });
-    }
-    res.status(500).json({ message: 'Server Error' });
-  }
-});
-
-app.put('/api/roles/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { role, permissions } = req.body;
-    const { rows } = await pool.query(
-      'UPDATE adminusers SET role = $1, permissions = $2 WHERE id = $3 RETURNING id, username, role, permissions',
-      [role, permissions, id]
-    );
-    if (rows.length === 0) {
-      return res.status(404).send('User not found.');
-    }
-    res.json(rows[0]);
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('Server Error');
-  }
-});
-
-app.post('/api/login', async (req, res) => {
+async function getCryptoPrice(cryptoId) {
     try {
-        const { username, password } = req.body;
-        const { rows } = await pool.query('SELECT * FROM adminusers WHERE username = $1', [username]);
-        if (rows.length > 0) {
-            const user = rows[0];
-            const match = await bcrypt.compare(password, user.hashed_password);
-            if (match) {
-                res.status(200).json({
-                    message: 'Login successful',
-                    user: { id: user.id, username: user.username, role: user.role, permissions: user.permissions }
-                });
-            } else {
-                res.status(401).json({ message: 'Invalid credentials' });
-            }
-        } else {
-            res.status(401).json({ message: 'Invalid credentials' });
+        const saneCryptoId = cryptoId.toLowerCase().trim();
+        const response = await axios.get(`https://api.coingecko.com/api/v3/simple/price`, {
+            params: { ids: saneCryptoId, vs_currencies: 'usd' }
+        });
+        if (response.data && response.data[saneCryptoId]) {
+            return response.data[saneCryptoId].usd;
         }
-    } catch (err) {
-        console.error('Login error:', err);
-        res.status(500).json({ message: 'Server error' });
+        return null;
+    } catch (error) {
+        console.error(`Error fetching crypto price for '${cryptoId}':`, error.response ? error.response.data : error.message);
+        return null;
     }
-});
+}
 
+// --- MAIN FUNCTION TO ATTACH ALL BOT HANDLERS ---
 
-// Performance Signals
-app.get('/api/performances', async (req, res) => {
-  try {
-    const { rows } = await pool.query('SELECT * FROM performancesignals ORDER BY date DESC');
-    res.json(rows);
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('Server Error');
-  }
-});
-
-app.get('/api/performances/:id', async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { rows } = await pool.query('SELECT * FROM performancesignals WHERE id = $1', [id]);
-        if (rows.length === 0) {
-            return res.status(404).send('Performance signal not found.');
+function setupBotHandlers(bot, serverUrl, privateChannelId) {
+    // --- KEYBOARDS ---
+    const mainMenuKeyboard = {
+        reply_markup: {
+            keyboard: [
+                [{ text: 'Pricing' }, { text: 'Pay Now' }],
+                [{ text: 'Past Signals' }, { text: 'Signal Stats' }],
+                [{ text: 'PNL Proofs' }, { text: '🎮 Trading Game' }]
+            ],
+            resize_keyboard: true,
+            one_time_keyboard: false
         }
-        res.json(rows[0]);
-    } catch (err) {
-        console.error(err);
-        res.status(500).send('Server Error');
-    }
-});
+    };
 
-app.post('/api/performances', async (req, res) => {
-  try {
-    const { date, pair, entry_price, exit_price, pnl_percent, leverage, is_long_position, result_type } = req.body;
-    const { rows } = await pool.query(
-      'INSERT INTO performancesignals(date, pair, entry_price, exit_price, pnl_percent, leverage, is_long_position, result_type) VALUES($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
-      [date, pair, entry_price, exit_price, pnl_percent, leverage, is_long_position, result_type]
-    );
-    res.status(201).json(rows[0]);
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('Server Error');
-  }
-});
+    const gameMenuKeyboard = {
+        reply_markup: {
+            keyboard: [
+                [{ text: '📈 New Trade' }, { text: '📊 Open Trades & PNL' }],
+                [{ text: '📜 Trade History' }, { text: '🔄 Reset Game' }],
+                [{ text: '⬅️ Back to Main Menu' }]
+            ],
+            resize_keyboard: true,
+            one_time_keyboard: false
+        }
+    };
 
-app.put('/api/performances/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { date, pair, entry_price, exit_price, pnl_percent, leverage, is_long_position, result_type } = req.body;
-    const { rows } = await pool.query(
-      'UPDATE performancesignals SET date = $1, pair = $2, entry_price = $3, exit_price = $4, pnl_percent = $5, leverage = $6, is_long_position = $7, result_type = $8 WHERE id = $9 RETURNING *',
-      [date, pair, entry_price, exit_price, pnl_percent, leverage, is_long_position, result_type, id]
-    );
-    if (rows.length === 0) {
-      return res.status(404).send('Performance signal not found.');
-    }
-    res.json(rows[0]);
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('Server Error');
-  }
-});
+    // --- GENERAL COMMANDS & MENU HANDLERS ---
 
-app.delete('/api/performances/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { rowCount } = await pool.query('DELETE FROM performancesignals WHERE id = $1', [id]);
-    if (rowCount === 0) {
-      return res.status(404).send('Performance signal not found.');
-    }
-    res.status(204).send();
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('Server Error');
-  }
-});
+    bot.onText(/\/start/, (msg) => {
+        const chatId = msg.chat.id;
+        const introMessage = `
+👋 *Welcome to NexxTrade!*
 
+I'm your AI assistant, here to guide you through our premium futures signals service. At NexxTrade, we focus on providing high-conviction trade setups with clear entries, targets, and risk management.
 
-// PNL Proofs
-app.get('/api/pnlproofs', async (req, res) => {
-  try {
-    const { rows } = await pool.query('SELECT * FROM pnlproofs');
-    res.json(rows);
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('Server Error');
-  }
-});
+*What to expect from NexxTrade:*
+✅ *Signal Clarity:* Actionable entries, invalidations, and targets.
+✅ *Risk-First Approach:* Every signal includes a stop-loss framework.
+✅ *Timely Alerts:* Real-time updates so you can plan, not chase.
+✅ *Expert Community:* Join a group of traders who win together.
 
-app.post('/api/pnlproofs', async (req, res) => {
-  try {
-    const { image_url, description } = req.body;
-    const { rows } = await pool.query(
-      'INSERT INTO pnlproofs(image_url, description) VALUES($1, $2) RETURNING *',
-      [image_url, description]
-    );
-    res.status(201).json(rows[0]);
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('Server Error');
-  }
-});
-
-app.delete('/api/pnlproofs/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { rowCount } = await pool.query('DELETE FROM pnlproofs WHERE id = $1', [id]);
-    if (rowCount === 0) {
-      return res.status(404).send('PNL proof not found.');
-    }
-    res.status(204).send();
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('Server Error');
-  }
-});
-
-
-// User and Subscription Management
-app.get('/api/users', async (req, res) => {
-  try {
-    const { rows } = await pool.query('SELECT * FROM users ORDER BY registration_date DESC');
-    res.json(rows);
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('Server Error');
-  }
-});
-
-app.get('/api/users/stats', async (req, res) => {
-  try {
-    const now = new Date();
-    const today = now.toISOString().split('T')[0];
-    const firstDayOfWeek = new Date(now.setDate(now.getDate() - now.getDay())).toISOString().split('T')[0];
-    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-    const todayQuery = await pool.query('SELECT COUNT(*) FROM users WHERE registration_date = $1', [today]);
-    const weekQuery = await pool.query('SELECT COUNT(*) FROM users WHERE registration_date >= $1', [firstDayOfWeek]);
-    const monthQuery = await pool.query('SELECT COUNT(*) FROM users WHERE registration_date >= $1', [firstDayOfMonth]);
-    res.json({
-      daily: parseInt(todayQuery.rows[0].count, 10),
-      weekly: parseInt(weekQuery.rows[0].count, 10),
-      monthly: parseInt(monthQuery.rows[0].count, 10),
+Use the menu below to explore our performance, see pricing, or try our Trading Game to practice your skills!
+        `;
+        bot.sendMessage(chatId, introMessage, { ...mainMenuKeyboard, parse_mode: 'Markdown' });
     });
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('Server Error');
-  }
-});
-
-app.post('/api/payments/opay', async (req, res) => {
-    try {
-        const { fullname, email, telegram, plan } = req.body;
-        const USD_TO_NGN_RATE = 750;
-        const prices = { monthly: 39, quarterly: 99, yearly: 299 };
-        const amountUSD = prices[plan];
-
-        if (!amountUSD) {
-            return res.status(400).json({ message: 'Invalid plan selected.' });
-        }
-        const amountNGN = amountUSD * USD_TO_NGN_RATE;
-        const transactionRef = crypto.randomBytes(16).toString('hex');
-        const telegramInviteToken = crypto.randomBytes(32).toString('hex');
-        const registrationDate = new Date().toISOString().split('T')[0];
-
-        await pool.query(
-            `INSERT INTO users (full_name, email, telegram_handle, plan_name, subscription_status, registration_date, telegram_invite_token)
-             VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-            [fullname, email, telegram, plan, 'pending', registrationDate, telegramInviteToken]
-        );
-        
-        const mockRedirectUrl = `https://mock-opay.com/pay?ref=${transactionRef}&amount=${amountNGN}`;
-        res.status(200).json({
-            message: 'Payment initiated successfully.',
-            redirectUrl: mockRedirectUrl,
-            transactionRef: transactionRef
-        });
-    } catch (err) {
-        console.error('Error initiating OPay payment:', err);
-        res.status(500).json({ message: 'Server Error during payment initiation.' });
-    }
-});
-
-app.post('/api/payments/opay/webhook', async (req, res) => {
-    const { reference, status } = req.body;
-    if (!reference || !status) {
-        return res.status(400).send('Invalid webhook payload');
-    }
-
-    if (status === 'success') {
+    
+    bot.onText(/Pricing/, async (msg) => {
+        const chatId = msg.chat.id;
         try {
-            const { rows } = await pool.query('SELECT * FROM users WHERE telegram_invite_token = $1', [reference]);
-            if (rows.length === 0) {
-                return res.status(404).send('User not found for this transaction reference.');
-            }
-            const user = rows[0];
-            let expirationDate = new Date();
-            if (user.plan_name === 'monthly') expirationDate.setMonth(expirationDate.getMonth() + 1);
-            else if (user.plan_name === 'quarterly') expirationDate.setMonth(expirationDate.getMonth() + 3);
-            else if (user.plan_name === 'yearly') expirationDate.setFullYear(expirationDate.getFullYear() + 1);
+            const response = await fetch(`${serverUrl}/api/pricing`);
+            const plans = await response.json();
 
-            await pool.query(
-                `UPDATE users SET subscription_status = 'active', subscription_expiration = $1 WHERE telegram_invite_token = $2`,
-                [expirationDate.toISOString().split('T')[0], reference]
-            );
-            console.log(`User ${user.email} subscription activated successfully.`);
-            res.status(200).send('Webhook received and processed successfully.');
-        } catch (err) {
-            console.error('Error processing OPay webhook:', err);
-            res.status(500).send('Server Error');
-        }
-    } else {
-        console.log(`Received webhook for reference ${reference} with status: ${status}`);
-        res.status(200).send('Webhook received, but payment was not successful.');
-    }
-});
-
-app.post('/api/subscriptions/cleanup', async (req, res) => {
-    try {
-        const today = new Date().toISOString().split('T')[0];
-        const { rows } = await pool.query(
-            "SELECT id, telegram_handle FROM users WHERE subscription_status = 'active' AND subscription_expiration < $1",
-            [today]
-        );
-        if (rows.length === 0) {
-            return res.status(200).json({ message: 'No expired subscriptions found.' });
-        }
-        await pool.query(
-            "UPDATE users SET subscription_status = 'expired' WHERE subscription_status = 'active' AND subscription_expiration < $1",
-            [today]
-        );
-        console.log(`Updated ${rows.length} users with expired subscriptions.`);
-        res.json({
-            message: `Processed ${rows.length} expired subscriptions.`,
-            expired_users: rows
-        });
-    } catch (err) {
-        console.error('Error processing subscription cleanup:', err);
-        res.status(500).json({ message: 'Server Error' });
-    }
-});
-
-app.get('/api/users/status-by-telegram-handle/:telegram_handle', async (req, res) => {
-    try {
-        const { telegram_handle } = req.params;
-        const { rows } = await pool.query(
-            'SELECT subscription_status, subscription_expiration FROM users WHERE telegram_handle = $1',
-            [`@${telegram_handle}`]
-        );
-        if (rows.length === 0) {
-            return res.status(404).json({ message: 'User not found.' });
-        }
-        res.json(rows[0]);
-    } catch (err) {
-        console.error('Error finding user status by Telegram handle:', err);
-        res.status(500).json({ message: 'Server Error' });
-    }
-});
-
-app.get('/api/users/find-by-telegram-handle/:telegram_handle', async (req, res) => {
-    try {
-        const { telegram_handle } = req.params;
-        const { rows } = await pool.query(
-            'SELECT id, telegram_handle FROM users WHERE telegram_handle = $1',
-            [telegram_handle]
-        );
-        if (rows.length === 0) {
-            return res.status(404).json({ message: 'User not found.' });
-        }
-        res.json(rows[0]);
-    } catch (err) {
-        console.error('Error finding user by Telegram handle:', err);
-        res.status(500).json({ message: 'Server Error' });
-    }
-});
-
-app.post('/api/users/verify-telegram', async (req, res) => {
-    const { telegram_handle, telegram_invite_token } = req.body;
-    if (!telegram_handle || !telegram_invite_token) {
-        return res.status(400).json({ message: 'Missing Telegram handle or token.' });
-    }
-    try {
-        const { rows } = await pool.query(
-            'SELECT * FROM users WHERE telegram_handle = $1 AND telegram_invite_token = $2',
-            [telegram_handle, telegram_invite_token]
-        );
-        if (rows.length > 0) {
-            const user = rows[0];
-            await pool.query('UPDATE users SET telegram_invite_token = NULL WHERE id = $1', [user.id]);
-            res.status(200).json({
-                message: 'Verification successful. User is active.',
-                user: { id: user.id, email: user.email, telegram_handle: user.telegram_handle, plan_name: user.plan_name }
+            let message = `Here are our current pricing plans:\n\n`;
+            plans.forEach(plan => {
+                message += `*${plan.plan_name}*\nPrice: $${plan.price} ${plan.term}\nFeatures: ${plan.features.join(', ')}\n${plan.is_best_value ? '🏆 Best Value! 🏆\n' : ''}\n`;
             });
-        } else {
-            res.status(404).json({ message: 'User not found or token is invalid.' });
+            message += `\nFor more details, visit: ${serverUrl}/#pricing`;
+            bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+        } catch (error) {
+            console.error('Error fetching pricing plans:', error);
+            bot.sendMessage(chatId, `I couldn't retrieve the pricing information right now. Please check our website: ${serverUrl}/#pricing`);
         }
-    } catch (err) {
-        console.error('Error verifying Telegram user:', err);
-        res.status(500).json({ message: 'Server Error' });
+    });
+
+    bot.onText(/Pay Now/, (msg) => {
+        bot.sendMessage(msg.chat.id, `Ready to get started? You can sign up and choose your plan here:\n${serverUrl}/join`);
+    });
+
+    bot.onText(/Past Signals/, (msg) => {
+        bot.sendMessage(msg.chat.id, `You can view our complete history of past signals and performance data here:\n${serverUrl}/performance`);
+    });
+
+    bot.onText(/Signal Stats/, async (msg) => {
+        const chatId = msg.chat.id;
+        try {
+            const response = await fetch(`${serverUrl}/api/performances`);
+            const signals = await response.json();
+    
+            if (signals.length === 0) {
+                bot.sendMessage(chatId, "I'm sorry, there are no signals available to calculate statistics. Please check back later.");
+                return;
+            }
+    
+            const totalSignals = signals.length;
+            const wins = signals.filter(s => s.result_type === 'Win').length;
+            const losses = signals.filter(s => s.result_type === 'Loss').length;
+            const winRate = ((wins / totalSignals) * 100).toFixed(2);
+            const mostTradedPair = signals.map(s => s.pair).reduce((acc, curr) => {
+                acc[curr] = (acc[curr] || 0) + 1;
+                return acc;
+            }, {});
+            const topPair = Object.keys(mostTradedPair).reduce((a, b) => mostTradedPair[a] > mostTradedPair[b] ? a : b);
+    
+            const message = `
+📊 *NexxTrade Signal Statistics*
+Total Signals: ${totalSignals}
+Wins: ${wins}
+Losses: ${losses}
+Win Rate: ${winRate}%
+Most Traded Pair: ${topPair}
+            `;
+    
+            bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+        } catch (error) {
+            console.error('Error fetching signal stats:', error);
+            bot.sendMessage(chatId, `I couldn't retrieve the signal statistics right now. Please check our website: ${serverUrl}/performance`);
+        }
+    });
+
+    bot.onText(/PNL Proofs/, (msg) => {
+        bot.sendMessage(msg.chat.id, `You can browse our PNL proof gallery to see our verified results here:\n${serverUrl}/performance#pnl-gallery`);
+    });
+
+    // --- TRADING GAME LOGIC ---
+    
+    bot.onText(/🎮 Trading Game/, (msg) => {
+        const chatId = msg.chat.id;
+        getSession(chatId); // Ensure a session is created
+        const welcomeMessage = `
+Welcome to the NexxTrade Paper Trading Game!
+
+Here you can practice your trading skills with a virtual portfolio of $10,000. This version includes leverage, limit orders, TP/SL, and more!
+
+Select an option from the menu to start. Good luck!
+        `;
+        bot.sendMessage(chatId, welcomeMessage, gameMenuKeyboard);
+    });
+
+    bot.onText(/⬅️ Back to Main Menu/, (msg) => {
+        bot.sendMessage(msg.chat.id, "You are back at the main menu.", mainMenuKeyboard);
+    });
+
+    bot.onText(/🔄 Reset Game/, (msg) => {
+        const chatId = msg.chat.id;
+        delete gameSessions[chatId];
+        getSession(chatId);
+        bot.sendMessage(chatId, "Your game has been reset. You have a fresh portfolio of $10,000.", gameMenuKeyboard);
+    });
+
+    bot.onText(/📊 Open Trades & PNL/, async (msg) => {
+        const chatId = msg.chat.id;
+        const session = getSession(chatId);
+        let totalUnrealizedPNL = 0;
+        
+        const thinkingMessage = await bot.sendMessage(chatId, "Calculating your open positions... ⏳");
+    
+        if (session.positions.length === 0) {
+            bot.editMessageText("You have no open positions.", { chat_id: chatId, message_id: thinkingMessage.message_id });
+            return;
+        }
+    
+        for (const pos of session.positions) {
+            let message = "";
+            const currentPrice = await getCryptoPrice(pos.asset);
+            let pnl = 0;
+            let pnlPercent = 0;
+    
+            if (currentPrice) {
+                if (pos.orderType === 'limit' && !pos.isActive) {
+                    if ((pos.direction === 'long' && currentPrice <= pos.entryPrice) || (pos.direction === 'short' && currentPrice >= pos.entryPrice)) {
+                        pos.isActive = true;
+                        message += `*🔔 LIMIT ORDER TRIGGERED for ${pos.asset.toUpperCase()}!* \n`;
+                    } else {
+                        message += `*⏳ PENDING LIMIT ORDER*\n`;
+                        message += `ID: ${pos.id}\nAsset: ${pos.asset.toUpperCase()} | ${pos.leverage}x ${pos.direction.toUpperCase()}\n`;
+                        message += `Target Entry: $${pos.entryPrice}\nAmount: $${pos.amountUSD.toFixed(2)}\n\n`;
+                        bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+                        continue;
+                    }
+                }
+    
+                const assetAmount = pos.amountUSD / pos.entryPrice;
+                const currentValue = assetAmount * currentPrice;
+                if (pos.direction === 'long') pnl = currentValue - pos.amountUSD;
+                else pnl = pos.amountUSD - currentValue;
+                
+                pnl *= pos.leverage;
+                totalUnrealizedPNL += pnl;
+                pnlPercent = (pnl / pos.amountUSD) * 100;
+            }
+    
+            const pnlSign = pnl >= 0 ? '+' : '';
+            message += `*${pos.asset.toUpperCase()} | ${pos.leverage}x ${pos.direction.toUpperCase()}*\n`;
+            message += `ID: \`${pos.id}\`\n`;
+            message += `Entry: $${pos.entryPrice} | Current: $${currentPrice ? currentPrice : 'N/A'}\n`;
+            message += `Invested: $${pos.amountUSD.toFixed(2)}\n`;
+            message += `TP: $${pos.takeProfit || 'N/A'} | SL: $${pos.stopLoss || 'N/A'}\n`;
+            message += `Unrealized P/L: *${pnlSign}$${pnl.toFixed(2)} (${pnlSign}${pnlPercent.toFixed(2)}%)*`;
+    
+            const keyboard = {
+                reply_markup: {
+                    inline_keyboard: [
+                        [{ text: '❌ Close Trade', callback_data: `closetrade_${pos.id}` }]
+                    ]
+                }
+            };
+    
+            bot.sendMessage(chatId, message, { parse_mode: 'Markdown', ...keyboard });
+        }
+        
+        bot.deleteMessage(chatId, thinkingMessage.message_id);
+    
+        const portfolioValue = session.balance + totalUnrealizedPNL;
+        const summaryMessage = `*Your Portfolio Summary*\nBalance: *$${session.balance.toFixed(2)}*\nTotal Unrealized P/L: *$${totalUnrealizedPNL.toFixed(2)}*\n\n*Total Portfolio Value: $${portfolioValue.toFixed(2)}*`;
+        bot.sendMessage(chatId, summaryMessage, { parse_mode: 'Markdown' });
+    });
+
+    bot.onText(/📈 New Trade/, (msg) => {
+        const chatId = msg.chat.id;
+        bot.sendMessage(chatId, "Which crypto would you like to trade? (e.g., `bitcoin`, `ethereum`, `solana`)");
+        setNextStep(chatId, (assetMsg) => handleAssetSelection(chatId, assetMsg.text.trim()));
+    });
+    
+    async function handleAssetSelection(chatId, asset) {
+        const session = getSession(chatId);
+        const thinkingMsg = await bot.sendMessage(chatId, `Fetching price for ${asset}...`);
+        const price = await getCryptoPrice(asset);
+    
+        bot.deleteMessage(chatId, thinkingMsg.message_id);
+    
+        if (!price) {
+            const errorKeyboard = {
+                reply_markup: {
+                    keyboard: [[{ text: 'bitcoin' }, { text: 'ethereum' }, { text: 'solana' }]],
+                    resize_keyboard: true,
+                    one_time_keyboard: true
+                }
+            };
+            bot.sendMessage(chatId, `Sorry, I couldn't find the price for "${asset}". Please ensure it's a valid CoinGecko ID and try again.`, errorKeyboard);
+            setNextStep(chatId, (assetMsg) => handleAssetSelection(chatId, assetMsg.text.trim()));
+            return;
+        }
+        
+        session.tradeSetup = { asset, price };
+        
+        const leverageKeyboard = { 
+            reply_markup: { 
+                remove_keyboard: true,
+                inline_keyboard: [[
+                    { text: '5x', callback_data: 'leverage_5' }, { text: '10x', callback_data: 'leverage_10' },
+                    { text: '20x', callback_data: 'leverage_20' }, { text: '50x', callback_data: 'leverage_50' }
+                ]]
+            }
+        };
+        bot.sendMessage(chatId, `Current price of ${asset.toUpperCase()} is *$${price}*. Select your leverage:`, { parse_mode: 'Markdown', ...leverageKeyboard });
     }
-});
 
-// Telegram Webhook
-app.post(`/bot${token}`, (req, res) => {
-    bot.processUpdate(req.body);
-    res.sendStatus(200);
-});
+    bot.on('callback_query', (cbq) => {
+        const chatId = cbq.message.chat.id;
+        const [action, value] = cbq.data.split('_');
+    
+        switch(action) {
+            case 'leverage':
+                handleLeverageSelection(chatId, parseInt(value));
+                break;
+            case 'direction':
+                handleDirectionSelection(chatId, value);
+                break;
+            case 'ordertype':
+                handleOrderTypeSelection(chatId, value);
+                break;
+            case 'closetrade':
+                closePositionById(chatId, value);
+                break;
+        }
+        bot.answerCallbackQuery(cbq.id);
+    });
 
+    function handleLeverageSelection(chatId, leverage) {
+        const session = getSession(chatId);
+        session.tradeSetup.leverage = leverage;
+        
+        const directionKeyboard = { reply_markup: { inline_keyboard: [[
+            { text: '🟢 Long (Buy)', callback_data: 'direction_long' },
+            { text: '🔴 Short (Sell)', callback_data: 'direction_short' }
+        ]]}};
+        bot.sendMessage(chatId, `Leverage set to *${leverage}x*. Do you want to go long or short?`, { parse_mode: 'Markdown', ...directionKeyboard });
+    }
 
-// --- STATIC FILES & PAGE ROUTES ---
-app.use(express.static(path.join(__dirname, 'public')));
-app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
-app.get('/join', (req, res) => res.sendFile(path.join(__dirname, 'public', 'registration.html')));
-app.get('/performance', (req, res) => res.sendFile(path.join(__dirname, 'public', 'performance.html')));
-app.get('/blog', (req, res) => res.sendFile(path.join(__dirname, 'public', 'blog.html')));
-app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
-app.get('/admin/dashboard', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin_dashboard.html')));
-app.get('/admin/blogs', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin_blogs.html')));
-app.get('/admin/performance', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin_performance.html')));
-app.get('/admin/pricing', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin_pricing.html')));
-app.get('/admin/roles', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin_roles.html')));
+    function handleDirectionSelection(chatId, direction) {
+        const session = getSession(chatId);
+        session.tradeSetup.direction = direction;
+    
+        const orderTypeKeyboard = { reply_markup: { inline_keyboard: [[
+            { text: 'Market Order', callback_data: 'ordertype_market' },
+            { text: 'Limit Order', callback_data: 'ordertype_limit' }
+        ]]}};
+        bot.sendMessage(chatId, `You chose *${direction.toUpperCase()}*. Select order type:`, { parse_mode: 'Markdown', ...orderTypeKeyboard });
+    }
 
+    function handleOrderTypeSelection(chatId, orderType) {
+        const session = getSession(chatId);
+        session.tradeSetup.orderType = orderType;
+    
+        if (orderType === 'market') {
+            bot.sendMessage(chatId, `Enter investment amount in USD (Balance: $${session.balance.toFixed(2)}):`);
+            setNextStep(chatId, (msg) => handleAmountSelection(chatId, msg.text.trim()));
+        } else { // limit
+            bot.sendMessage(chatId, `Current price is $${session.tradeSetup.price}. At what price do you want to enter?`);
+            setNextStep(chatId, (msg) => handleEntryPriceSelection(chatId, msg.text.trim()));
+        }
+    }
+    
+    function handleEntryPriceSelection(chatId, entryPrice) {
+        const price = parseFloat(entryPrice);
+        if (isNaN(price) || price <= 0) {
+            bot.sendMessage(chatId, "Invalid price. Please enter a positive number.");
+            resetTradeSetup(chatId);
+            return;
+        }
+        const session = getSession(chatId);
+        session.tradeSetup.entryPrice = price;
+        bot.sendMessage(chatId, `Enter investment amount in USD (Balance: $${session.balance.toFixed(2)}):`);
+        setNextStep(chatId, (msg) => handleAmountSelection(chatId, msg.text.trim()));
+    }
 
-// --- SERVER STARTUP ---
-app.listen(port, async () => {
-  console.log(`Server is running on http://localhost:${port}`);
-  await setupWebhook();
-});
+    function handleAmountSelection(chatId, amount) {
+        const session = getSession(chatId);
+        const amountUSD = parseFloat(amount);
+    
+        if (isNaN(amountUSD) || amountUSD <= 0) {
+            bot.sendMessage(chatId, "Invalid amount. Please enter a positive number.");
+            resetTradeSetup(chatId);
+            return;
+        }
+        if (amountUSD > session.balance) {
+            bot.sendMessage(chatId, `Insufficient balance. You only have $${session.balance.toFixed(2)}.`);
+            resetTradeSetup(chatId);
+            return;
+        }
+        session.tradeSetup.amountUSD = amountUSD;
+        bot.sendMessage(chatId, `Enter your Take Profit price (or type 'skip'):`);
+        setNextStep(chatId, (msg) => handleTakeProfitSelection(chatId, msg.text.trim()));
+    }
+    
+    function handleTakeProfitSelection(chatId, tp) {
+        const session = getSession(chatId);
+        if (tp.toLowerCase() !== 'skip') {
+            const takeProfit = parseFloat(tp);
+            if (isNaN(takeProfit) || takeProfit <= 0) {
+                bot.sendMessage(chatId, "Invalid TP price. Please enter a positive number or 'skip'.");
+                resetTradeSetup(chatId);
+                return;
+            }
+            session.tradeSetup.takeProfit = takeProfit;
+        }
+        bot.sendMessage(chatId, `Enter your Stop Loss price (or type 'skip'):`);
+        setNextStep(chatId, (msg) => handleStopLossSelection(chatId, msg.text.trim()));
+    }
+
+    function handleStopLossSelection(chatId, sl) {
+        const session = getSession(chatId);
+        if (sl.toLowerCase() !== 'skip') {
+            const stopLoss = parseFloat(sl);
+            if (isNaN(stopLoss) || stopLoss <= 0) {
+                bot.sendMessage(chatId, "Invalid SL price. Please enter a positive number or 'skip'.");
+                resetTradeSetup(chatId);
+                return;
+            }
+            session.tradeSetup.stopLoss = stopLoss;
+        }
+        
+        const { asset, price, leverage, direction, orderType, entryPrice, amountUSD, takeProfit, stopLoss } = session.tradeSetup;
+        const finalEntryPrice = orderType === 'market' ? price : entryPrice;
+        
+        const newPosition = {
+            id: Date.now(),
+            asset,
+            leverage,
+            direction,
+            orderType,
+            entryPrice: finalEntryPrice,
+            amountUSD,
+            takeProfit: takeProfit || null,
+            stopLoss: stopLoss || null,
+            isActive: orderType === 'market'
+        };
+        
+        session.balance -= amountUSD;
+        session.positions.push(newPosition);
+    
+        let confirmationMessage = `✅ *Trade Setup Complete!*\n\n`;
+        if (orderType === 'market') {
+            confirmationMessage += `*MARKET ORDER EXECUTED*\n`;
+        } else {
+            confirmationMessage += `*LIMIT ORDER PLACED*\n`;
+        }
+        confirmationMessage += `*${asset.toUpperCase()} | ${leverage}x ${direction.toUpperCase()}*\n`;
+        confirmationMessage += `Entry Price: $${finalEntryPrice}\n`;
+        confirmationMessage += `Amount: $${amountUSD.toFixed(2)}\n`;
+        confirmationMessage += `Take Profit: $${takeProfit || 'N/A'}\n`;
+        confirmationMessage += `Stop Loss: $${stopLoss || 'N/A'}\n\n`;
+        confirmationMessage += `Your remaining balance is $${session.balance.toFixed(2)}.`;
+        
+        bot.sendMessage(chatId, confirmationMessage, { parse_mode: 'Markdown' });
+        resetTradeSetup(chatId);
+    }
+
+    bot.onText(/❌ Close Position/, (msg) => {
+        const chatId = msg.chat.id;
+        const session = getSession(chatId);
+    
+        if (session.positions.length === 0) {
+            bot.sendMessage(chatId, "You have no open positions to close.");
+            return;
+        }
+    
+        const closeButtons = session.positions.map(pos => ([{
+            text: `${pos.asset.toUpperCase()} | ${pos.leverage}x ${pos.direction.toUpperCase()} (ID: ${pos.id})`,
+            callback_data: `closetrade_${pos.id}`
+        }]));
+        
+        const closeKeyboard = { reply_markup: { inline_keyboard: closeButtons }};
+        bot.sendMessage(chatId, "Select a trade to close:", closeKeyboard);
+    });
+
+    async function closePositionById(chatId, positionId, reason = 'Manual Close') {
+        const session = getSession(chatId);
+        const positionIndex = session.positions.findIndex(p => p.id == positionId);
+        if (positionIndex === -1) {
+            bot.sendMessage(chatId, "Could not find the specified trade to close.");
+            return;
+        }
+    
+        const pos = session.positions[positionIndex];
+    
+        const currentPrice = await getCryptoPrice(pos.asset);
+        if (!currentPrice) {
+            bot.sendMessage(chatId, `Could not fetch price for ${pos.asset.toUpperCase()} to close the trade. Please try again.`);
+            return;
+        }
+    
+        const assetAmount = pos.amountUSD / pos.entryPrice;
+        const currentValue = assetAmount * currentPrice;
+        let pnl = 0;
+        if (pos.direction === 'long') pnl = currentValue - pos.amountUSD;
+        else pnl = pos.amountUSD - currentValue;
+        pnl *= pos.leverage;
+    
+        session.balance += pos.amountUSD + pnl;
+        
+        session.tradeHistory.push({
+            asset: pos.asset,
+            pnl: pnl,
+            closeReason: reason,
+            closedAt: new Date().toISOString()
+        });
+    
+        session.positions.splice(positionIndex, 1);
+    
+        const resultEmoji = pnl >= 0 ? '🎉' : '📉';
+        const message = `
+    ${resultEmoji} *Trade Closed!* ${resultEmoji}
+    *Reason: ${reason}*
+    
+    Asset: ${pos.asset.toUpperCase()}
+    Direction: ${pos.direction.toUpperCase()}
+    Entry Price: $${pos.entryPrice}
+    Closing Price: $${currentPrice}
+    P/L: *${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}*
+    
+    Your new balance is *$${session.balance.toFixed(2)}*.`;
+        bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+    }
+
+    bot.onText(/📜 Trade History/, (msg) => {
+        const chatId = msg.chat.id;
+        const session = getSession(chatId);
+    
+        if (session.tradeHistory.length === 0) {
+            bot.sendMessage(chatId, "You have no closed trades in your history yet.");
+            return;
+        }
+    
+        let fileContent = `NexxTrade Paper Trading - PNL Report\nGenerated on: ${new Date().toUTCString()}\n\n`;
+        fileContent += "========================================\n";
+    
+        session.tradeHistory.forEach(trade => {
+            const pnlSign = trade.pnl >= 0 ? '+' : '';
+            fileContent += `Asset: ${trade.asset.toUpperCase()}\n`;
+            fileContent += `Closed At: ${new Date(trade.closedAt).toLocaleString()}\n`;
+            fileContent += `Reason: ${trade.closeReason}\n`;
+            fileContent += `Realized PNL: ${pnlSign}$${trade.pnl.toFixed(2)}\n`;
+            fileContent += "----------------------------------------\n";
+        });
+    
+        const fileOptions = {
+            filename: 'nexxtrade_pnl_report.txt',
+            contentType: 'text/plain',
+        };
+    
+        bot.sendDocument(chatId, Buffer.from(fileContent), {}, fileOptions);
+    });
+
+    // --- ADMINISTRATIVE & VERIFICATION ---
+    
+    bot.onText(/\/verify/, async (msg) => {
+        const chatId = msg.chat.id;
+        const telegramHandle = msg.from.username;
+    
+        if (!telegramHandle) {
+            bot.sendMessage(chatId, "Please set a public Telegram username in your profile settings before proceeding.");
+            return;
+        }
+    
+        try {
+            const chatMember = await bot.getChatMember(privateChannelId, msg.from.id);
+            if (chatMember.status !== 'left' && chatMember.status !== 'kicked') {
+                bot.sendMessage(chatId, "You are already a member of the group!");
+                return;
+            }
+        } catch (error) {
+            console.log(`User @${telegramHandle} is not a member. Proceeding with verification.`);
+        }
+    
+        try {
+            const response = await fetch(`${serverUrl}/api/users/status-by-telegram-handle/${telegramHandle}`);
+            const data = await response.json();
+    
+            if (response.ok && data.subscription_status === 'active') {
+                const inviteLink = await bot.createChatInviteLink(privateChannelId, {
+                    member_limit: 1,
+                    expire_date: Math.floor(Date.now() / 1000) + 600
+                });
+                
+                bot.sendMessage(chatId, `Hello @${telegramHandle}! Your subscription is active. Here is your private, one-time invite link: ${inviteLink.invite_link}`);
+            } else {
+                bot.sendMessage(chatId, `Your status could not be found or your subscription is inactive. Please visit our website to subscribe or contact support.`);
+            }
+        } catch (error) {
+            console.error('Error in /verify process:', error);
+            bot.sendMessage(chatId, "An error occurred during verification. Please contact support.");
+        }
+    });
+
+    bot.onText(/\/status/, async (msg) => {
+        const chatId = msg.chat.id;
+        const telegramHandle = msg.from.username;
+    
+        if (!telegramHandle) {
+            bot.sendMessage(chatId, "Please set a public Telegram username in your profile settings before checking your status.");
+            return;
+        }
+    
+        try {
+            const response = await fetch(`${serverUrl}/api/users/status-by-telegram-handle/${telegramHandle}`);
+            const data = await response.json();
+    
+            if (response.ok) {
+                bot.sendMessage(chatId, `Hello @${telegramHandle}! Your subscription status is: ${data.subscription_status}. It is valid until ${data.subscription_expiration}.`);
+            } else {
+                bot.sendMessage(chatId, `Your status could not be found. Please contact support.`);
+            }
+        } catch (error) {
+            console.error('Error handling /status command:', error);
+            bot.sendMessage(chatId, "An error occurred while checking your status. Please contact support.");
+        }
+    });
+
+    bot.onText(/\/remove (.+)/, async (msg, match) => {
+        const chatId = msg.chat.id;
+        const adminTelegramHandle = msg.from.username;
+        const usernameToRemove = match[1];
+    
+        if (adminTelegramHandle !== 'PeterKingsley') { // Replace with actual superadmin username
+            bot.sendMessage(chatId, "You do not have permission to use this command.");
+            return;
+        }
+    
+        try {
+            const response = await fetch(`${serverUrl}/api/users/find-by-telegram-handle/${usernameToRemove}`);
+            const data = await response.json();
+    
+            if (response.ok) {
+                const userToRemoveId = data.id;
+                await bot.banChatMember(privateChannelId, userToRemoveId);
+    
+                bot.sendMessage(chatId, `@${usernameToRemove} has been successfully removed from the group.`);
+            } else {
+                bot.sendMessage(chatId, `User @${usernameToRemove} was not found in the database. No action taken.`);
+            }
+        } catch (error) {
+            console.error('Error handling /remove command:', error);
+            bot.sendMessage(chatId, "An error occurred while trying to remove the user. Please check the bot's permissions and the server logs.");
+        }
+    });
+
+    // --- CATCH-ALL MESSAGE HANDLER ---
+    
+    bot.on('message', (msg) => {
+        const chatId = msg.chat.id;
+        const text = msg.text ? msg.text.trim() : '';
+
+        if (nextStepHandlers[chatId]) {
+            const handler = nextStepHandlers[chatId];
+            delete nextStepHandlers[chatId]; // Consume the handler
+            handler(msg);
+            return;
+        }
+    
+        const knownOnTextCommands = [
+            /^\/start$/, /^\/status$/, /^\/remove/, /^\/verify$/,
+            /^Pricing$/, /^Pay Now$/, /^Past Signals$/, /^Signal Stats$/, /^PNL Proofs$/,
+            /^🎮 Trading Game$/, /^📈 New Trade$/, /^📊 Open Trades & PNL$/, /^❌ Close Position$/, 
+            /^📜 Trade History$/, /^🔄 Reset Game$/, /^⬅️ Back to Main Menu$/
+        ];
+        
+        const isKnown = knownOnTextCommands.some(regex => regex.test(text));
+    
+        if (!isKnown) {
+            bot.sendMessage(chatId, "I'm not sure how to respond to that. Please select an option from the menu, or use /start to begin.", mainMenuKeyboard);
+        }
+    });
+}
+
+module.exports = { setupBotHandlers };
 
