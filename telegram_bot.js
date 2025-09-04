@@ -179,12 +179,16 @@ www.nexxtrade.io/performance#pnl-gallery`;
 // Function to get crypto prices
 async function getCryptoPrice(cryptoId) {
     try {
+        const saneCryptoId = cryptoId.toLowerCase().trim();
         const response = await axios.get(`https://api.coingecko.com/api/v3/simple/price`, {
-            params: { ids: cryptoId.toLowerCase(), vs_currencies: 'usd' }
+            params: { ids: saneCryptoId, vs_currencies: 'usd' }
         });
-        return response.data[cryptoId.toLowerCase()]?.usd || null;
+        if (response.data && response.data[saneCryptoId]) {
+            return response.data[saneCryptoId].usd;
+        }
+        return null;
     } catch (error) {
-        console.error("Error fetching crypto price for", cryptoId, error.message);
+        console.error(`Error fetching crypto price for '${cryptoId}':`, error.response ? error.response.data : error.message);
         return null;
     }
 }
@@ -235,7 +239,6 @@ bot.onText(/📊 Open Trades & PNL/, async (msg) => {
     const session = getSession(chatId);
     let totalUnrealizedPNL = 0;
     
-    // Send a thinking message first
     const thinkingMessage = await bot.sendMessage(chatId, "Calculating your open positions... ⏳");
 
     if (session.positions.length === 0) {
@@ -243,7 +246,6 @@ bot.onText(/📊 Open Trades & PNL/, async (msg) => {
         return;
     }
 
-    // Process each position
     for (const pos of session.positions) {
         let message = "";
         const currentPrice = await getCryptoPrice(pos.asset);
@@ -293,10 +295,8 @@ bot.onText(/📊 Open Trades & PNL/, async (msg) => {
         bot.sendMessage(chatId, message, { parse_mode: 'Markdown', ...keyboard });
     }
     
-    // Delete the "thinking" message
     bot.deleteMessage(chatId, thinkingMessage.message_id);
 
-    // Send the final portfolio summary
     const portfolioValue = session.balance + totalUnrealizedPNL;
     const summaryMessage = `*Your Portfolio Summary*\nBalance: *$${session.balance.toFixed(2)}*\nTotal Unrealized P/L: *$${totalUnrealizedPNL.toFixed(2)}*\n\n*Total Portfolio Value: $${portfolioValue.toFixed(2)}*`;
     bot.sendMessage(chatId, summaryMessage, { parse_mode: 'Markdown' });
@@ -304,20 +304,6 @@ bot.onText(/📊 Open Trades & PNL/, async (msg) => {
 
 
 // --- Multi-step Trade Logic ---
-// ... (The new trade setup flow is complex and will be handled by a series of functions and callbacks)
-
-// 1. User clicks "New Trade"
-bot.onText(/📈 New Trade/, (msg) => {
-    const chatId = msg.chat.id;
-    bot.sendMessage(chatId, "Which crypto would you like to trade? (e.g., `bitcoin`, `ethereum`, `solana`)").then(() => {
-        bot.once('message', (assetMsg) => handleAssetSelection(chatId, assetMsg.text.trim()));
-    });
-});
-
-// Helper to reset the trade setup process
-function resetTradeSetup(chatId) {
-    if (gameSessions[chatId]) gameSessions[chatId].tradeSetup = {};
-}
 
 // This object will map chat IDs to the next expected message handler
 const nextStepHandlers = {};
@@ -326,33 +312,49 @@ function setNextStep(chatId, handler) {
     nextStepHandlers[chatId] = handler;
 }
 
-// Universal message handler for conversational flow
-bot.on('message', (msg) => {
-    const chatId = msg.chat.id;
-    if (nextStepHandlers[chatId]) {
-        const handler = nextStepHandlers[chatId];
-        delete nextStepHandlers[chatId]; // Consume the handler
-        handler(msg); // Execute it
-    }
-});
+function resetTradeSetup(chatId) {
+    if (gameSessions[chatId]) gameSessions[chatId].tradeSetup = {};
+}
 
+// 1. User clicks "New Trade"
+bot.onText(/📈 New Trade/, (msg) => {
+    const chatId = msg.chat.id;
+    bot.sendMessage(chatId, "Which crypto would you like to trade? (e.g., `bitcoin`, `ethereum`, `solana`)");
+    setNextStep(chatId, (assetMsg) => handleAssetSelection(chatId, assetMsg.text.trim()));
+});
 
 // 2. User provides asset -> ask for leverage
 async function handleAssetSelection(chatId, asset) {
     const session = getSession(chatId);
-    bot.sendMessage(chatId, `Fetching price for ${asset}...`);
+    const thinkingMsg = await bot.sendMessage(chatId, `Fetching price for ${asset}...`);
     const price = await getCryptoPrice(asset);
 
+    bot.deleteMessage(chatId, thinkingMsg.message_id);
+
     if (!price) {
-        bot.sendMessage(chatId, `Sorry, I couldn't find the price for "${asset}". Please try again.`);
+        const errorKeyboard = {
+            reply_markup: {
+                keyboard: [[{ text: 'bitcoin' }, { text: 'ethereum' }, { text: 'solana' }]],
+                resize_keyboard: true,
+                one_time_keyboard: true
+            }
+        };
+        bot.sendMessage(chatId, `Sorry, I couldn't find the price for "${asset}". Please ensure it's a valid CoinGecko ID and try again.`, errorKeyboard);
+        setNextStep(chatId, (assetMsg) => handleAssetSelection(chatId, assetMsg.text.trim()));
         return;
     }
+    
     session.tradeSetup = { asset, price };
     
-    const leverageKeyboard = { reply_markup: { inline_keyboard: [[
-        { text: '5x', callback_data: 'leverage_5' }, { text: '10x', callback_data: 'leverage_10' },
-        { text: '20x', callback_data: 'leverage_20' }, { text: '50x', callback_data: 'leverage_50' }
-    ]]}};
+    const leverageKeyboard = { 
+        reply_markup: { 
+            remove_keyboard: true,
+            inline_keyboard: [[
+                { text: '5x', callback_data: 'leverage_5' }, { text: '10x', callback_data: 'leverage_10' },
+                { text: '20x', callback_data: 'leverage_20' }, { text: '50x', callback_data: 'leverage_50' }
+            ]]
+        }
+    };
     bot.sendMessage(chatId, `Current price of ${asset.toUpperCase()} is *$${price}*. Select your leverage:`, { parse_mode: 'Markdown', ...leverageKeyboard });
 }
 
@@ -426,7 +428,6 @@ async function handleDownloadROI(chatId, positionId) {
         bot.sendMessage(chatId, "Sorry, there was an error creating your ROI image.");
     }
 }
-
 
 // 3. User selects leverage -> ask for direction
 function handleLeverageSelection(chatId, leverage) {
@@ -764,28 +765,36 @@ bot.onText(/\/remove (.+)/, async (msg, match) => {
 });
 
 
-// Catch-all message handler
+// This is the SINGLE message handler for the entire bot
 bot.on('message', (msg) => {
     const chatId = msg.chat.id;
-    const text = msg.text;
+    const text = msg.text ? msg.text.trim() : '';
 
-    // If a handler is expecting the next message, don't trigger this.
-    if (nextStepHandlers[chatId]) return;
-
-    // A list of all known commands and menu options that are handled by onText
-    const knownInputs = [
-        '/start', '/status', '/remove', '/verify',
-        'Pricing', 'Pay Now', 'Past Signals', 'Signal Stats', 'PNL Proofs',
-        '🎮 Trading Game', '📈 New Trade', '📊 Open Trades & PNL', '❌ Close Position', 
-        '📜 Trade History', '🔄 Reset Game', '⬅️ Back to Main Menu'
+    // 1. Check for conversational step handlers first
+    if (nextStepHandlers[chatId]) {
+        const handler = nextStepHandlers[chatId];
+        // Don't delete the handler yet, let the handler function do it
+        handler(msg); 
+        return; // Stop further processing
+    }
+    
+    // 2. Check for commands/menu options handled by onText (this is just for the catch-all)
+    const knownOnTextCommands = [
+        /^\/start$/, /^\/status$/, /^\/remove/, /^\/verify$/,
+        /^Pricing$/, /^Pay Now$/, /^Past Signals$/, /^Signal Stats$/, /^PNL Proofs$/,
+        /^🎮 Trading Game$/, /^📈 New Trade$/, /^📊 Open Trades & PNL$/, /^❌ Close Position$/, 
+        /^📜 Trade History$/, /^🔄 Reset Game$/, /^⬅️ Back to Main Menu$/
     ];
     
-    // Check if the message is a known command/option
-    const isKnown = knownInputs.some(input => text && text.trim().startsWith(input));
+    const isKnown = knownOnTextCommands.some(regex => regex.test(text));
 
-    if (!isKnown) {
-        bot.sendMessage(chatId, "I'm not sure how to respond to that. Please select an option from the menu, or use /start to begin.", mainMenuKeyboard);
+    if (isKnown) {
+        // The respective bot.onText will handle this, so we do nothing here.
+        return;
     }
+
+    // 3. If it's none of the above, send the fallback message
+    bot.sendMessage(chatId, "I'm not sure how to respond to that. Please select an option from the menu, or use /start to begin.", mainMenuKeyboard);
 });
 
 
