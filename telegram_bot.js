@@ -234,57 +234,74 @@ bot.onText(/📊 Open Trades & PNL/, async (msg) => {
     const chatId = msg.chat.id;
     const session = getSession(chatId);
     let totalUnrealizedPNL = 0;
-    let message = `*Your Portfolio*\nBalance: *$${session.balance.toFixed(2)}*\n\n`;
+    
+    // Send a thinking message first
+    const thinkingMessage = await bot.sendMessage(chatId, "Calculating your open positions... ⏳");
 
     if (session.positions.length === 0) {
-        message += "You have no open positions.";
-    } else {
-        message += "*Open Positions:*\n\n";
-        for (const pos of session.positions) {
-            const currentPrice = await getCryptoPrice(pos.asset);
-            let pnl = 0;
-            let pnlPercent = 0;
-            
-            if (currentPrice) {
-                if(pos.orderType === 'limit' && !pos.isActive) {
-                    // Check if limit order was triggered
-                    if ((pos.direction === 'long' && currentPrice <= pos.entryPrice) || (pos.direction === 'short' && currentPrice >= pos.entryPrice)) {
-                        pos.isActive = true; // Activate the trade
-                        message += `*🔔 LIMIT ORDER TRIGGERED for ${pos.asset.toUpperCase()}!* \n`;
-                    } else {
-                        message += `*⏳ PENDING LIMIT ORDER*\n`;
-                        message += `ID: ${pos.id}\nAsset: ${pos.asset.toUpperCase()} | ${pos.leverage}x ${pos.direction.toUpperCase()}\n`;
-                        message += `Target Entry: $${pos.entryPrice}\nAmount: $${pos.amountUSD.toFixed(2)}\n\n`;
-                        continue; // Skip PNL calculation for pending orders
-                    }
-                }
+        bot.editMessageText("You have no open positions.", { chat_id: chatId, message_id: thinkingMessage.message_id });
+        return;
+    }
 
-                // Calculate PNL for active trades
-                const assetAmount = pos.amountUSD / pos.entryPrice;
-                const currentValue = assetAmount * currentPrice;
-                if (pos.direction === 'long') pnl = currentValue - pos.amountUSD;
-                else pnl = pos.amountUSD - currentValue;
-                
-                pnl *= pos.leverage;
-                totalUnrealizedPNL += pnl;
-                pnlPercent = (pnl / pos.amountUSD) * 100;
+    // Process each position
+    for (const pos of session.positions) {
+        let message = "";
+        const currentPrice = await getCryptoPrice(pos.asset);
+        let pnl = 0;
+        let pnlPercent = 0;
+
+        if (currentPrice) {
+            if (pos.orderType === 'limit' && !pos.isActive) {
+                if ((pos.direction === 'long' && currentPrice <= pos.entryPrice) || (pos.direction === 'short' && currentPrice >= pos.entryPrice)) {
+                    pos.isActive = true;
+                    message += `*🔔 LIMIT ORDER TRIGGERED for ${pos.asset.toUpperCase()}!* \n`;
+                } else {
+                    message += `*⏳ PENDING LIMIT ORDER*\n`;
+                    message += `ID: ${pos.id}\nAsset: ${pos.asset.toUpperCase()} | ${pos.leverage}x ${pos.direction.toUpperCase()}\n`;
+                    message += `Target Entry: $${pos.entryPrice}\nAmount: $${pos.amountUSD.toFixed(2)}\n\n`;
+                    bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+                    continue;
+                }
             }
 
-            const pnlSign = pnl >= 0 ? '+' : '';
-            message += `*${pos.asset.toUpperCase()} | ${pos.leverage}x ${pos.direction.toUpperCase()}*\n`;
-            message += `ID: \`${pos.id}\`\n`;
-            message += `Entry: $${pos.entryPrice} | Current: $${currentPrice ? currentPrice : 'N/A'}\n`;
-            message += `Invested: $${pos.amountUSD.toFixed(2)}\n`;
-            message += `TP: $${pos.takeProfit || 'N/A'} | SL: $${pos.stopLoss || 'N/A'}\n`;
-            message += `Unrealized P/L: *${pnlSign}$${pnl.toFixed(2)} (${pnlSign}${pnlPercent.toFixed(2)}%)*\n\n`;
+            const assetAmount = pos.amountUSD / pos.entryPrice;
+            const currentValue = assetAmount * currentPrice;
+            if (pos.direction === 'long') pnl = currentValue - pos.amountUSD;
+            else pnl = pos.amountUSD - currentValue;
+            
+            pnl *= pos.leverage;
+            totalUnrealizedPNL += pnl;
+            pnlPercent = (pnl / pos.amountUSD) * 100;
         }
+
+        const pnlSign = pnl >= 0 ? '+' : '';
+        message += `*${pos.asset.toUpperCase()} | ${pos.leverage}x ${pos.direction.toUpperCase()}*\n`;
+        message += `ID: \`${pos.id}\`\n`;
+        message += `Entry: $${pos.entryPrice} | Current: $${currentPrice ? currentPrice : 'N/A'}\n`;
+        message += `Invested: $${pos.amountUSD.toFixed(2)}\n`;
+        message += `TP: $${pos.takeProfit || 'N/A'} | SL: $${pos.stopLoss || 'N/A'}\n`;
+        message += `Unrealized P/L: *${pnlSign}$${pnl.toFixed(2)} (${pnlSign}${pnlPercent.toFixed(2)}%)*`;
+
+        const keyboard = {
+            reply_markup: {
+                inline_keyboard: [
+                    [{ text: '📥 Download ROI', callback_data: `downloadroi_${pos.id}` }, { text: '❌ Close Trade', callback_data: `closetrade_${pos.id}` }]
+                ]
+            }
+        };
+
+        bot.sendMessage(chatId, message, { parse_mode: 'Markdown', ...keyboard });
     }
     
-    const portfolioValue = session.balance + totalUnrealizedPNL;
-    message += `\n*Total Portfolio Value: $${portfolioValue.toFixed(2)}*`;
+    // Delete the "thinking" message
+    bot.deleteMessage(chatId, thinkingMessage.message_id);
 
-    bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+    // Send the final portfolio summary
+    const portfolioValue = session.balance + totalUnrealizedPNL;
+    const summaryMessage = `*Your Portfolio Summary*\nBalance: *$${session.balance.toFixed(2)}*\nTotal Unrealized P/L: *$${totalUnrealizedPNL.toFixed(2)}*\n\n*Total Portfolio Value: $${portfolioValue.toFixed(2)}*`;
+    bot.sendMessage(chatId, summaryMessage, { parse_mode: 'Markdown' });
 });
+
 
 // --- Multi-step Trade Logic ---
 // ... (The new trade setup flow is complex and will be handled by a series of functions and callbacks)
@@ -357,9 +374,59 @@ bot.on('callback_query', (cbq) => {
         case 'closetrade':
             closePositionById(chatId, value);
             break;
+        case 'downloadroi':
+            handleDownloadROI(chatId, value);
+            break;
     }
     bot.answerCallbackQuery(cbq.id);
 });
+
+// NEW: Handler for downloading ROI image
+async function handleDownloadROI(chatId, positionId) {
+    const session = getSession(chatId);
+    const position = session.positions.find(p => p.id == positionId);
+    if (!position) {
+        bot.sendMessage(chatId, "Could not find this trade. It might be closed already.");
+        return;
+    }
+
+    bot.sendMessage(chatId, "Generating your ROI image... 🎨");
+
+    const currentPrice = await getCryptoPrice(position.asset);
+    if (!currentPrice) {
+        bot.sendMessage(chatId, "Could not fetch the latest price to generate the ROI image.");
+        return;
+    }
+
+    const assetAmount = position.amountUSD / position.entryPrice;
+    const currentValue = assetAmount * currentPrice;
+    let pnl = 0;
+    if (position.direction === 'long') pnl = currentValue - position.amountUSD;
+    else pnl = position.amountUSD - currentValue;
+    pnl *= position.leverage;
+    const pnlPercent = (pnl / position.amountUSD) * 100;
+
+    try {
+        const response = await axios.post(`${serverUrl}/api/generate-trade-image`, {
+            pair: `${position.asset.toUpperCase()}/USDT`,
+            direction: position.direction,
+            leverage: position.leverage,
+            pnlPercent: pnlPercent,
+            entryPrice: position.entryPrice,
+            currentPrice: currentPrice,
+        }, {
+            responseType: 'arraybuffer'
+        });
+
+        const imageBuffer = Buffer.from(response.data);
+        bot.sendPhoto(chatId, imageBuffer, { caption: `ROI for your ${position.asset.toUpperCase()} trade.` });
+
+    } catch (error) {
+        console.error("Error generating or sending trade image:", error.message);
+        bot.sendMessage(chatId, "Sorry, there was an error creating your ROI image.");
+    }
+}
+
 
 // 3. User selects leverage -> ask for direction
 function handleLeverageSelection(chatId, leverage) {
