@@ -31,8 +31,178 @@ const setupWebhook = async () => {
     }
 };
 
+// Define the keyboard for the main menu
+const mainMenuKeyboard = {
+    reply_markup: {
+        keyboard: [
+            [{ text: 'Pricing' }, { text: 'Pay Now' }],
+            [{ text: 'Past Signals' }, { text: 'Signal Stats' }],
+            [{ text: 'PNL Proofs' }]
+        ],
+        resize_keyboard: true,
+        one_time_keyboard: false
+    }
+};
+
 // Listen for a simple '/start' command
 bot.onText(/\/start/, async (msg) => {
+    const chatId = msg.chat.id;
+
+    // Introduction message with a link and menu options
+    const introMessage = `
+Hello there! I'm your dedicated AI assistant for all things NexxTrade. I'm here to help you navigate our services, check out our performance, and get you started with trading.
+
+You can visit our official website here: nexxtrade.io
+
+Please choose one of the options below to get started.
+    `;
+    
+    // Send the introductory message with the main menu keyboard
+    bot.sendMessage(chatId, introMessage, mainMenuKeyboard);
+});
+
+
+// Listen for the 'Pricing' menu option
+bot.onText(/Pricing/, async (msg) => {
+    const chatId = msg.chat.id;
+    try {
+        const response = await fetch(`${serverUrl}/api/pricing`);
+        const plans = await response.json();
+
+        let message = `Here are our current pricing plans:\n\n`;
+        plans.forEach(plan => {
+            message += `*${plan.plan_name}*
+Price: $${plan.price} ${plan.term}
+Features: ${plan.features.join(', ')}
+${plan.is_best_value ? '🏆 Best Value! 🏆\n' : ''}
+`;
+        });
+        message += `\nFor more details, visit: nexxtrade.io/#pricing`;
+        bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+    } catch (error) {
+        console.error('Error fetching pricing plans:', error);
+        bot.sendMessage(chatId, "I couldn't retrieve the pricing information right now. Please check our website: nexxtrade.io/#pricing");
+    }
+});
+
+// Listen for the 'Pay Now' menu option
+bot.onText(/Pay Now/, (msg) => {
+    const chatId = msg.chat.id;
+    const message = `Ready to get started? You can sign up and choose your plan here:
+nexxtrade.io/registration.html`;
+    bot.sendMessage(chatId, message);
+});
+
+// Listen for the 'Past Signals' menu option
+bot.onText(/Past Signals/, (msg) => {
+    const chatId = msg.chat.id;
+    const message = `You can view our complete history of past signals and performance data here:
+nexxtrade.io/performance.html`;
+    bot.sendMessage(chatId, message);
+});
+
+// Listen for the 'Signal Stats' menu option
+bot.onText(/Signal Stats/, async (msg) => {
+    const chatId = msg.chat.id;
+    try {
+        const response = await fetch(`${serverUrl}/api/performances`);
+        const signals = await response.json();
+
+        if (signals.length === 0) {
+            bot.sendMessage(chatId, "I'm sorry, there are no signals available to calculate statistics. Please check back later.");
+            return;
+        }
+
+        const totalSignals = signals.length;
+        const wins = signals.filter(s => s.result_type === 'Win').length;
+        const losses = signals.filter(s => s.result_type === 'Loss').length;
+        const winRate = ((wins / totalSignals) * 100).toFixed(2);
+        const mostTradedPair = signals.map(s => s.pair).reduce((acc, curr) => {
+            acc[curr] = (acc[curr] || 0) + 1;
+            return acc;
+        }, {});
+        const topPair = Object.keys(mostTradedPair).reduce((a, b) => mostTradedPair[a] > mostTradedPair[b] ? a : b);
+
+        const message = `
+📊 *NexxTrade Signal Statistics*
+Total Signals: ${totalSignals}
+Wins: ${wins}
+Losses: ${losses}
+Win Rate: ${winRate}%
+Most Traded Pair: ${topPair}
+        `;
+
+        bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+    } catch (error) {
+        console.error('Error fetching signal stats:', error);
+        bot.sendMessage(chatId, "I couldn't retrieve the signal statistics right now. Please check our website: nexxtrade.io/performance.html");
+    }
+});
+
+// Listen for the 'PNL Proofs' menu option
+bot.onText(/PNL Proofs/, (msg) => {
+    const chatId = msg.chat.id;
+    const message = `You can browse our PNL proof gallery to see our verified results here:
+nexxtrade.io/performance.html#pnl-gallery`;
+    bot.sendMessage(chatId, message);
+});
+
+
+// The previous subscription status check and other commands
+bot.onText(/\/status/, async (msg) => {
+    const chatId = msg.chat.id;
+    const telegramHandle = msg.from.username;
+
+    if (!telegramHandle) {
+        bot.sendMessage(chatId, "Please set a public Telegram username in your profile settings before checking your status.");
+        return;
+    }
+
+    try {
+        const response = await fetch(`${serverUrl}/api/users/status-by-telegram-handle/${telegramHandle}`);
+        const data = await response.json();
+
+        if (response.ok) {
+            bot.sendMessage(chatId, `Hello @${telegramHandle}! Your subscription status is: ${data.subscription_status}. It is valid until ${data.subscription_expiration}.`);
+        } else {
+            bot.sendMessage(chatId, `Your status could not be found. Please contact support.`);
+        }
+    } catch (error) {
+        console.error('Error handling /status command:', error);
+        bot.sendMessage(chatId, "An error occurred while checking your status. Please contact support.");
+    }
+});
+
+bot.onText(/\/remove (.+)/, async (msg, match) => {
+    const chatId = msg.chat.id;
+    const adminTelegramHandle = msg.from.username;
+    const usernameToRemove = match[1];
+
+    if (adminTelegramHandle !== 'PeterKingsley') {
+        bot.sendMessage(chatId, "You do not have permission to use this command.");
+        return;
+    }
+
+    try {
+        const response = await fetch(`${serverUrl}/api/users/find-by-telegram-handle/${usernameToRemove}`);
+        const data = await response.json();
+
+        if (response.ok) {
+            const userToRemoveId = data.id;
+            await bot.banChatMember(privateChannelId, userToRemoveId);
+
+            bot.sendMessage(chatId, `@${usernameToRemove} has been successfully removed from the group.`);
+        } else {
+            bot.sendMessage(chatId, `User @${usernameToRemove} was not found in the database. No action taken.`);
+        }
+    } catch (error) {
+        console.error('Error handling /remove command:', error);
+        bot.sendMessage(chatId, "An error occurred while trying to remove the user. Please check the bot's permissions and the server logs.");
+    }
+});
+
+// A new onText handler for the old `/start` logic for existing users
+bot.onText(/start/, async (msg) => {
     const chatId = msg.chat.id;
     const telegramHandle = msg.from.username;
 
@@ -75,70 +245,21 @@ bot.onText(/\/start/, async (msg) => {
 });
 
 
-// Listen for the '/status' command
-bot.onText(/\/status/, async (msg) => {
-    const chatId = msg.chat.id;
-    const telegramHandle = msg.from.username;
-
-    if (!telegramHandle) {
-        bot.sendMessage(chatId, "Please set a public Telegram username in your profile settings before checking your status.");
-        return;
-    }
-
-    try {
-        const response = await fetch(`${serverUrl}/api/users/status-by-telegram-handle/${telegramHandle}`);
-        const data = await response.json();
-
-        if (response.ok) {
-            bot.sendMessage(chatId, `Hello @${telegramHandle}! Your subscription status is: ${data.subscription_status}. It is valid until ${data.subscription_expiration}.`);
-        } else {
-            bot.sendMessage(chatId, `Your status could not be found. Please contact support.`);
-        }
-    } catch (error) {
-        console.error('Error handling /status command:', error);
-        bot.sendMessage(chatId, "An error occurred while checking your status. Please contact support.");
-    }
-});
-
-
-// Listen for the '/remove' command
-bot.onText(/\/remove (.+)/, async (msg, match) => {
-    const chatId = msg.chat.id;
-    const adminTelegramHandle = msg.from.username;
-    const usernameToRemove = match[1];
-
-    if (adminTelegramHandle !== 'PeterKingsley') {
-        bot.sendMessage(chatId, "You do not have permission to use this command.");
-        return;
-    }
-
-    try {
-        const response = await fetch(`${serverUrl}/api/users/find-by-telegram-handle/${usernameToRemove}`);
-        const data = await response.json();
-
-        if (response.ok) {
-            const userToRemoveId = data.id;
-            await bot.banChatMember(privateChannelId, userToRemoveId);
-
-            bot.sendMessage(chatId, `@${usernameToRemove} has been successfully removed from the group.`);
-        } else {
-            bot.sendMessage(chatId, `User @${usernameToRemove} was not found in the database. No action taken.`);
-        }
-    } catch (error) {
-        console.error('Error handling /remove command:', error);
-        bot.sendMessage(chatId, "An error occurred while trying to remove the user. Please check the bot's permissions and the server logs.");
-    }
-});
-
-// Respond to any other messages
+// Respond to any other messages by showing the main menu again.
 bot.on('message', (msg) => {
     const chatId = msg.chat.id;
-    if (msg.text.toString().toLowerCase().startsWith("/start") || msg.text.toString().toLowerCase().startsWith("/status") || msg.text.toString().toLowerCase().startsWith("/remove")) {
-        return;
+    const text = msg.text;
+
+    // If a button text is sent, the specific onText handler will take over.
+    // This catches other messages and displays the menu.
+    const isCommand = text.startsWith('/');
+    const isMenuOption = ['Pricing', 'Pay Now', 'Past Signals', 'Signal Stats', 'PNL Proofs'].includes(text);
+
+    if (!isCommand && !isMenuOption) {
+        bot.sendMessage(chatId, "Please select an option from the menu below or use the /start command to see the main menu again.", mainMenuKeyboard);
     }
-    
-    bot.sendMessage(chatId, "Hello! I am the NexxTrade bot. To gain access to our private channels, please sign up and pay via our website. Your unique invite link will be sent to you automatically after payment.");
 });
+
 
 // Export the bot instance and the setup function so they can be used in server.js
 module.exports = {
