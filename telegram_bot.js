@@ -8,6 +8,10 @@ require('dotenv').config();
 
 // Import the Telegram Bot API library
 const TelegramBot = require('node-telegram-bot-api');
+// NEW: Import axios for making API requests to get crypto prices.
+// Make sure to add axios to your project: npm install axios
+const axios = require('axios');
+
 const token = process.env.TELEGRAM_BOT_TOKEN;
 
 // Get the server URL from your .env file
@@ -31,18 +35,39 @@ const setupWebhook = async () => {
     }
 };
 
+// --- TRADING GAME STATE ---
+// In-memory storage for game sessions. Keyed by chat ID.
+const gameSessions = {};
+
+// --- KEYBOARDS ---
+
 // Define the keyboard for the main menu
 const mainMenuKeyboard = {
     reply_markup: {
         keyboard: [
             [{ text: 'Pricing' }, { text: 'Pay Now' }],
             [{ text: 'Past Signals' }, { text: 'Signal Stats' }],
-            [{ text: 'PNL Proofs' }]
+            [{ text: 'PNL Proofs' }, { text: '🎮 Trading Game' }] // Added Game Button
         ],
         resize_keyboard: true,
         one_time_keyboard: false
     }
 };
+
+// Define the keyboard for the Trading Game menu
+const gameMenuKeyboard = {
+    reply_markup: {
+        keyboard: [
+            [{ text: '📈 New Trade' }, { text: '💰 Portfolio' }],
+            [{ text: '❌ Close Position' }, { text: '🔄 Reset Game' }],
+            [{ text: '⬅️ Back to Main Menu' }]
+        ],
+        resize_keyboard: true,
+        one_time_keyboard: false
+    }
+};
+
+// --- BOT LOGIC ---
 
 // Listen for a simple '/start' command
 bot.onText(/\/start/, async (msg) => {
@@ -147,6 +172,259 @@ www.nexxtrade.io/performance#pnl-gallery`;
     bot.sendMessage(chatId, message);
 });
 
+// --- NEW: TRADING GAME LOGIC ---
+
+// Function to get the current price of a cryptocurrency from CoinGecko
+async function getCryptoPrice(cryptoId) {
+    try {
+        const response = await axios.get(`https://api.coingecko.com/api/v3/simple/price`, {
+            params: {
+                ids: cryptoId.toLowerCase(),
+                vs_currencies: 'usd'
+            }
+        });
+        if (response.data && response.data[cryptoId.toLowerCase()] && response.data[cryptoId.toLowerCase()].usd) {
+            return response.data[cryptoId.toLowerCase()].usd;
+        }
+        return null;
+    } catch (error) {
+        console.error("Error fetching crypto price for", cryptoId, error.message);
+        return null;
+    }
+}
+
+
+// Function to initialize or get a game session
+function getSession(chatId) {
+    if (!gameSessions[chatId]) {
+        gameSessions[chatId] = {
+            balance: 10000,
+            position: null, // e.g., { asset: 'bitcoin', direction: 'long', entryPrice: 60000, amountUSD: 1000 }
+            tradeSetup: {} // To store intermediate trade info
+        };
+    }
+    return gameSessions[chatId];
+}
+
+// Handler for "Trading Game" button
+bot.onText(/🎮 Trading Game/, (msg) => {
+    const chatId = msg.chat.id;
+    getSession(chatId); // Ensure a session is created
+    const welcomeMessage = `
+Welcome to the NexxTrade Paper Trading Game!
+
+Here you can practice your trading skills with a virtual portfolio of $10,000.
+
+Select an option from the menu to start. Good luck!
+    `;
+    bot.sendMessage(chatId, welcomeMessage, gameMenuKeyboard);
+});
+
+// Handler for "Back to Main Menu"
+bot.onText(/⬅️ Back to Main Menu/, (msg) => {
+    bot.sendMessage(msg.chat.id, "You are back at the main menu.", mainMenuKeyboard);
+});
+
+// Handler for "Reset Game"
+bot.onText(/🔄 Reset Game/, (msg) => {
+    const chatId = msg.chat.id;
+    delete gameSessions[chatId];
+    getSession(chatId);
+    bot.sendMessage(chatId, "Your game has been reset. You have a fresh portfolio of $10,000.", gameMenuKeyboard);
+});
+
+// Handler for "Portfolio"
+bot.onText(/💰 Portfolio/, async (msg) => {
+    const chatId = msg.chat.id;
+    const session = getSession(chatId);
+    let message = `Your current balance is: *$${session.balance.toFixed(2)}*\n\n`;
+
+    if (session.position) {
+        const currentPrice = await getCryptoPrice(session.position.asset);
+        if (currentPrice) {
+            const entryValue = session.position.amountUSD;
+            const currentAssetAmount = entryValue / session.position.entryPrice;
+            const currentValue = currentAssetAmount * currentPrice;
+            
+            let pnl;
+            if (session.position.direction === 'long') {
+                pnl = currentValue - entryValue;
+            } else { // short
+                pnl = entryValue - currentValue;
+            }
+
+            const pnlPercent = (pnl / entryValue) * 100;
+            const pnlSign = pnl >= 0 ? '+' : '';
+            
+            message += `*Open Position:*\n`;
+            message += `Asset: ${session.position.asset.toUpperCase()}\n`;
+            message += `Direction: ${session.position.direction.toUpperCase()}\n`;
+            message += `Entry Price: $${session.position.entryPrice}\n`;
+            message += `Current Price: $${currentPrice}\n`;
+            message += `Invested: $${session.position.amountUSD.toFixed(2)}\n`;
+            message += `Unrealized P/L: *${pnlSign}$${pnl.toFixed(2)} (${pnlSign}${pnlPercent.toFixed(2)}%)*`;
+        } else {
+            message += `Could not fetch the current price for your position on ${session.position.asset.toUpperCase()}.`;
+        }
+    } else {
+        message += "You have no open positions.";
+    }
+
+    bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+});
+
+
+// --- Multi-step Trade Logic ---
+
+// 1. User clicks "New Trade"
+bot.onText(/📈 New Trade/, (msg) => {
+    const chatId = msg.chat.id;
+    const session = getSession(chatId);
+
+    if (session.position) {
+        bot.sendMessage(chatId, "You already have an open position. Please close it before opening a new one.");
+        return;
+    }
+
+    bot.sendMessage(chatId, "Which crypto would you like to trade? (e.g., `bitcoin`, `ethereum`, `solana`)").then(() => {
+        bot.once('message', (assetMsg) => handleAssetSelection(assetMsg));
+    });
+});
+
+// 2. User provides the asset name
+async function handleAssetSelection(msg) {
+    const chatId = msg.chat.id;
+    const asset = msg.text.trim();
+    const session = getSession(chatId);
+
+    bot.sendMessage(chatId, `Fetching price for ${asset}...`);
+    const price = await getCryptoPrice(asset);
+
+    if (!price) {
+        bot.sendMessage(chatId, `Sorry, I couldn't find the price for "${asset}". Please try another asset (e.g., bitcoin).`);
+        return;
+    }
+
+    session.tradeSetup = { asset: asset, price: price };
+    
+    const directionKeyboard = {
+        reply_markup: {
+            inline_keyboard: [
+                [{ text: `🟢 Long (Buy) ${asset.toUpperCase()}`, callback_data: `trade_long_${asset}` }],
+                [{ text: `🔴 Short (Sell) ${asset.toUpperCase()}`, callback_data: `trade_short_${asset}` }]
+            ]
+        }
+    };
+    bot.sendMessage(chatId, `The current price of ${asset.toUpperCase()} is *$${price}*. Do you want to go long or short?`, { parse_mode: 'Markdown', ...directionKeyboard });
+}
+
+// 3. User clicks Long or Short button
+bot.on('callback_query', (callbackQuery) => {
+    const msg = callbackQuery.message;
+    const chatId = msg.chat.id;
+    const session = getSession(chatId);
+    const data = callbackQuery.data;
+
+    if (data.startsWith('trade_')) {
+        const [, direction, asset] = data.split('_');
+        
+        if (session.tradeSetup && session.tradeSetup.asset === asset) {
+            session.tradeSetup.direction = direction;
+            bot.answerCallbackQuery(callbackQuery.id, { text: `You selected ${direction.toUpperCase()}` });
+            bot.sendMessage(chatId, `You have a balance of $${session.balance.toFixed(2)}. How much USD would you like to invest?`).then(() => {
+                bot.once('message', (amountMsg) => handleAmountSelection(amountMsg));
+            });
+        }
+    }
+});
+
+// 4. User provides the investment amount
+function handleAmountSelection(msg) {
+    const chatId = msg.chat.id;
+    const session = getSession(chatId);
+    const amount = parseFloat(msg.text);
+
+    if (isNaN(amount) || amount <= 0) {
+        bot.sendMessage(chatId, "Invalid amount. Please enter a positive number.");
+        resetTradeSetup(chatId);
+        return;
+    }
+
+    if (amount > session.balance) {
+        bot.sendMessage(chatId, `Insufficient balance. You only have $${session.balance.toFixed(2)}.`);
+        resetTradeSetup(chatId);
+        return;
+    }
+
+    // Open the position
+    session.balance -= amount;
+    session.position = {
+        asset: session.tradeSetup.asset,
+        direction: session.tradeSetup.direction,
+        entryPrice: session.tradeSetup.price,
+        amountUSD: amount
+    };
+    
+    bot.sendMessage(chatId, `✅ Trade opened! You are now *${session.position.direction.toUpperCase()}* on ${session.position.asset.toUpperCase()} with *$${amount.toFixed(2)}*.\nYour remaining balance is $${session.balance.toFixed(2)}.`, { parse_mode: 'Markdown' });
+    resetTradeSetup(chatId);
+}
+
+// Helper to reset the trade setup process
+function resetTradeSetup(chatId) {
+    if (gameSessions[chatId]) {
+        gameSessions[chatId].tradeSetup = {};
+    }
+}
+
+// Handler to close an open position
+bot.onText(/❌ Close Position/, async (msg) => {
+    const chatId = msg.chat.id;
+    const session = getSession(chatId);
+
+    if (!session.position) {
+        bot.sendMessage(chatId, "You don't have any open positions to close.");
+        return;
+    }
+
+    const currentPrice = await getCryptoPrice(session.position.asset);
+    if (!currentPrice) {
+        bot.sendMessage(chatId, `Could not fetch the current price for ${session.position.asset.toUpperCase()} to close the trade. Please try again in a moment.`);
+        return;
+    }
+    
+    const entryValue = session.position.amountUSD;
+    const currentAssetAmount = entryValue / session.position.entryPrice;
+    const currentValue = currentAssetAmount * currentPrice;
+    
+    let pnl;
+    if (session.position.direction === 'long') {
+        pnl = currentValue - entryValue;
+        session.balance += entryValue + pnl;
+    } else { // short
+        pnl = entryValue - currentValue;
+        session.balance += entryValue + pnl;
+    }
+
+    const pnlSign = pnl >= 0 ? '+' : '';
+    const resultEmoji = pnl >= 0 ? '🎉' : '📉';
+
+    const message = `
+${resultEmoji} *Trade Closed!* ${resultEmoji}
+
+Asset: ${session.position.asset.toUpperCase()}
+Direction: ${session.position.direction.toUpperCase()}
+Entry Price: $${session.position.entryPrice}
+Closing Price: $${currentPrice}
+P/L: *${pnlSign}$${pnl.toFixed(2)}*
+
+Your new balance is *$${session.balance.toFixed(2)}*.
+    `;
+
+    session.position = null; // Clear the position
+    bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+});
+
+
 
 // The previous subscription status check and other commands
 bot.onText(/\/status/, async (msg) => {
@@ -250,13 +528,20 @@ bot.on('message', (msg) => {
     const chatId = msg.chat.id;
     const text = msg.text;
 
-    // If a button text is sent, the specific onText handler will take over.
-    // This catches other messages and displays the menu.
-    const isCommand = text.startsWith('/');
-    const isMenuOption = ['Pricing', 'Pay Now', 'Past Signals', 'Signal Stats', 'PNL Proofs'].includes(text);
+    // A list of all known commands and menu options
+    const knownInputs = [
+        '/start', '/status', '/remove',
+        'Pricing', 'Pay Now', 'Past Signals', 'Signal Stats', 'PNL Proofs',
+        '🎮 Trading Game', '📈 New Trade', '💰 Portfolio', '❌ Close Position', 
+        '🔄 Reset Game', '⬅️ Back to Main Menu'
+    ];
+    
+    // Check if the message is a known command/option or part of a conversation
+    const isKnown = knownInputs.some(input => text && text.startsWith(input));
+    const isInTradeSetup = gameSessions[chatId] && (gameSessions[chatId].tradeSetup.asset || gameSessions[chatId].tradeSetup.direction);
 
-    if (!isCommand && !isMenuOption) {
-        bot.sendMessage(chatId, "Please select an option from the menu below or use the /start command to see the main menu again.", mainMenuKeyboard);
+    if (!isKnown && !isInTradeSetup) {
+        bot.sendMessage(chatId, "Please select an option from the menu or use /start to see the main menu again.", mainMenuKeyboard);
     }
 });
 
