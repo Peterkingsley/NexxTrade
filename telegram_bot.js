@@ -52,7 +52,7 @@ bot.onText(/\/start/, async (msg) => {
     const introMessage = `
 Hello there! I'm your dedicated AI assistant for all things NexxTrade. I'm here to help you navigate our services, check out our performance, and get you started with trading.
 
-You can visit our official website here: nexxtrade.io
+You can visit our official website here: www.nexxtrade.io
 
 Please choose one of the options below to get started.
     `;
@@ -77,7 +77,7 @@ Features: ${plan.features.join(', ')}
 ${plan.is_best_value ? '🏆 Best Value! 🏆\n' : ''}
 `;
         });
-        message += `\nFor more details, visit: nexxtrade.io/#pricing`;
+        message += `\nFor more details, visit: www.nexxtrade.io/#pricing`;
         bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
     } catch (error) {
         console.error('Error fetching pricing plans:', error);
@@ -89,7 +89,7 @@ ${plan.is_best_value ? '🏆 Best Value! 🏆\n' : ''}
 bot.onText(/Pay Now/, (msg) => {
     const chatId = msg.chat.id;
     const message = `Ready to get started? You can sign up and choose your plan here:
-nexxtrade.io/registration.html`;
+www.nexxtrade.io/registration.html`;
     bot.sendMessage(chatId, message);
 });
 
@@ -97,7 +97,7 @@ nexxtrade.io/registration.html`;
 bot.onText(/Past Signals/, (msg) => {
     const chatId = msg.chat.id;
     const message = `You can view our complete history of past signals and performance data here:
-nexxtrade.io/performance.html`;
+www.nexxtrade.io/performance.html`;
     bot.sendMessage(chatId, message);
 });
 
@@ -135,7 +135,7 @@ Most Traded Pair: ${topPair}
         bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
     } catch (error) {
         console.error('Error fetching signal stats:', error);
-        bot.sendMessage(chatId, "I couldn't retrieve the signal statistics right now. Please check our website: nexxtrade.io/performance.html");
+        bot.sendMessage(chatId, "I couldn't retrieve the signal statistics right now. Please check our website: www.nexxtrade.io/performance.html");
     }
 });
 
@@ -143,7 +143,7 @@ Most Traded Pair: ${topPair}
 bot.onText(/PNL Proofs/, (msg) => {
     const chatId = msg.chat.id;
     const message = `You can browse our PNL proof gallery to see our verified results here:
-nexxtrade.io/performance.html#pnl-gallery`;
+www.nexxtrade.io/performance.html#pnl-gallery`;
     bot.sendMessage(chatId, message);
 });
 
