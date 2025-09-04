@@ -89,7 +89,7 @@ ${plan.is_best_value ? '🏆 Best Value! 🏆\n' : ''}
 bot.onText(/Pay Now/, (msg) => {
     const chatId = msg.chat.id;
     const message = `Ready to get started? You can sign up and choose your plan here:
-www.nexxtrade.io/registration.html`;
+www.nexxtrade.io/registration`;
     bot.sendMessage(chatId, message);
 });
 
@@ -97,7 +97,7 @@ www.nexxtrade.io/registration.html`;
 bot.onText(/Past Signals/, (msg) => {
     const chatId = msg.chat.id;
     const message = `You can view our complete history of past signals and performance data here:
-www.nexxtrade.io/performance.html`;
+www.nexxtrade.io/performance`;
     bot.sendMessage(chatId, message);
 });
 
@@ -135,7 +135,7 @@ Most Traded Pair: ${topPair}
         bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
     } catch (error) {
         console.error('Error fetching signal stats:', error);
-        bot.sendMessage(chatId, "I couldn't retrieve the signal statistics right now. Please check our website: www.nexxtrade.io/performance.html");
+        bot.sendMessage(chatId, "I couldn't retrieve the signal statistics right now. Please check our website: www.nexxtrade.io/performance");
     }
 });
 
@@ -143,7 +143,7 @@ Most Traded Pair: ${topPair}
 bot.onText(/PNL Proofs/, (msg) => {
     const chatId = msg.chat.id;
     const message = `You can browse our PNL proof gallery to see our verified results here:
-www.nexxtrade.io/performance.html#pnl-gallery`;
+www.nexxtrade.io/performance#pnl-gallery`;
     bot.sendMessage(chatId, message);
 });
 

@@ -703,15 +703,55 @@ app.post(`/bot${telegramToken}`, (req, res) => {
 });
 
 
-// Serve static files from the 'public' directory
-app.use(express.static(path.join(__dirname, 'public')));
-// Removed serving uploaded files since they are now Base64 strings in the database
-// app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-
-// This is the new "catch-all" route. It's crucial for serving your frontend.
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+// --- UPDATED: Routes for Clean URLs ---
+// These routes map clean URLs (e.g., /blog) to their corresponding HTML files.
+// This allows you to use cleaner links without the .html extension.
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
+
+app.get('/join', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'registration.html'));
+});
+
+app.get('/performance', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'performance.html'));
+});
+
+app.get('/blog', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'blog.html'));
+});
+
+// Admin Routes
+app.get('/admin/login', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'admin.html'));
+});
+
+app.get('/admin/dashboard', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'admin_dashboard.html'));
+});
+
+app.get('/admin/blogs', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'admin_blogs.html'));
+});
+
+app.get('/admin/performance', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'admin_performance.html'));
+});
+
+app.get('/admin/pricing', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'admin_pricing.html'));
+});
+
+app.get('/admin/roles', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'admin_roles.html'));
+});
+
+
+// Serve static files from the 'public' directory
+// This handles CSS, client-side JS, images, etc.
+app.use(express.static(path.join(__dirname, 'public')));
+
 
 // Start the server
 // NOTE: Make sure this is the last app.listen() call in your file.

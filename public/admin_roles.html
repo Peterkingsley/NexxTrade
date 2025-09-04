@@ -180,7 +180,7 @@
             border: 1px solid rgba(255, 93, 93, 0.2);
         }
 
-        /* Styles for the brand logo from index.html */
+        /* Styles for the brand logo from index */
         .brand {
             display: flex;
             align-items: center;
@@ -249,12 +249,12 @@
         <!-- Header Section -->
         <div class="card p-4 md:p-6 flex justify-between items-center admin-header">
             <div class="flex items-center gap-4">
-                <a class="brand" href="index.html" aria-label="NexxTrade home">
+                <a class="brand" href="index" aria-label="NexxTrade home">
                     <span class="logo" aria-hidden="true"></span>
                     <h1 class="text-xl md:text-2xl font-bold">NexxTrade Admin Panel</h1>
                 </a>
             </div>
-            <a href="login.html" id="logout-btn" class="btn btn-ghost">
+            <a href="login" id="logout-btn" class="btn btn-ghost">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
                 Log Out
             </a>
@@ -262,11 +262,11 @@
 
         <!-- Navigation Tabs -->
         <div class="flex flex-wrap border-b border-line gap-2 tab-nav">
-            <a href="admin_dashboard.html" class="tab-btn">Dashboard</a>
-            <a href="admin_blogs.html" class="tab-btn">Manage Blogs</a>
-            <a href="admin_performance.html" class="tab-btn">Performance</a>
-            <a href="admin_pricing.html" class="tab-btn">Update Pricing</a>
-            <a href="admin_roles.html" class="tab-btn active">Delegate Roles</a>
+            <a href="admin_dashboard" class="tab-btn">Dashboard</a>
+            <a href="admin_blogs" class="tab-btn">Manage Blogs</a>
+            <a href="admin_performance" class="tab-btn">Performance</a>
+            <a href="admin_pricing" class="tab-btn">Update Pricing</a>
+            <a href="admin_roles" class="tab-btn active">Delegate Roles</a>
         </div>
 
         <div class="space-y-8">
@@ -413,13 +413,13 @@
     <script>
         // Check for authentication on page load
         if (sessionStorage.getItem('isAdminLoggedIn') !== 'true') {
-            window.location.href = 'admin.html';
+            window.location.href = 'admin';
         }
 
         // Logout function
         const logout = () => {
             sessionStorage.removeItem('isAdminLoggedIn');
-            window.location.href = 'admin.html';
+            window.location.href = 'admin';
         };
 
         document.getElementById('logout-btn').addEventListener('click', (e) => {
