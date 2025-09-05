@@ -35,28 +35,26 @@ const setupWebhook = async () => {
 const mainMenuKeyboard = {
     reply_markup: {
         keyboard: [
-            [{ text: 'Pricing' }, { text: 'Pay Now' }],
-            [{ text: 'Past Signals' }, { text: 'Signal Stats' }],
-            [{ text: 'PNL Proofs' }]
+            [{ text: 'Join VIP' }, { text: 'Pricing' }],
+            [{ text: 'Recent Signals' }, { text: 'PNL Proofs' }],
+            [{ text: 'Blog' }, { text: 'Signal Stats' }]
         ],
         resize_keyboard: true,
         one_time_keyboard: false
     }
 };
 
-// Listen for a simple '/start' command
-bot.onText(/\/start/, async (msg) => {
-    const chatId = msg.chat.id;
-
-    // Introduction message with a link and menu options
-    const introMessage = `
+const introMessage = `
 Hello there! I'm your dedicated AI assistant for all things NexxTrade. I'm here to help you navigate our services, check out our performance, and get you started with trading.
 
 You can visit our official website here: www.nexxtrade.io
 
 Please choose one of the options below to get started.
     `;
-    
+
+// Listen for a simple '/start' command
+bot.onText(/\/start/, (msg) => {
+    const chatId = msg.chat.id;
     // Send the introductory message with the main menu keyboard
     bot.sendMessage(chatId, introMessage, mainMenuKeyboard);
 });
@@ -77,29 +75,81 @@ Features: ${plan.features.join(', ')}
 ${plan.is_best_value ? '🏆 Best Value! 🏆\n' : ''}
 `;
         });
-        message += `\nFor more details, visit: www.nexxtrade.io/#pricing`;
+        message += `\nTo subscribe, click on "Join VIP" from the menu.`;
         bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
     } catch (error) {
         console.error('Error fetching pricing plans:', error);
-        bot.sendMessage(chatId, "I couldn't retrieve the pricing information right now. Please check our website: nexxtrade.io/#pricing");
+        bot.sendMessage(chatId, "I couldn't retrieve the pricing information right now. Please check our website: www.nexxtrade.io/#pricing");
     }
 });
 
-// Listen for the 'Pay Now' menu option
-bot.onText(/Pay Now/, (msg) => {
+// Listen for the 'Join VIP' menu option
+bot.onText(/Join VIP/, async (msg) => {
     const chatId = msg.chat.id;
-    const message = `Ready to get started? You can sign up and choose your plan here:
-www.nexxtrade.io/join`;
-    bot.sendMessage(chatId, message);
+    try {
+        const response = await fetch(`${serverUrl}/api/pricing`);
+        const plans = await response.json();
+
+        const inlineKeyboard = plans.map(plan => ([{
+            text: `${plan.plan_name} - $${plan.price}`,
+            callback_data: `select_plan_${plan.id}`
+        }]));
+
+        bot.sendMessage(chatId, 'Please select a subscription plan:', {
+            reply_markup: {
+                inline_keyboard: inlineKeyboard
+            }
+        });
+    } catch (error) {
+        console.error('Error fetching pricing for Join VIP:', error);
+        bot.sendMessage(chatId, "Could not fetch pricing plans. Please try again later or visit our website.");
+    }
 });
 
-// Listen for the 'Past Signals' menu option
-bot.onText(/Past Signals/, (msg) => {
+
+// Generic handler for link buttons
+const createLinkMenu = (chatId, text, url) => {
+    const opts = {
+        reply_markup: {
+            inline_keyboard: [
+                [{ text: 'Click Me to View', url: url }],
+                [{ text: '⬅️ Back to Main Menu', callback_data: 'main_menu' }]
+            ]
+        }
+    };
+    bot.sendMessage(chatId, text, opts);
+};
+
+// Listen for the 'Recent Signals' menu option
+bot.onText(/Recent Signals/, (msg) => {
     const chatId = msg.chat.id;
-    const message = `You can view our complete history of past signals and performance data here:
-www.nexxtrade.io/performance`;
-    bot.sendMessage(chatId, message);
+    createLinkMenu(
+        chatId,
+        'Click the button below to see our recent signals and full performance history.',
+        `${serverUrl}/performance`
+    );
 });
+
+// Listen for the 'PNL Proofs' menu option
+bot.onText(/PNL Proofs/, (msg) => {
+    const chatId = msg.chat.id;
+    createLinkMenu(
+        chatId,
+        'Click the button below to browse our gallery of PNL proofs.',
+        `${serverUrl}/performance#pnl-gallery`
+    );
+});
+
+// Listen for the 'Blog' menu option
+bot.onText(/Blog/, (msg) => {
+    const chatId = msg.chat.id;
+    createLinkMenu(
+        chatId,
+        'Click the button below to read our latest blog posts and market analysis.',
+        `${serverUrl}/blog`
+    );
+});
+
 
 // Listen for the 'Signal Stats' menu option
 bot.onText(/Signal Stats/, async (msg) => {
@@ -139,16 +189,92 @@ Most Traded Pair: ${topPair}
     }
 });
 
-// Listen for the 'PNL Proofs' menu option
-bot.onText(/PNL Proofs/, (msg) => {
+
+// Callback Query Handler for inline buttons
+bot.on('callback_query', async (callbackQuery) => {
+    const msg = callbackQuery.message;
     const chatId = msg.chat.id;
-    const message = `You can browse our PNL proof gallery to see our verified results here:
-www.nexxtrade.io/performance#pnl-gallery`;
-    bot.sendMessage(chatId, message);
+    const data = callbackQuery.data;
+
+    // Acknowledge the button press to remove the loading icon
+    bot.answerCallbackQuery(callbackQuery.id);
+
+    if (data.startsWith('select_plan_')) {
+        const planId = data.split('_')[2];
+        
+        try {
+            const response = await fetch(`${serverUrl}/api/pricing`); 
+            const plans = await response.json();
+            const selectedPlan = plans.find(p => p.id == planId);
+
+            if (!selectedPlan) {
+                bot.sendMessage(chatId, "Sorry, that plan is no longer available.");
+                return;
+            }
+
+            // Map plan name to the URL query parameter
+            let planQueryParam = 'monthly'; // default
+            if (selectedPlan.plan_name.toLowerCase().includes('quarterly')) {
+                planQueryParam = 'quarterly';
+            } else if (selectedPlan.plan_name.toLowerCase().includes('elite') || selectedPlan.plan_name.toLowerCase().includes('bi-annually')) {
+                planQueryParam = 'yearly';
+            }
+
+            const paymentMessage = `You've selected the *${selectedPlan.plan_name}* plan for *$${selectedPlan.price}*. Please choose your payment method:`;
+            const paymentKeyboard = {
+                inline_keyboard: [
+                    [
+                        { text: 'Pay with OPay', url: `${serverUrl}/join?plan=${planQueryParam}` },
+                        { text: 'Pay with Crypto', url: `${serverUrl}/join?plan=${planQueryParam}` }
+                    ],
+                    [
+                        { text: '⬅️ Back to Plans', callback_data: 'back_to_plans' }
+                    ]
+                ]
+            };
+
+            bot.editMessageText(paymentMessage, {
+                chat_id: chatId,
+                message_id: msg.message_id,
+                parse_mode: 'Markdown',
+                reply_markup: paymentKeyboard
+            });
+        } catch(error) {
+            console.error("Error processing plan selection:", error);
+            bot.sendMessage(chatId, "An error occurred. Please try again.");
+        }
+    }
+
+    if (data === 'back_to_plans') {
+        try {
+            const response = await fetch(`${serverUrl}/api/pricing`);
+            const plans = await response.json();
+
+            const inlineKeyboard = plans.map(plan => ([{
+                text: `${plan.plan_name} - $${plan.price}`,
+                callback_data: `select_plan_${plan.id}`
+            }]));
+            
+            bot.editMessageText('Please select a subscription plan:', {
+                chat_id: chatId,
+                message_id: msg.message_id,
+                reply_markup: {
+                    inline_keyboard: inlineKeyboard
+                }
+            });
+        } catch(error) {
+            console.error("Error going back to plans:", error);
+            bot.sendMessage(chatId, "An error occurred. Please try again.");
+        }
+    }
+
+    if (data === 'main_menu') {
+        bot.sendMessage(chatId, introMessage, mainMenuKeyboard);
+    }
 });
 
 
-// The previous subscription status check and other commands
+// Legacy command for status checks
 bot.onText(/\/status/, async (msg) => {
     const chatId = msg.chat.id;
     const telegramHandle = msg.from.username;
@@ -173,87 +299,19 @@ bot.onText(/\/status/, async (msg) => {
     }
 });
 
-bot.onText(/\/remove (.+)/, async (msg, match) => {
-    const chatId = msg.chat.id;
-    const adminTelegramHandle = msg.from.username;
-    const usernameToRemove = match[1];
-
-    if (adminTelegramHandle !== 'PeterKingsley') {
-        bot.sendMessage(chatId, "You do not have permission to use this command.");
-        return;
-    }
-
-    try {
-        const response = await fetch(`${serverUrl}/api/users/find-by-telegram-handle/${usernameToRemove}`);
-        const data = await response.json();
-
-        if (response.ok) {
-            const userToRemoveId = data.id;
-            await bot.banChatMember(privateChannelId, userToRemoveId);
-
-            bot.sendMessage(chatId, `@${usernameToRemove} has been successfully removed from the group.`);
-        } else {
-            bot.sendMessage(chatId, `User @${usernameToRemove} was not found in the database. No action taken.`);
-        }
-    } catch (error) {
-        console.error('Error handling /remove command:', error);
-        bot.sendMessage(chatId, "An error occurred while trying to remove the user. Please check the bot's permissions and the server logs.");
-    }
-});
-
-// A new onText handler for the old `/start` logic for existing users
-bot.onText(/start/, async (msg) => {
-    const chatId = msg.chat.id;
-    const telegramHandle = msg.from.username;
-
-    if (!telegramHandle) {
-        bot.sendMessage(chatId, "Please set a public Telegram username in your profile settings before proceeding.");
-        return;
-    }
-
-    try {
-        const chatMember = await bot.getChatMember(privateChannelId, msg.from.id);
-        
-        if (chatMember.status !== 'left' && chatMember.status !== 'kicked') {
-            bot.sendMessage(chatId, "You are already a member of the group!");
-            return;
-        }
-    } catch (error) {
-        console.log(`User @${telegramHandle} is not a member of the chat. Proceeding with verification.`);
-    }
-
-    try {
-        const response = await fetch(`${serverUrl}/api/users/status-by-telegram-handle/${telegramHandle}`);
-        const data = await response.json();
-
-        if (response.ok && data.subscription_status === 'active') {
-            const inviteLink = await bot.createChatInviteLink(privateChannelId, {
-                member_limit: 1,
-                expire_date: Math.floor(Date.now() / 1000) + 600
-            });
-            
-            bot.sendMessage(chatId, 
-                `Hello @${telegramHandle}! Your subscription is active. Here is your private, one-time invite link: ${inviteLink.invite_link}`
-            );
-        } else {
-            bot.sendMessage(chatId, `Your status could not be found or your subscription is inactive. Please contact support via our website.`);
-        }
-    } catch (error) {
-        console.error('Error in bot verification process:', error);
-        bot.sendMessage(chatId, "An error occurred during verification. Please contact support.");
-    }
-});
-
 
 // Respond to any other messages by showing the main menu again.
 bot.on('message', (msg) => {
     const chatId = msg.chat.id;
     const text = msg.text;
 
+    // Guard against undefined text (e.g., for photos, stickers)
+    if (!text) return;
+
     // If a button text is sent, the specific onText handler will take over.
     // This catches other messages and displays the menu.
     const isCommand = text.startsWith('/');
-    const isMenuOption = ['Pricing', 'Pay Now', 'Past Signals', 'Signal Stats', 'PNL Proofs'].includes(text);
+    const isMenuOption = ['Join VIP', 'Pricing', 'Recent Signals', 'PNL Proofs', 'Blog', 'Signal Stats'].includes(text);
 
     if (!isCommand && !isMenuOption) {
         bot.sendMessage(chatId, "Please select an option from the menu below or use the /start command to see the main menu again.", mainMenuKeyboard);
