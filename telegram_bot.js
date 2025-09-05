@@ -226,19 +226,12 @@ bot.on('callback_query', async (callbackQuery) => {
                 return;
             }
 
-            let planQueryParam = 'monthly'; // default
-            if (selectedPlan.plan_name.toLowerCase().includes('quarterly')) {
-                planQueryParam = 'quarterly';
-            } else if (selectedPlan.plan_name.toLowerCase().includes('elite') || selectedPlan.plan_name.toLowerCase().includes('bi-annually')) {
-                planQueryParam = 'yearly';
-            }
-
             const paymentMessage = `You've selected the *${selectedPlan.plan_name}* plan for *$${selectedPlan.price}*. Please choose your payment method:`;
             const paymentKeyboard = {
                 inline_keyboard: [
                     [
-                        { text: 'Pay with OPay', url: `${serverUrl}/join?plan=${planQueryParam}` },
-                        { text: 'Pay with Crypto', url: `${serverUrl}/join?plan=${planQueryParam}` }
+                        { text: 'Pay with OPay', callback_data: `pay_opay_${planId}` },
+                        { text: 'Pay with Crypto', callback_data: `pay_crypto_${planId}` }
                     ],
                     [
                         { text: '⬅️ Back to Plans', callback_data: 'back_to_plans' }
@@ -251,6 +244,71 @@ bot.on('callback_query', async (callbackQuery) => {
             bot.sendMessage(chatId, "An error occurred. Please try again.");
         }
     }
+    
+    // Payment method selection flow
+    if (data.startsWith('pay_opay_')) {
+        const planId = data.split('_')[2];
+        try {
+            const response = await fetch(`${serverUrl}/api/pricing`);
+            const plans = await response.json();
+            const selectedPlan = plans.find(p => p.id == planId);
+            if (!selectedPlan) { 
+                bot.sendMessage(chatId, "Sorry, that plan is no longer available.");
+                return;
+            }
+
+            let planQueryParam = 'monthly'; // default
+            if (selectedPlan.plan_name.toLowerCase().includes('quarterly')) {
+                planQueryParam = 'quarterly';
+            } else if (selectedPlan.plan_name.toLowerCase().includes('elite') || selectedPlan.plan_name.toLowerCase().includes('bi-annually')) {
+                planQueryParam = 'yearly';
+            }
+            
+            const opayMessage = `To complete your payment for the *${selectedPlan.plan_name}* with OPay, please use the button below to visit our secure checkout page where you can enter your details.`;
+            const opayKeyboard = {
+                inline_keyboard: [
+                    [{ text: 'Proceed to OPay Checkout', url: `${serverUrl}/join?plan=${planQueryParam}` }],
+                    [{ text: '⬅️ Back to Payment Methods', callback_data: `select_plan_${planId}`}]
+                ]
+            };
+            bot.editMessageText(opayMessage, { chatId, message_id: messageId, parse_mode: 'Markdown', reply_markup: opayKeyboard });
+        } catch(error) {
+            console.error("Error processing OPay selection:", error);
+            bot.sendMessage(chatId, "An error occurred. Please try again.");
+        }
+    }
+
+    if (data.startsWith('pay_crypto_')) {
+        const planId = data.split('_')[2];
+        try {
+            const response = await fetch(`${serverUrl}/api/pricing`);
+            const plans = await response.json();
+            const selectedPlan = plans.find(p => p.id == planId);
+            if (!selectedPlan) {
+                bot.sendMessage(chatId, "Sorry, that plan is no longer available.");
+                return;
+            }
+            
+            const cryptoMessage = `
+To pay for the *${selectedPlan.plan_name}* (*$${selectedPlan.price}*), please send the equivalent amount to the address below.
+
+*USDT (TRC20 Network)*
+\`TEJ3fN8mEwK5qR2uV6gX9yP7bQ1sL4d\`
+
+*IMPORTANT*: After payment, please send a screenshot of the transaction and your Telegram handle (@username) to our support admin for instant activation.
+            `;
+            const cryptoKeyboard = {
+                inline_keyboard: [
+                    [{ text: '⬅️ Back to Payment Methods', callback_data: `select_plan_${planId}`}]
+                ]
+            };
+            bot.editMessageText(cryptoMessage, { chatId, message_id: messageId, parse_mode: 'Markdown', reply_markup: cryptoKeyboard });
+        } catch(error) {
+            console.error("Error processing Crypto selection:", error);
+            bot.sendMessage(chatId, "An error occurred. Please try again.");
+        }
+    }
+
 
     if (data === 'back_to_plans') {
         return handleJoinVip(chatId, messageId); // Re-show the plans selection
