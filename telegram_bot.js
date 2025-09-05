@@ -59,51 +59,20 @@ bot.onText(/\/start/, (msg) => {
 
 // --- Functions to handle menu actions ---
 
-const handlePricing = async (chatId, messageId) => {
+// Combined function for showing subscription plans
+const showSubscriptionPlans = async (chatId, messageId, messageText) => {
     try {
         const response = await fetch(`${serverUrl}/api/pricing`);
         const plans = await response.json();
 
-        let message = `Here are our current pricing plans:\n\n`;
-        plans.forEach(plan => {
-            message += `*${plan.plan_name}*
-Price: $${plan.price} ${plan.term}
-Features: ${plan.features.join(', ')}
-${plan.is_best_value ? '🏆 Best Value! 🏆\n' : ''}
-`;
-        });
-        message += `\nTo subscribe, select an option from the "Join VIP" menu.`;
-        
-        const opts = {
-            chat_id: chatId,
-            message_id: messageId,
-            parse_mode: 'Markdown',
-            reply_markup: {
-                inline_keyboard: [
-                    [{ text: '⬅️ Back to Main Menu', callback_data: 'main_menu' }]
-                ]
-            }
-        };
-        bot.editMessageText(message, opts);
-    } catch (error) {
-        console.error('Error fetching pricing plans:', error);
-        bot.sendMessage(chatId, "I couldn't retrieve the pricing information right now. Please check our website: www.nexxtrade.io/#pricing");
-    }
-};
-
-const handleJoinVip = async (chatId, messageId) => {
-     try {
-        const response = await fetch(`${serverUrl}/api/pricing`);
-        const plans = await response.json();
-
         const inlineKeyboard = plans.map(plan => ([{
-            text: `${plan.plan_name} - $${plan.price}`,
+            text: `${plan.plan_name} - $${plan.price} ${plan.term}`,
             callback_data: `select_plan_${plan.id}`
         }]));
         
         inlineKeyboard.push([{ text: '⬅️ Back to Main Menu', callback_data: 'main_menu' }]);
 
-        bot.editMessageText('Please select a subscription plan:', {
+        bot.editMessageText(messageText, {
             chat_id: chatId,
             message_id: messageId,
             reply_markup: {
@@ -111,10 +80,11 @@ const handleJoinVip = async (chatId, messageId) => {
             }
         });
     } catch (error) {
-        console.error('Error fetching pricing for Join VIP:', error);
+        console.error('Error fetching pricing for plans:', error);
         bot.sendMessage(chatId, "Could not fetch pricing plans. Please try again later or visit our website.");
     }
 };
+
 
 const handleSignalStats = async (chatId) => {
     try {
@@ -180,10 +150,10 @@ bot.on('callback_query', async (callbackQuery) => {
     
     // Main Menu options
     if (data === 'pricing') {
-        return handlePricing(chatId, messageId);
+        return showSubscriptionPlans(chatId, messageId, 'Here are our current pricing plans. Select one to proceed to payment:');
     }
     if (data === 'join_vip') {
-        return handleJoinVip(chatId, messageId);
+        return showSubscriptionPlans(chatId, messageId, 'Please select a subscription plan:');
     }
     if (data === 'recent_signals') {
         return createLinkMenu(
@@ -215,11 +185,11 @@ bot.on('callback_query', async (callbackQuery) => {
 
     // Plan selection flow
     if (data.startsWith('select_plan_')) {
-        const planId = data.split('_')[2];
+        const planId = parseInt(data.split('_')[2], 10); // FIX: Parse the ID to an integer
         try {
             const response = await fetch(`${serverUrl}/api/pricing`); 
             const plans = await response.json();
-            const selectedPlan = plans.find(p => p.id == planId);
+            const selectedPlan = plans.find(p => p.id === planId); // FIX: Use strict equality '==='
 
             if (!selectedPlan) {
                 bot.sendMessage(chatId, "Sorry, that plan is no longer available.");
@@ -311,7 +281,8 @@ To pay for the *${selectedPlan.plan_name}* (*$${selectedPlan.price}*), please se
 
 
     if (data === 'back_to_plans') {
-        return handleJoinVip(chatId, messageId); // Re-show the plans selection
+        // This now shows the pricing list which is the same as the "Join VIP" start
+        return showSubscriptionPlans(chatId, messageId, 'Please select a subscription plan:');
     }
 
     if (data === 'main_menu') {
@@ -346,7 +317,7 @@ bot.onText(/\/status/, async (msg) => {
         }
     } catch (error) {
         console.error('Error handling /status command:', error);
-        bot.sendMessage(chatId, "An error occurred while checking your status. Please contact support.");
+        bot.sendMessage(chatId, "An error occurred while checking your status. Please try again.");
     }
 });
 
