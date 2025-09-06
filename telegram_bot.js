@@ -60,7 +60,7 @@ bot.onText(/\/start/, (msg) => {
 // --- Functions to handle menu actions ---
 
 // Combined function for showing subscription plans
-const showSubscriptionPlans = async (chatId, messageId, messageText) => {
+const showSubscriptionPlans = async (chatId, messageText) => {
     try {
         const response = await fetch(`${serverUrl}/api/pricing`);
         const plans = await response.json();
@@ -72,9 +72,7 @@ const showSubscriptionPlans = async (chatId, messageId, messageText) => {
         
         inlineKeyboard.push([{ text: '⬅️ Back to Main Menu', callback_data: 'main_menu' }]);
 
-        bot.editMessageText(messageText, {
-            chat_id: chatId,
-            message_id: messageId,
+        bot.sendMessage(chatId, messageText, {
             reply_markup: {
                 inline_keyboard: inlineKeyboard
             }
@@ -123,10 +121,8 @@ Most Traded Pair: ${topPair}
 };
 
 // Generic handler for link buttons
-const createLinkMenu = (chatId, messageId, text, url) => {
+const createLinkMenu = (chatId, text, url) => {
     const opts = {
-        chat_id: chatId,
-        message_id: messageId,
         reply_markup: {
             inline_keyboard: [
                 [{ text: 'Click Me to View', url: url }],
@@ -134,164 +130,172 @@ const createLinkMenu = (chatId, messageId, text, url) => {
             ]
         }
     };
-    bot.editMessageText(text, opts);
+    bot.sendMessage(chatId, text, opts);
 };
 
 
 // Callback Query Handler for all inline buttons
 bot.on('callback_query', async (callbackQuery) => {
-    const msg = callbackQuery.message;
-    const chatId = msg.chat.id;
-    const messageId = msg.message_id;
-    const data = callbackQuery.data;
+    // Add a try-catch block to prevent unhandled promise rejections
+    try {
+        const msg = callbackQuery.message;
+        // Add a guard clause to ensure we have a valid message and chat ID
+        if (!msg || !msg.chat || !msg.chat.id) {
+            console.error("Callback query received without a valid message/chat ID.", callbackQuery);
+            bot.answerCallbackQuery(callbackQuery.id, { text: "Error processing request." });
+            return;
+        }
 
-    // Acknowledge the button press to remove the loading icon
-    bot.answerCallbackQuery(callbackQuery.id);
-    
-    // Main Menu options
-    if (data === 'pricing') {
-        return showSubscriptionPlans(chatId, messageId, 'Here are our current pricing plans. Select one to proceed to payment:');
-    }
-    if (data === 'join_vip') {
-        return showSubscriptionPlans(chatId, messageId, 'Please select a subscription plan:');
-    }
-    if (data === 'recent_signals') {
-        return createLinkMenu(
-            chatId,
-            messageId,
-            'Click the button below to see our recent signals and full performance history.',
-            `${serverUrl}/performance`
-        );
-    }
-    if (data === 'pnl_proofs') {
-        return createLinkMenu(
-            chatId,
-            messageId,
-            'Click the button below to browse our gallery of PNL proofs.',
-            `${serverUrl}/performance#pnl-gallery`
-        );
-    }
-    if (data === 'blog') {
-        return createLinkMenu(
-            chatId,
-            messageId,
-            'Click the button below to read our latest blog posts and market analysis.',
-            `${serverUrl}/blog`
-        );
-    }
-    if (data === 'signal_stats') {
-        return handleSignalStats(chatId);
-    }
+        const chatId = msg.chat.id;
+        const data = callbackQuery.data;
 
-    // Plan selection flow
-    if (data.startsWith('select_plan_')) {
-        const planId = parseInt(data.split('_')[2], 10); // FIX: Parse the ID to an integer
-        try {
-            const response = await fetch(`${serverUrl}/api/pricing`); 
-            const plans = await response.json();
-            const selectedPlan = plans.find(p => p.id === planId); // FIX: Use strict equality '==='
+        // Acknowledge the button press to remove the loading icon
+        bot.answerCallbackQuery(callbackQuery.id);
+        
+        // Main Menu options
+        if (data === 'pricing') {
+            return showSubscriptionPlans(chatId, 'Here are our current pricing plans. Select one to proceed to payment:');
+        }
+        if (data === 'join_vip') {
+            return showSubscriptionPlans(chatId, 'Please select a subscription plan:');
+        }
+        if (data === 'recent_signals') {
+            return createLinkMenu(
+                chatId,
+                'Click the button below to see our recent signals and full performance history.',
+                `${serverUrl}/performance`
+            );
+        }
+        if (data === 'pnl_proofs') {
+            return createLinkMenu(
+                chatId,
+                'Click the button below to browse our gallery of PNL proofs.',
+                `${serverUrl}/performance#pnl-gallery`
+            );
+        }
+        if (data === 'blog') {
+            return createLinkMenu(
+                chatId,
+                'Click the button below to read our latest blog posts and market analysis.',
+                `${serverUrl}/blog`
+            );
+        }
+        if (data === 'signal_stats') {
+            return handleSignalStats(chatId);
+        }
 
-            if (!selectedPlan) {
-                bot.sendMessage(chatId, "Sorry, that plan is no longer available.");
-                return;
-            }
+        // Plan selection flow
+        if (data.startsWith('select_plan_')) {
+            const planId = parseInt(data.split('_')[2], 10);
+            try {
+                const response = await fetch(`${serverUrl}/api/pricing`); 
+                const plans = await response.json();
+                const selectedPlan = plans.find(p => p.id === planId);
 
-            const paymentMessage = `You've selected the *${selectedPlan.plan_name}* plan for *$${selectedPlan.price}*. Please choose your payment method:`;
-            const paymentKeyboard = {
-                inline_keyboard: [
-                    [
-                        { text: 'Pay with OPay', callback_data: `pay_opay_${planId}` },
-                        { text: 'Pay with Crypto', callback_data: `pay_crypto_${planId}` }
-                    ],
-                    [
-                        { text: '⬅️ Back to Plans', callback_data: 'back_to_plans' }
+                if (!selectedPlan) {
+                    bot.sendMessage(chatId, "Sorry, that plan is no longer available.");
+                    return;
+                }
+
+                const paymentMessage = `You've selected the *${selectedPlan.plan_name}* plan for *$${selectedPlan.price}*. Please choose your payment method:`;
+                const paymentKeyboard = {
+                    inline_keyboard: [
+                        [
+                            { text: 'Pay with OPay', callback_data: `pay_opay_${planId}` },
+                            { text: 'Pay with Crypto', callback_data: `pay_crypto_${planId}` }
+                        ],
+                        [
+                            { text: '⬅️ Back to Plans', callback_data: 'back_to_plans' }
+                        ]
                     ]
-                ]
-            };
-            bot.editMessageText(paymentMessage, { chatId, message_id: messageId, parse_mode: 'Markdown', reply_markup: paymentKeyboard });
-        } catch(error) {
-            console.error("Error processing plan selection:", error);
-            bot.sendMessage(chatId, "An error occurred. Please try again.");
+                };
+                bot.sendMessage(chatId, paymentMessage, { parse_mode: 'Markdown', reply_markup: paymentKeyboard });
+            } catch(error) {
+                console.error("Error processing plan selection:", error);
+                bot.sendMessage(chatId, "An error occurred. Please try again.");
+            }
         }
-    }
-    
-    // Payment method selection flow
-    if (data.startsWith('pay_opay_')) {
-        const planId = data.split('_')[2];
-        try {
-            const response = await fetch(`${serverUrl}/api/pricing`);
-            const plans = await response.json();
-            const selectedPlan = plans.find(p => p.id == planId);
-            if (!selectedPlan) { 
-                bot.sendMessage(chatId, "Sorry, that plan is no longer available.");
-                return;
-            }
+        
+        // Payment method selection flow
+        if (data.startsWith('pay_opay_')) {
+            const planId = data.split('_')[2];
+            try {
+                const response = await fetch(`${serverUrl}/api/pricing`);
+                const plans = await response.json();
+                const selectedPlan = plans.find(p => p.id == planId);
+                if (!selectedPlan) { 
+                    bot.sendMessage(chatId, "Sorry, that plan is no longer available.");
+                    return;
+                }
 
-            let planQueryParam = 'monthly'; // default
-            if (selectedPlan.plan_name.toLowerCase().includes('quarterly')) {
-                planQueryParam = 'quarterly';
-            } else if (selectedPlan.plan_name.toLowerCase().includes('elite') || selectedPlan.plan_name.toLowerCase().includes('bi-annually')) {
-                planQueryParam = 'yearly';
+                let planQueryParam = 'monthly'; // default
+                if (selectedPlan.plan_name.toLowerCase().includes('quarterly')) {
+                    planQueryParam = 'quarterly';
+                } else if (selectedPlan.plan_name.toLowerCase().includes('elite') || selectedPlan.plan_name.toLowerCase().includes('bi-annually')) {
+                    planQueryParam = 'yearly';
+                }
+                
+                const opayMessage = `To complete your payment for the *${selectedPlan.plan_name}* with OPay, please use the button below to visit our secure checkout page where you can enter your details.`;
+                const opayKeyboard = {
+                    inline_keyboard: [
+                        [{ text: 'Proceed to OPay Checkout', url: `${serverUrl}/join?plan=${planQueryParam}` }],
+                        [{ text: '⬅️ Back to Payment Methods', callback_data: `select_plan_${planId}`}]
+                    ]
+                };
+                bot.sendMessage(chatId, opayMessage, { parse_mode: 'Markdown', reply_markup: opayKeyboard });
+            } catch(error) {
+                console.error("Error processing OPay selection:", error);
+                bot.sendMessage(chatId, "An error occurred. Please try again.");
             }
-            
-            const opayMessage = `To complete your payment for the *${selectedPlan.plan_name}* with OPay, please use the button below to visit our secure checkout page where you can enter your details.`;
-            const opayKeyboard = {
-                inline_keyboard: [
-                    [{ text: 'Proceed to OPay Checkout', url: `${serverUrl}/join?plan=${planQueryParam}` }],
-                    [{ text: '⬅️ Back to Payment Methods', callback_data: `select_plan_${planId}`}]
-                ]
-            };
-            bot.editMessageText(opayMessage, { chatId, message_id: messageId, parse_mode: 'Markdown', reply_markup: opayKeyboard });
-        } catch(error) {
-            console.error("Error processing OPay selection:", error);
-            bot.sendMessage(chatId, "An error occurred. Please try again.");
         }
-    }
 
-    if (data.startsWith('pay_crypto_')) {
-        const planId = data.split('_')[2];
-        try {
-            const response = await fetch(`${serverUrl}/api/pricing`);
-            const plans = await response.json();
-            const selectedPlan = plans.find(p => p.id == planId);
-            if (!selectedPlan) {
-                bot.sendMessage(chatId, "Sorry, that plan is no longer available.");
-                return;
-            }
-            
-            const cryptoMessage = `
+        if (data.startsWith('pay_crypto_')) {
+            const planId = data.split('_')[2];
+            try {
+                const response = await fetch(`${serverUrl}/api/pricing`);
+                const plans = await response.json();
+                const selectedPlan = plans.find(p => p.id == planId);
+                if (!selectedPlan) {
+                    bot.sendMessage(chatId, "Sorry, that plan is no longer available.");
+                    return;
+                }
+                
+                const cryptoMessage = `
 To pay for the *${selectedPlan.plan_name}* (*$${selectedPlan.price}*), please send the equivalent amount to the address below.
 
 *USDT (TRC20 Network)*
 \`TEJ3fN8mEwK5qR2uV6gX9yP7bQ1sL4d\`
 
 *IMPORTANT*: After payment, please send a screenshot of the transaction and your Telegram handle (@username) to our support admin for instant activation.
-            `;
-            const cryptoKeyboard = {
-                inline_keyboard: [
-                    [{ text: '⬅️ Back to Payment Methods', callback_data: `select_plan_${planId}`}]
-                ]
-            };
-            bot.editMessageText(cryptoMessage, { chatId, message_id: messageId, parse_mode: 'Markdown', reply_markup: cryptoKeyboard });
-        } catch(error) {
-            console.error("Error processing Crypto selection:", error);
-            bot.sendMessage(chatId, "An error occurred. Please try again.");
+                `;
+                const cryptoKeyboard = {
+                    inline_keyboard: [
+                        [{ text: '⬅️ Back to Payment Methods', callback_data: `select_plan_${planId}`}]
+                    ]
+                };
+                bot.sendMessage(chatId, cryptoMessage, { parse_mode: 'Markdown', reply_markup: cryptoKeyboard });
+            } catch(error) {
+                console.error("Error processing Crypto selection:", error);
+                bot.sendMessage(chatId, "An error occurred. Please try again.");
+            }
         }
-    }
 
 
-    if (data === 'back_to_plans') {
-        // This now shows the pricing list which is the same as the "Join VIP" start
-        return showSubscriptionPlans(chatId, messageId, 'Please select a subscription plan:');
-    }
+        if (data === 'back_to_plans') {
+            // This now shows the pricing list which is the same as the "Join VIP" start
+            return showSubscriptionPlans(chatId, 'Please select a subscription plan:');
+        }
 
-    if (data === 'main_menu') {
-        // Edit the current message to show the intro and main menu
-         bot.editMessageText(introMessage, {
-            chat_id: chatId,
-            message_id: messageId,
-            ...mainMenuOptions
-        });
+        if (data === 'main_menu') {
+            // Send a new message with the intro and main menu
+             bot.sendMessage(chatId, introMessage, mainMenuOptions);
+        }
+    } catch (error) {
+        console.error("Critical error in callback_query handler:", error);
+         // Try to inform the user if possible
+        if (callbackQuery.message && callbackQuery.message.chat && callbackQuery.message.chat.id) {
+            bot.sendMessage(callbackQuery.message.chat.id, "Sorry, a critical error occurred.");
+        }
     }
 });
 
@@ -323,10 +327,15 @@ bot.onText(/\/status/, async (msg) => {
 
 // Respond to any other messages by showing the main menu again.
 bot.on('message', (msg) => {
+    // FIX: Add a guard to ensure we have a chat ID to respond to.
+    if (!msg.chat || !msg.chat.id) {
+        console.error("Received a message without a valid chat ID.", msg);
+        return;
+    }
     const chatId = msg.chat.id;
     const text = msg.text;
 
-    if (!text) return; // Guard against non-text messages
+    if (!text) return; // Guard against non-text messages (e.g., photos, stickers, new members)
 
     // Catch any text that isn't a command and show the main menu
     if (!text.startsWith('/')) {
