@@ -5,7 +5,8 @@
 
 // Load environment variables from .env file
 require('dotenv').config();
-const fetch = require('node-fetch');
+// Use dynamic import for node-fetch to support different module versions
+const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
 
 // Import the Telegram Bot API library
 const TelegramBot = require('node-telegram-bot-api');
