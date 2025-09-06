@@ -378,7 +378,6 @@ app.get('/api/users/stats', async (req, res) => {
     const today = now.toISOString().split('T')[0];
     const firstDayOfWeek = new Date(now.setDate(now.getDate() - now.getDay())).toISOString().split('T')[0];
     const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-
     const todayQuery = await pool.query('SELECT COUNT(*) FROM users WHERE registration_date = $1', [today]);
     const weekQuery = await pool.query('SELECT COUNT(*) FROM users WHERE registration_date >= $1', [firstDayOfWeek]);
     const monthQuery = await pool.query('SELECT COUNT(*) FROM users WHERE registration_date >= $1', [firstDayOfMonth]);
@@ -425,49 +424,30 @@ app.post('/api/payments/opay', async (req, res) => {
 
 
 // =================================================================
-// --- NOWPayments API Routes with DEBUGGING ---
+// --- NOWPayments API Routes ---
 // =================================================================
 
 app.post('/api/payments/nowpayments/create', async (req, res) => {
-    console.log('--- Received request to /api/payments/nowpayments/create ---');
-    
     try {
-        // --- 1. Log incoming data from the form ---
-        console.log('Request body:', req.body);
         const { fullname, email, telegram, plan } = req.body;
         
-        // --- 2. Check environment variables ---
-        console.log('Checking environment variables...');
-        if (!process.env.NOWPAYMENTS_API_KEY || !process.env.APP_BASE_URL) {
-            console.error('CRITICAL: Missing NOWPAYMENTS_API_KEY or APP_BASE_URL in .env file');
-            return res.status(500).json({ message: 'Server configuration error.' });
-        }
-        console.log('API Key found:', process.env.NOWPAYMENTS_API_KEY.substring(0, 5) + '...');
-        console.log('App Base URL found:', process.env.APP_BASE_URL);
-
         const prices = { monthly: 35, quarterly: 89, yearly: 210 };
         const amountUSD = prices[plan];
 
         if (!amountUSD) {
-            console.error('Error: Invalid plan received:', plan);
             return res.status(400).json({ message: 'Invalid plan selected.' });
         }
         
         const order_id = `nexxtrade-${telegram.replace('@', '')}-${Date.now()}`;
-        console.log('Generated Order ID:', order_id);
         
-        // --- 3. Try to insert/update the user in the database ---
         const registrationDate = new Date().toISOString().split('T')[0];
-        console.log('Attempting to save user to database...');
         await pool.query(
             `INSERT INTO users (full_name, email, telegram_handle, plan_name, subscription_status, registration_date, order_id)
              VALUES ($1, $2, $3, $4, 'pending', $5, $6)
              ON CONFLICT (email) DO UPDATE SET full_name = $1, telegram_handle = $2, plan_name = $4, subscription_status = 'pending', order_id = $6`,
             [fullname, email, telegram, plan, registrationDate, order_id]
         );
-        console.log('User saved successfully to database.');
 
-        // --- 4. Prepare and log the data being sent to NOWPayments ---
         const payload = {
             price_amount: amountUSD,
             price_currency: 'usd',
@@ -476,9 +456,7 @@ app.post('/api/payments/nowpayments/create', async (req, res) => {
             order_id: order_id,
             order_description: `NexxTrade ${plan} plan for ${telegram}`
         };
-        console.log('Sending this payload to NOWPayments:', payload);
 
-        // --- 5. Make the API call to NOWPayments ---
         const nowPaymentsResponse = await fetch('https://api.nowpayments.io/v1/payment', {
             method: 'POST',
             headers: {
@@ -488,23 +466,16 @@ app.post('/api/payments/nowpayments/create', async (req, res) => {
             body: JSON.stringify(payload)
         });
 
-        console.log('NOWPayments response status:', nowPaymentsResponse.status);
-
         if (!nowPaymentsResponse.ok) {
             const errorText = await nowPaymentsResponse.text();
-            console.error('NOWPayments API returned an error:', errorText);
             throw new Error(`NOWPayments API error: ${errorText}`);
         }
 
         const paymentData = await nowPaymentsResponse.json();
-        console.log('Successfully received data from NOWPayments:', paymentData);
         res.status(200).json(paymentData);
 
     } catch (err) {
-        // --- 6. Catch and log any error that occurs in the process ---
-        console.error('!!! --- An error occurred in the create payment route --- !!!');
-        console.error('Error message:', err.message);
-        console.error('Full error object:', err);
+        console.error('Error creating NOWPayments payment:', err);
         res.status(500).json({ message: 'Server Error during payment creation.' });
     }
 });
