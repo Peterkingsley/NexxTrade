@@ -21,9 +21,9 @@ const { bot, setupWebhook } = require('./telegram_bot.js');
 // Use the CORS middleware to allow cross-origin requests
 app.use(cors());
 // Use express.json() to parse incoming JSON payloads
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 // Use express.urlencoded() to parse URL-encoded bodies, important for form submissions
-app.use(express.urlencoded({ extended: true }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // PostgreSQL database connection pool
 // This uses a connection string from an environment variable for security.
@@ -271,7 +271,7 @@ app.post('/api/login', async (req, res) => {
                     user: {
                         id: user.id,
                         username: user.username,
-                                                role: user.role,
+                        role: user.role,
                         permissions: user.permissions
                     }
                 });
@@ -479,27 +479,6 @@ app.post('/api/payments/opay', async (req, res) => {
              VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
             [fullname, email, telegram, plan, 'pending', registrationDate, telegramInviteToken]
         );
-
-        // --- 2. Make a real API call to OPay (this is a placeholder for now) ---
-        // You would uncomment this block and replace the placeholder with your actual OPay API call
-
-        // const opayResponse = await fetch('https://api.opay.com/v1/checkout/initiate', {
-        //     method: 'POST',
-        //     headers: {
-        //         'Authorization': `Bearer ${process.env.OPAY_API_KEY}`,
-        //         'Merchant-ID': process.env.OPAY_MERCHANT_ID,
-        //         'Content-Type': 'application/json'
-        //     },
-        //     body: JSON.stringify({
-        //         amount: amountNGN,
-        //         currency: 'NGN',
-        //         reference: transactionRef,
-        //         callback_url: `${process.env.APP_BASE_URL}/api/payments/opay/webhook`,
-        //         // other OPay specific details
-        //     })
-        // });
-        // const opayData = await opayResponse.json();
-
         // --- 3. Return the redirect URL from OPay to the frontend ---
         // For now, we'll return a mock URL.
         const mockRedirectUrl = `https://mock-opay.com/pay?ref=${transactionRef}&amount=${amountNGN}`;
@@ -516,65 +495,130 @@ app.post('/api/payments/opay', async (req, res) => {
     }
 });
 
-// NEW ROUTE: OPay Webhook Handler for payment confirmation
-app.post('/api/payments/opay/webhook', async (req, res) => {
-    // In a real scenario, you would perform a signature validation here
-    // to ensure the request is genuinely from OPay.
+// =================================================================
+// --- START: NOWPayments API Routes ---
+// =================================================================
 
-    // Assume the webhook body contains 'reference' and 'status'
-    const { reference, status } = req.body;
+app.post('/api/payments/nowpayments/create', async (req, res) => {
+    try {
+        const { fullname, email, telegram, plan } = req.body;
+        
+        const prices = { monthly: 35, quarterly: 89, yearly: 210 };
+        const amountUSD = prices[plan];
 
-    if (!reference || !status) {
-        return res.status(400).send('Invalid webhook payload');
-    }
-
-    if (status === 'success') {
-        try {
-            // Find the user in the database using the transaction reference
-            const { rows } = await pool.query(
-                'SELECT * FROM users WHERE telegram_invite_token = $1',
-                [reference]
-            );
-
-            if (rows.length === 0) {
-                return res.status(404).send('User not found for this transaction reference.');
-            }
-
-            const user = rows[0];
-
-            // Calculate subscription expiration date
-            let expirationDate = new Date();
-            if (user.plan_name === 'monthly') {
-                expirationDate.setMonth(expirationDate.getMonth() + 1);
-            } else if (user.plan_name === 'quarterly') {
-                expirationDate.setMonth(expirationDate.getMonth() + 3);
-            } else if (user.plan_name === 'yearly') {
-                expirationDate.setFullYear(expirationDate.getFullYear() + 1);
-            }
-
-            // Update the user's subscription status and expiration date
-            await pool.query(
-                `UPDATE users SET subscription_status = 'active', subscription_expiration = $1 WHERE telegram_invite_token = $2`,
-                [expirationDate.toISOString().split('T')[0], reference]
-            );
-
-            // Log the successful update
-            console.log(`User ${user.email} subscription activated successfully.`);
-
-            // Respond to OPay to acknowledge receipt of the webhook.
-            // This is a crucial step to prevent OPay from resending the webhook.
-            res.status(200).send('Webhook received and processed successfully.');
-
-        } catch (err) {
-            console.error('Error processing OPay webhook:', err);
-            res.status(500).send('Server Error');
+        if (!amountUSD) {
+            return res.status(400).json({ message: 'Invalid plan selected.' });
         }
-    } else {
-        // Handle other statuses like 'failed' or 'cancelled'
-        console.log(`Received webhook for reference ${reference} with status: ${status}`);
-        res.status(200).send('Webhook received, but payment was not successful.');
+        
+        const order_id = `nexxtrade-${telegram.replace('@', '')}-${Date.now()}`;
+        
+        const registrationDate = new Date().toISOString().split('T')[0];
+        await pool.query(
+            `INSERT INTO users (full_name, email, telegram_handle, plan_name, subscription_status, registration_date, order_id)
+             VALUES ($1, $2, $3, $4, 'pending', $5, $6)
+             ON CONFLICT (email) DO UPDATE SET full_name = $1, telegram_handle = $2, plan_name = $4, subscription_status = 'pending', order_id = $6`,
+            [fullname, email, telegram, plan, registrationDate, order_id]
+        );
+
+        const nowPaymentsResponse = await fetch('https://api.nowpayments.io/v1/payment', {
+            method: 'POST',
+            headers: {
+                'x-api-key': process.env.NOWPAYMENTS_API_KEY,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                price_amount: amountUSD,
+                price_currency: 'usd',
+                pay_currency: 'usdttrc20',
+                ipn_callback_url: `${process.env.APP_BASE_URL}/api/payments/nowpayments/webhook`,
+                order_id: order_id,
+                order_description: `NexxTrade ${plan} plan for ${telegram}`
+            })
+        });
+
+        if (!nowPaymentsResponse.ok) {
+            const errorText = await nowPaymentsResponse.text();
+            throw new Error(`NOWPayments API error: ${errorText}`);
+        }
+
+        const paymentData = await nowPaymentsResponse.json();
+        res.status(200).json(paymentData);
+
+    } catch (err) {
+        console.error('Error creating NOWPayments payment:', err);
+        res.status(500).json({ message: 'Server Error during payment creation.' });
     }
 });
+
+app.post('/api/payments/nowpayments/webhook', async (req, res) => {
+    const ipnData = req.body;
+    const hmac = req.headers['x-nowpayments-sig'];
+
+    try {
+        const sortedData = JSON.stringify(ipnData, Object.keys(ipnData).sort());
+        const calculatedHmac = crypto.createHmac('sha512', process.env.NOWPAYMENTS_IPN_SECRET)
+            .update(Buffer.from(sortedData, 'utf-8'))
+            .digest('hex');
+
+        if (hmac !== calculatedHmac) {
+            console.warn('Invalid HMAC signature received.');
+            return res.status(401).send('Invalid HMAC signature');
+        }
+
+        if (['finished', 'confirmed'].includes(ipnData.payment_status)) {
+            const { order_id } = ipnData;
+            
+            const userResult = await pool.query('SELECT * FROM users WHERE order_id = $1', [order_id]);
+            if (userResult.rows.length === 0) {
+                console.error(`User with order_id ${order_id} not found.`);
+                return res.status(404).send('User not found.');
+            }
+            
+            const user = userResult.rows[0];
+            
+            let expirationDate = new Date();
+            if (user.plan_name === 'monthly') expirationDate.setMonth(expirationDate.getMonth() + 1);
+            else if (user.plan_name === 'quarterly') expirationDate.setMonth(expirationDate.getMonth() + 3);
+            else if (user.plan_name === 'yearly') expirationDate.setMonth(expirationDate.getMonth() + 6);
+
+            await pool.query(
+                `UPDATE users SET subscription_status = 'active', subscription_expiration = $1 WHERE order_id = $2`,
+                [expirationDate.toISOString().split('T')[0], order_id]
+            );
+
+            console.log(`Subscription for ${user.email} activated. Expires: ${expirationDate.toISOString().split('T')[0]}`);
+        }
+        
+        res.status(200).send('IPN received.');
+
+    } catch (err) {
+        console.error('Error processing NOWPayments webhook:', err);
+        res.status(500).send('Server Error');
+    }
+});
+
+app.get('/api/payments/nowpayments/status/:payment_id', async (req, res) => {
+    try {
+        const { payment_id } = req.params;
+        const response = await fetch(`https://api.nowpayments.io/v1/payment/${payment_id}`, {
+            headers: { 'x-api-key': process.env.NOWPAYMENTS_API_KEY }
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to fetch payment status from NOWPayments.');
+        }
+
+        const data = await response.json();
+        res.json(data);
+    } catch (err) {
+        console.error('Error fetching payment status:', err.message);
+        res.status(500).send('Server Error');
+    }
+});
+
+// =================================================================
+// --- END: NOWPayments API Routes ---
+// =================================================================
 
 
 // NEW ROUTE: Endpoint for cleaning up expired subscriptions
@@ -597,9 +641,6 @@ app.post('/api/subscriptions/cleanup', async (req, res) => {
             "UPDATE users SET subscription_status = 'expired' WHERE subscription_status = 'active' AND subscription_expiration < $1",
             [today]
         );
-
-        // This is a placeholder for a notification system. In a real application, you might
-        // want to notify a separate service or a Telegram function to handle removals.
         console.log(`Updated ${rows.length} users with expired subscriptions.`);
         res.json({
             message: `Processed ${rows.length} expired subscriptions.`,
@@ -665,23 +706,13 @@ app.post('/api/users/verify-telegram', async (req, res) => {
 
         if (rows.length > 0) {
             const user = rows[0];
-
-            // In a real-world scenario, you would redeem the token here
-            // to prevent it from being used again.
             await pool.query(
                 'UPDATE users SET telegram_invite_token = NULL WHERE id = $1',
                 [user.id]
             );
-
-            // Respond to the bot with success
             res.status(200).json({
                 message: 'Verification successful. User is active.',
-                user: {
-                    id: user.id,
-                    email: user.email,
-                    telegram_handle: user.telegram_handle,
-                    plan_name: user.plan_name
-                }
+                user: { id: user.id, email: user.email, telegram_handle: user.telegram_handle, plan_name: user.plan_name }
             });
         } else {
             res.status(404).json({ message: 'User not found or token is invalid.' });
@@ -693,19 +724,14 @@ app.post('/api/users/verify-telegram', async (req, res) => {
 });
 
 // NEW: Add a POST route to handle Telegram webhooks.
-// This route will receive updates from Telegram.
 const telegramToken = process.env.TELEGRAM_BOT_TOKEN;
 app.post(`/bot${telegramToken}`, (req, res) => {
-    // Process the incoming update from Telegram
     bot.processUpdate(req.body);
-    // Send a 200 OK response to Telegram to acknowledge the update
     res.sendStatus(200);
 });
 
 
 // --- UPDATED: Routes for Clean URLs ---
-// These routes map clean URLs (e.g., /blog) to their corresponding HTML files.
-// This allows you to use cleaner links without the .html extension.
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
@@ -747,16 +773,11 @@ app.get('/admin/roles', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'admin_roles.html'));
 });
 
-
 // Serve static files from the 'public' directory
-// This handles CSS, client-side JS, images, etc.
 app.use(express.static(path.join(__dirname, 'public')));
 
-
 // Start the server
-// NOTE: Make sure this is the last app.listen() call in your file.
 app.listen(port, async () => {
   console.log(`Server is running on http://localhost:${port}`);
-  // IMPORTANT: Set up the webhook once the server is listening.
   await setupWebhook();
 });
