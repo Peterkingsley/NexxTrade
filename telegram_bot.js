@@ -36,8 +36,7 @@ const mainMenuOptions = {
     reply_markup: {
         inline_keyboard: [
             [{ text: 'Join VIP', callback_data: 'join_vip' }, { text: 'Pricing', callback_data: 'pricing' }],
-            [{ text: 'Recent Signals', callback_data: 'recent_signals' }, { text: 'PNL Proofs', callback_data: 'pnl_proofs' }],
-            [{ text: 'Blog', callback_data: 'blog' }, { text: 'Signal Stats', callback_data: 'signal_stats' }]
+            [{ text: 'Recent Signals', callback_data: 'recent_signals' }, { text: 'Signal Stats', callback_data: 'signal_stats' }]
         ]
     }
 };
@@ -164,20 +163,6 @@ bot.on('callback_query', async (callbackQuery) => {
                 chatId,
                 'Click the button below to see our recent signals and full performance history.',
                 `${serverUrl}/performance`
-            );
-        }
-        if (data === 'pnl_proofs') {
-            return createLinkMenu(
-                chatId,
-                'Click the button below to browse our gallery of PNL proofs.',
-                `${serverUrl}/performance#pnl-gallery`
-            );
-        }
-        if (data === 'blog') {
-            return createLinkMenu(
-                chatId,
-                'Click the button below to read our latest blog posts and market analysis.',
-                `${serverUrl}/blog`
             );
         }
         if (data === 'signal_stats') {
