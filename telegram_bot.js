@@ -312,12 +312,10 @@ _(This precise amount includes network fees to ensure the full plan price is cov
 \`${paymentData.pay_address}\`
             `;
 
-            const monitoringMessage = `
-            👆 Tap & copy the address to pay.
-            
-            ✅ Auto Join VIP: Access in ~2 minutes after payment
-            ☎️ Support: @Nexxtrade_io
-`;
+            const monitoringMessage = `👆 Tap & copy the address to pay.
+
+✅ Auto Join VIP: Access in ~2 minutes after payment
+☎️ Support: @Nexxtrade_io`;
             
             const checkStatusKeyboard = {
                 reply_markup: {
@@ -346,13 +344,10 @@ _(This precise amount includes network fees to ensure the full plan price is cov
                 }
 
                 const statusData = await statusResponse.json();
-                let statusMessage = `
-                Current status: *${statusData.payment_status}* (VIP Channel will be unlocked as soon as your payment is confirmed)
-                
-                Make sure you’ve sent the required payment to the address provided
+                let statusMessage = `Current status: *${statusData.payment_status}*
+(VIP Channel will be unlocked as soon as your payment is confirmed)
 
-
-                `;
+Make sure you’ve sent the required payment to the address provided`;
 
                 const state = userRegistrationState[chatId];
 
@@ -496,4 +491,3 @@ module.exports = {
     bot,
     setupWebhook
 };
-
