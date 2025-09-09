@@ -141,6 +141,21 @@ app.get('/api/pricing', async (req, res) => {
   }
 });
 
+// NEWLY ADDED ROUTE TO FIX THE BUG
+app.get('/api/pricing/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rows } = await pool.query('SELECT * FROM pricingplans WHERE id = $1', [id]);
+    if (rows.length === 0) {
+      return res.status(404).send('Pricing plan not found.');
+    }
+    res.json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server Error');
+  }
+});
+
 app.post('/api/pricing', async (req, res) => {
   try {
     const { plan_name, price, term, description, features, is_best_value, telegram_group_id } = req.body;
