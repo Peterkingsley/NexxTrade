@@ -203,7 +203,7 @@ bot.on('callback_query', async (callbackQuery) => {
                 stage: 'awaiting_payment_method' // New stage
             };
 
-            const paymentMessage = `Congrats, you've selected the *${selectedPlan.plan_name}*.\n\nPlease choose your payment method:`;
+            const paymentMessage = `Congrats, you've selected the *${selectedPlan.plan_name}* plan.\n\nPlease choose your payment method:`;
             const paymentKeyboard = {
                 reply_markup: {
                     inline_keyboard: [
@@ -311,8 +311,11 @@ _(This precise amount includes network fees to ensure the full plan price is cov
 *Address:*
 \`${paymentData.pay_address}\`
             `;
-            
-            const monitoringMessage = `I will monitor the payment and notify you once it's confirmed. This address is unique to your transaction.`;
+
+            const monitoringMessage = `👆 Tap & copy the address to pay.
+            ✅ Auto Join VIP: Access in ~2 minutes after payment
+            ☎️ Support: @Nexxtrade_io
+`;
             
             const checkStatusKeyboard = {
                 reply_markup: {
