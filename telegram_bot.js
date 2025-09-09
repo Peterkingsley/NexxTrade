@@ -182,7 +182,7 @@ bot.on('callback_query', async (callbackQuery) => {
 
         // --- Registration and Payment Flow ---
 
-        // Stage 1: Plan Selection - Kicks off the payment flow
+        // Stage 1: Plan Selection - Becomes stateless, passes planId to next step.
         if (data.startsWith('select_plan_')) {
             const planId = parseInt(data.split('_')[2], 10);
             const response = await fetch(`${serverUrl}/api/pricing`);
@@ -190,63 +190,74 @@ bot.on('callback_query', async (callbackQuery) => {
             const selectedPlan = plans.find(p => p.id === planId);
 
             if (!selectedPlan) return bot.sendMessage(chatId, "Sorry, that plan is no longer available.");
-            
-            // Automatically get telegram handle
-            const telegramHandle = telegramUser.username ? `@${telegramUser.username}` : `user_${telegramUser.id}`;
-
-            userRegistrationState[chatId] = {
-                planId: planId,
-                planName: selectedPlan.plan_name,
-                priceUSD: selectedPlan.price,
-                telegramHandle: telegramHandle,
-                telegramGroupId: selectedPlan.telegram_group_id, // Store the group ID for this plan
-                stage: 'awaiting_payment_method' // New stage
-            };
 
             const paymentMessage = `Congrats, you've selected the *${selectedPlan.plan_name}*.\n\nPlease choose your payment method:`;
             const paymentKeyboard = {
                 reply_markup: {
                     inline_keyboard: [
-                        [{ text: 'Pay with Crypto', callback_data: `select_payment_crypto` }],
-                        [{ text: 'Pay with Fiat', callback_data: `select_payment_fiat` }],
+                        [{ text: 'Pay with Crypto', callback_data: `select_payment_crypto_${planId}` }],
+                        [{ text: 'Pay with Fiat', callback_data: `select_payment_fiat_${planId}` }],
                         [{ text: '⬅️ Back to Plans', callback_data: 'back_to_plans' }]
                     ]
                 }
             };
             bot.sendMessage(chatId, paymentMessage, { parse_mode: 'Markdown', ...paymentKeyboard });
-            return; // Stop further processing for this callback
+            return;
         }
 
-        // Stage 2: Payment Method Selection
-        if (data === 'select_payment_fiat') {
-            const state = userRegistrationState[chatId];
-            if (!state || !state.planName) {
-                 return bot.sendMessage(chatId, "Something went wrong. Please start the registration over with /start.");
+        // Stage 2: Fiat Payment Method Selection
+        if (data.startsWith('select_payment_fiat_')) {
+            const planId = parseInt(data.split('_')[3], 10);
+            const response = await fetch(`${serverUrl}/api/pricing`);
+            const plans = await response.json();
+            const selectedPlan = plans.find(p => p.id === planId);
+            
+            if (!selectedPlan) {
+                return bot.sendMessage(chatId, "Something went wrong. Please start the registration over with /start.");
             }
+
+            const telegramHandle = telegramUser.username ? `@${telegramUser.username}` : `user_${telegramUser.id}`;
             
             let planQueryParam = 'monthly';
-            if (state.planName.toLowerCase().includes('quarterly')) planQueryParam = 'quarterly';
-            if (state.planName.toLowerCase().includes('bi-annually')) planQueryParam = 'yearly';
+            if (selectedPlan.plan_name.toLowerCase().includes('quarterly')) planQueryParam = 'quarterly';
+            if (selectedPlan.plan_name.toLowerCase().includes('bi-annually')) planQueryParam = 'yearly';
 
-            // Fiat payment now requires name and email at the end, so we can't pre-fill.
-            // Let's guide them to the website.
-            const opayMessage = `To complete your payment for the *${state.planName}* with Fiat, please use the button below to visit our secure checkout page.`;
+            const opayMessage = `To complete your payment for the *${selectedPlan.plan_name}* with Fiat, please use the button below to visit our secure checkout page.`;
             const opayKeyboard = {
                 inline_keyboard: [
-                    [{ text: 'Proceed to Fiat Checkout', url: `${serverUrl}/join?plan=${planQueryParam}&telegram=${state.telegramHandle.replace('@','')}` }],
-                    [{ text: '⬅️ Back', callback_data: `select_plan_${state.planId}` }]
+                    [{ text: 'Proceed to Fiat Checkout', url: `${serverUrl}/join?plan=${planQueryParam}&telegram=${telegramHandle.replace('@','')}` }],
+                    [{ text: '⬅️ Back', callback_data: `select_plan_${planId}` }]
                 ]
             };
             bot.sendMessage(chatId, opayMessage, { parse_mode: 'Markdown', reply_markup: opayKeyboard });
             return;
         }
+        
+        // Stage 2: Crypto Payment Method Selection - Creates the state here.
+        if (data.startsWith('select_payment_crypto_')) {
+            const planId = parseInt(data.split('_')[3], 10);
+            const response = await fetch(`${serverUrl}/api/pricing`);
+            const plans = await response.json();
+            const selectedPlan = plans.find(p => p.id === planId);
 
-        if (data === 'select_payment_crypto') {
-            const state = userRegistrationState[chatId];
-             if (!state) {
-                 return bot.sendMessage(chatId, "Something went wrong. Please start the registration over with /start.");
+            if (!selectedPlan) {
+                return bot.sendMessage(chatId, "Something went wrong. Please start the registration over with /start.");
             }
-            state.stage = 'awaiting_crypto_network';
+
+            const telegramHandle = telegramUser.username ? `@${telegramUser.username}` : `user_${telegramUser.id}`;
+
+            // Create user state now, as it's needed for the multi-step crypto process.
+            userRegistrationState[chatId] = {
+                planId: planId,
+                planName: selectedPlan.plan_name,
+                priceUSD: selectedPlan.price,
+                telegramHandle: telegramHandle,
+                telegramGroupId: selectedPlan.telegram_group_id,
+                stage: 'awaiting_crypto_network'
+            };
+
+            const state = userRegistrationState[chatId];
+            
             const cryptoNetworkMessage = `Please select the crypto network for your USDT payment:`;
             const cryptoNetworkKeyboard = {
                  reply_markup: {
@@ -430,4 +441,3 @@ module.exports = {
     bot,
     setupWebhook
 };
-
