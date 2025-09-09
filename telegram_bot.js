@@ -304,7 +304,6 @@ bot.on('callback_query', async (callbackQuery) => {
             };
             const formattedCurrency = networkMap[paymentData.pay_currency.toLowerCase()] || paymentData.pay_currency.toUpperCase();
 
-            // The address message with QR code, payment amount, and wallet address.
             const addressMessage = `Please send exactly *${paymentData.pay_amount} ${formattedCurrency}* to the address below.
 
 _(This precise amount includes network fees to ensure the full plan price is covered.)_
@@ -313,16 +312,61 @@ _(This precise amount includes network fees to ensure the full plan price is cov
 \`${paymentData.pay_address}\`
             `;
             
-            // The follow-up monitoring message.
             const monitoringMessage = `I will monitor the payment and notify you once it's confirmed. This address is unique to your transaction.`;
-
-            // Send the photo with the address caption first.
-            await bot.sendPhoto(chatId, qrCodeUrl, { caption: addressMessage, parse_mode: 'Markdown' });
             
-            // Then send the separate monitoring message.
+            const checkStatusKeyboard = {
+                reply_markup: {
+                    inline_keyboard: [
+                        [{ text: '🔄 Check payment status', callback_data: `check_payment_status_${paymentData.payment_id}` }]
+                    ]
+                }
+            };
+
+            await bot.sendPhoto(chatId, qrCodeUrl, { caption: addressMessage, parse_mode: 'Markdown' });
             await bot.sendMessage(chatId, monitoringMessage);
+            await bot.sendMessage(chatId, "You can also check the status manually:", checkStatusKeyboard);
 
             pollPaymentStatus(chatId, paymentData.payment_id);
+            return;
+        }
+
+        if (data.startsWith('check_payment_status_')) {
+            const paymentId = data.split('_')[3];
+            bot.sendMessage(chatId, "Checking payment status, please wait...");
+
+            try {
+                const statusResponse = await fetch(`${serverUrl}/api/payments/nowpayments/status/${paymentId}`);
+                if (!statusResponse.ok) {
+                    throw new Error("Could not reach payment server.");
+                }
+
+                const statusData = await statusResponse.json();
+                let statusMessage = `Current status: *${statusData.payment_status}*`;
+
+                const state = userRegistrationState[chatId];
+
+                if (['finished', 'confirmed'].includes(statusData.payment_status)) {
+                    statusMessage = "✅ Payment confirmed! I am finalizing your account now.";
+                    if (state && state.paymentCheckInterval) {
+                        clearInterval(state.paymentCheckInterval);
+                        bot.sendMessage(chatId, "Let's get your details to finalize your account.");
+                        state.stage = 'awaiting_name_after_payment';
+                        bot.sendMessage(chatId, "What is your full name?");
+                    }
+                } else if (['failed', 'expired'].includes(statusData.payment_status)) {
+                    statusMessage = `❌ Payment has ${statusData.payment_status}. Please try the registration again.`;
+                    if (state && state.paymentCheckInterval) {
+                        clearInterval(state.paymentCheckInterval);
+                        delete userRegistrationState[chatId];
+                    }
+                }
+
+                bot.sendMessage(chatId, statusMessage, { parse_mode: 'Markdown' });
+
+            } catch(err) {
+                console.error(`Error manually checking payment status for ${paymentId}:`, err);
+                bot.sendMessage(chatId, "Sorry, I couldn't check the status right now. Please try again in a moment.");
+            }
             return;
         }
 
