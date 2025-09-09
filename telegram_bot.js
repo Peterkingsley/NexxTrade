@@ -47,11 +47,21 @@ const mainMenuOptions = {
 };
 
 const introMessage = `
-Hello there! I'm your dedicated AI assistant for all things NexxTrade. I'm here to help you navigate our services, check out our performance, and get you started with trading.
+Welcome NexxTrader. I'm your dedicated AI assistant for all things NexxTrade. My job is to help you navigate our services and onboard you in just a few clicks
 
-You can visit our official website here: www.nexxtrade.io
+ You Can Make $100-$500 Daily with Our Ultra-Precise Signals!
+  👉 Daily 2-3 Futures Signal
+  👉 Automated Access and Signals
+  👉 75-80%+ Accuracy 
+  👉 Weekly GEM Calls
+  👉 Long Term 10x Signals 
+ 👉  Macro and Technical Analysis
+  👉 Risk / Money Management Tips
+ & More.
+ 
 
-Please choose one of the options below to get started.
+Please choose from the options below to get started
+
 `;
 
 // --- Bot Command Handlers ---
