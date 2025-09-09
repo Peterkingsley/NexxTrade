@@ -182,7 +182,7 @@ bot.on('callback_query', async (callbackQuery) => {
 
         // --- Registration and Payment Flow ---
 
-        // Stage 1: Plan Selection - Becomes stateless, passes planId to next step.
+        // Stage 1: Plan Selection - Kicks off the payment flow
         if (data.startsWith('select_plan_')) {
             const planId = parseInt(data.split('_')[2], 10);
             const response = await fetch(`${serverUrl}/api/pricing`);
@@ -190,74 +190,63 @@ bot.on('callback_query', async (callbackQuery) => {
             const selectedPlan = plans.find(p => p.id === planId);
 
             if (!selectedPlan) return bot.sendMessage(chatId, "Sorry, that plan is no longer available.");
-
-            const paymentMessage = `Congrats, you've selected the *${selectedPlan.plan_name}*.\n\nPlease choose your payment method:`;
-            const paymentKeyboard = {
-                reply_markup: {
-                    inline_keyboard: [
-                        [{ text: 'Pay with Crypto', callback_data: `select_payment_crypto_${planId}` }],
-                        [{ text: 'Pay with Fiat', callback_data: `select_payment_fiat_${planId}` }],
-                        [{ text: '⬅️ Back to Plans', callback_data: 'back_to_plans' }]
-                    ]
-                }
-            };
-            bot.sendMessage(chatId, paymentMessage, { parse_mode: 'Markdown', ...paymentKeyboard });
-            return;
-        }
-
-        // Stage 2: Fiat Payment Method Selection
-        if (data.startsWith('select_payment_fiat_')) {
-            const planId = parseInt(data.split('_')[3], 10);
-            const response = await fetch(`${serverUrl}/api/pricing`);
-            const plans = await response.json();
-            const selectedPlan = plans.find(p => p.id === planId);
             
-            if (!selectedPlan) {
-                return bot.sendMessage(chatId, "Something went wrong. Please start the registration over with /start.");
-            }
-
-            const telegramHandle = telegramUser.username ? `@${telegramUser.username}` : `user_${telegramUser.id}`;
-            
-            let planQueryParam = 'monthly';
-            if (selectedPlan.plan_name.toLowerCase().includes('quarterly')) planQueryParam = 'quarterly';
-            if (selectedPlan.plan_name.toLowerCase().includes('bi-annually')) planQueryParam = 'yearly';
-
-            const opayMessage = `To complete your payment for the *${selectedPlan.plan_name}* with Fiat, please use the button below to visit our secure checkout page.`;
-            const opayKeyboard = {
-                inline_keyboard: [
-                    [{ text: 'Proceed to Fiat Checkout', url: `${serverUrl}/join?plan=${planQueryParam}&telegram=${telegramHandle.replace('@','')}` }],
-                    [{ text: '⬅️ Back', callback_data: `select_plan_${planId}` }]
-                ]
-            };
-            bot.sendMessage(chatId, opayMessage, { parse_mode: 'Markdown', reply_markup: opayKeyboard });
-            return;
-        }
-        
-        // Stage 2: Crypto Payment Method Selection - Creates the state here.
-        if (data.startsWith('select_payment_crypto_')) {
-            const planId = parseInt(data.split('_')[3], 10);
-            const response = await fetch(`${serverUrl}/api/pricing`);
-            const plans = await response.json();
-            const selectedPlan = plans.find(p => p.id === planId);
-
-            if (!selectedPlan) {
-                return bot.sendMessage(chatId, "Something went wrong. Please start the registration over with /start.");
-            }
-
+            // Automatically get telegram handle
             const telegramHandle = telegramUser.username ? `@${telegramUser.username}` : `user_${telegramUser.id}`;
 
-            // Create user state now, as it's needed for the multi-step crypto process.
             userRegistrationState[chatId] = {
                 planId: planId,
                 planName: selectedPlan.plan_name,
                 priceUSD: selectedPlan.price,
                 telegramHandle: telegramHandle,
-                telegramGroupId: selectedPlan.telegram_group_id,
-                stage: 'awaiting_crypto_network'
+                telegramGroupId: selectedPlan.telegram_group_id, // Store the group ID for this plan
+                stage: 'awaiting_payment_method' // New stage
             };
 
+            const paymentMessage = `Congrats, you've selected the *${selectedPlan.plan_name}*.\n\nPlease choose your payment method:`;
+            const paymentKeyboard = {
+                reply_markup: {
+                    inline_keyboard: [
+                        [{ text: 'Pay with Crypto', callback_data: `select_payment_crypto` }],
+                        [{ text: 'Pay with Fiat', callback_data: `select_payment_fiat` }],
+                        [{ text: '⬅️ Back to Plans', callback_data: 'back_to_plans' }]
+                    ]
+                }
+            };
+            bot.sendMessage(chatId, paymentMessage, { parse_mode: 'Markdown', ...paymentKeyboard });
+            return; // Stop further processing for this callback
+        }
+
+        // Stage 2: Payment Method Selection
+        if (data === 'select_payment_fiat') {
             const state = userRegistrationState[chatId];
+            if (!state || !state.planName) {
+                 return bot.sendMessage(chatId, "Something went wrong. Please start the registration over with /start.");
+            }
             
+            let planQueryParam = 'monthly';
+            if (state.planName.toLowerCase().includes('quarterly')) planQueryParam = 'quarterly';
+            if (state.planName.toLowerCase().includes('bi-annually')) planQueryParam = 'yearly';
+
+            // Fiat payment now requires name and email at the end, so we can't pre-fill.
+            // Let's guide them to the website.
+            const opayMessage = `To complete your payment for the *${state.planName}* with Fiat, please use the button below to visit our secure checkout page.`;
+            const opayKeyboard = {
+                inline_keyboard: [
+                    [{ text: 'Proceed to Fiat Checkout', url: `${serverUrl}/join?plan=${planQueryParam}&telegram=${state.telegramHandle.replace('@','')}` }],
+                    [{ text: '⬅️ Back', callback_data: `select_plan_${state.planId}` }]
+                ]
+            };
+            bot.sendMessage(chatId, opayMessage, { parse_mode: 'Markdown', reply_markup: opayKeyboard });
+            return;
+        }
+
+        if (data === 'select_payment_crypto') {
+            const state = userRegistrationState[chatId];
+             if (!state) {
+                 return bot.sendMessage(chatId, "Something went wrong. Please start the registration over with /start.");
+            }
+            state.stage = 'awaiting_crypto_network';
             const cryptoNetworkMessage = `Please select the crypto network for your USDT payment:`;
             const cryptoNetworkKeyboard = {
                  reply_markup: {
@@ -309,18 +298,29 @@ bot.on('callback_query', async (callbackQuery) => {
 
             const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${paymentData.pay_address}&size=200x200`;
 
-            const paymentMessage = `
-Please send exactly *${paymentData.pay_amount} ${paymentData.pay_currency.toUpperCase()}* to the address below.
+            const networkMap = {
+                'usdttrc20': 'USDT(TRC20)',
+                'usdtbsc': 'USDT(BEP20)'
+            };
+            const formattedCurrency = networkMap[paymentData.pay_currency.toLowerCase()] || paymentData.pay_currency.toUpperCase();
+
+            // The address message with QR code, payment amount, and wallet address.
+            const addressMessage = `Please send exactly *${paymentData.pay_amount} ${formattedCurrency}* to the address below.
 
 _(This precise amount includes network fees to ensure the full plan price is covered.)_
 
 *Address:*
 \`${paymentData.pay_address}\`
-
-I will monitor the payment and notify you once it's confirmed. This address is unique to your transaction.
             `;
             
-            await bot.sendPhoto(chatId, qrCodeUrl, { caption: paymentMessage, parse_mode: 'Markdown' });
+            // The follow-up monitoring message.
+            const monitoringMessage = `I will monitor the payment and notify you once it's confirmed. This address is unique to your transaction.`;
+
+            // Send the photo with the address caption first.
+            await bot.sendPhoto(chatId, qrCodeUrl, { caption: addressMessage, parse_mode: 'Markdown' });
+            
+            // Then send the separate monitoring message.
+            await bot.sendMessage(chatId, monitoringMessage);
 
             pollPaymentStatus(chatId, paymentData.payment_id);
             return;
