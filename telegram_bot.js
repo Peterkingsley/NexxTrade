@@ -49,16 +49,15 @@ const mainMenuOptions = {
 const introMessage = `
 Welcome NexxTrader. I'm your dedicated AI assistant for all things NexxTrade. My job is to help you navigate our services and onboard you in just a few clicks
 
- You Can Make $100-$500 Daily with Our Ultra-Precise Signals!
+ Make $100-$500 Daily with Our Ultra-Precise Signals!
   👉 Daily 2-3 Futures Signal
   👉 Automated Access and Signals
   👉 75-80%+ Accuracy 
   👉 Weekly GEM Calls
   👉 Long Term 10x Signals 
- 👉  Macro and Technical Analysis
+  👉  Macro and Technical Analysis
   👉 Risk / Money Management Tips
- & More.
- 
+  👉 Trading Psychology Insights & more
 
 Please choose from the options below to get started
 
@@ -333,8 +332,8 @@ bot.on('message', (msg) => {
             const paymentKeyboard = {
                 reply_markup: {
                     inline_keyboard: [
-                        [{ text: 'Pay with OPay', callback_data: `pay_opay_${state.planId}` }],
-                        [{ text: 'Pay with Crypto', callback_data: `pay_crypto_${state.planId}` }]
+                        [{ text: 'Pay with Crypto', callback_data: `pay_crypto_${state.planId}` }],
+                        [{ text: 'Pay with Fiat', callback_data: `pay_opay_${state.planId}` }],
                     ]
                 }
             };
