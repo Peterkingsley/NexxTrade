@@ -203,7 +203,7 @@ bot.on('callback_query', async (callbackQuery) => {
                 stage: 'awaiting_payment_method' // New stage
             };
 
-            const paymentMessage = `You've selected the *${selectedPlan.plan_name}*. Your Telegram handle *${telegramHandle}* has been recorded.\n\nPlease choose your payment method:`;
+            const paymentMessage = `Congrats, you've selected the *${selectedPlan.plan_name}*.\n\nPlease choose your payment method:`;
             const paymentKeyboard = {
                 reply_markup: {
                     inline_keyboard: [
