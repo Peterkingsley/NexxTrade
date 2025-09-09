@@ -328,7 +328,7 @@ _(This precise amount includes network fees to ensure the full plan price is cov
 
         if (data.startsWith('pay_opay_') || data.startsWith('pay_crypto_')) {
              bot.sendMessage(chatId, "This action is outdated due to a flow update. Please start again from the plan selection.");
-             return showSubscriptionPlans(chatId, 'Please choose your plan to continue');
+             return showSubscriptionPlans(chatId, 'Choose your plan to continue');
         }
 
 
@@ -441,3 +441,4 @@ module.exports = {
     bot,
     setupWebhook
 };
+
