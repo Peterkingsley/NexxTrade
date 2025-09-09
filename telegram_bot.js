@@ -312,7 +312,9 @@ _(This precise amount includes network fees to ensure the full plan price is cov
 \`${paymentData.pay_address}\`
             `;
 
-            const monitoringMessage = `👆 Tap & copy the address to pay.
+            const monitoringMessage = `
+            👆 Tap & copy the address to pay.
+            
             ✅ Auto Join VIP: Access in ~2 minutes after payment
             ☎️ Support: @Nexxtrade_io
 `;
