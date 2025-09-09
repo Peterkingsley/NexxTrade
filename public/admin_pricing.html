@@ -308,6 +308,11 @@
                         </div>
                     </div>
                     
+                    <div>
+                        <label for="telegram-group-id" class="block text-sm font-medium mb-1 text-muted">Telegram Group ID</label>
+                        <input type="text" id="telegram-group-id" placeholder="e.g., -1001234567890" class="input-field">
+                    </div>
+
                     <div class="flex items-center gap-2">
                         <input type="checkbox" id="is-best-value" class="h-4 w-4 rounded border-line bg-gray-800 text-accent focus:ring-accent-2">
                         <label for="is-best-value" class="text-sm font-medium text-muted">Mark as "Best Value"</label>
@@ -340,13 +345,14 @@
                                 <th>Plan Name</th>
                                 <th>Price</th>
                                 <th>Billing Term</th>
+                                <th>Telegram Group ID</th>
                                 <th>Best Value</th>
                                 <th>Features</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody id="pricing-table">
-                            <tr><td colspan="6" class="text-muted text-center py-4">Loading pricing plans...</td></tr>
+                            <tr><td colspan="7" class="text-muted text-center py-4">Loading pricing plans...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -398,7 +404,7 @@
                     
                     pricingTableBody.innerHTML = '';
                     if (plans.length === 0) {
-                        pricingTableBody.innerHTML = `<tr><td colspan="6" class="text-muted text-center py-4">No pricing plans available.</td></tr>`;
+                        pricingTableBody.innerHTML = `<tr><td colspan="7" class="text-muted text-center py-4">No pricing plans available.</td></tr>`;
                         return;
                     }
 
@@ -408,6 +414,7 @@
                             <td>${plan.plan_name}</td>
                             <td>$${plan.price}</td>
                             <td>${plan.term}</td>
+                            <td>${plan.telegram_group_id || 'Not set'}</td>
                             <td>${plan.is_best_value ? 'Yes' : 'No'}</td>
                             <td>${plan.features ? plan.features.join(', ') : ''}</td>
                             <td>
@@ -439,6 +446,7 @@
                     description: document.getElementById('plan-description').value,
                     features: document.getElementById('plan-features').value.split(',').map(f => f.trim()),
                     is_best_value: document.getElementById('is-best-value').checked,
+                    telegram_group_id: document.getElementById('telegram-group-id').value,
                 };
 
                 const submitBtn = e.submitter;
@@ -491,6 +499,7 @@
                     document.getElementById('plan-description').value = plan.description;
                     document.getElementById('plan-features').value = plan.features ? plan.features.join(', ') : '';
                     document.getElementById('is-best-value').checked = plan.is_best_value;
+                    document.getElementById('telegram-group-id').value = plan.telegram_group_id || '';
                     
                     savePricingBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Update Plan';
                     cancelEditBtn.classList.remove('hidden');
