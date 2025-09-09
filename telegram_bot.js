@@ -322,14 +322,14 @@ _(This precise amount includes network fees to ensure the full plan price is cov
             const checkStatusKeyboard = {
                 reply_markup: {
                     inline_keyboard: [
-                        [{ text: '🔄 Check payment status', callback_data: `check_payment_status_${paymentData.payment_id}` }]
+                        [{ text: '🔐Unlock VIP Signals', callback_data: `check_payment_status_${paymentData.payment_id}` }]
                     ]
                 }
             };
 
             await bot.sendPhoto(chatId, qrCodeUrl, { caption: addressMessage, parse_mode: 'Markdown' });
             await bot.sendMessage(chatId, monitoringMessage);
-            await bot.sendMessage(chatId, "You can also check the status manually:", checkStatusKeyboard);
+            await bot.sendMessage(chatId, "🔃Checking payment Status: ⏳", checkStatusKeyboard);
 
             pollPaymentStatus(chatId, paymentData.payment_id);
             return;
@@ -346,7 +346,13 @@ _(This precise amount includes network fees to ensure the full plan price is cov
                 }
 
                 const statusData = await statusResponse.json();
-                let statusMessage = `Current status: *${statusData.payment_status}*`;
+                let statusMessage = `
+                Current status: *${statusData.payment_status}* (VIP Channel will be unlocked as soon as your payment is confirmed)
+                
+                Make sure you’ve sent the required payment to the address provided
+
+
+                `;
 
                 const state = userRegistrationState[chatId];
 
