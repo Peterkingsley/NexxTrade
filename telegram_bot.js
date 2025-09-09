@@ -303,6 +303,8 @@ bot.on('callback_query', async (callbackQuery) => {
             const paymentMessage = `
 Please send exactly *${paymentData.pay_amount} ${paymentData.pay_currency.toUpperCase()}* to the address below.
 
+_(This precise amount includes network fees to ensure the full plan price is covered.)_
+
 *Address:*
 \`${paymentData.pay_address}\`
 
