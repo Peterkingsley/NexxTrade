@@ -248,7 +248,8 @@ bot.on('callback_query', async (callbackQuery) => {
                  reply_markup: {
                     inline_keyboard: [
                         [{ text: 'USDT (TRC-20)', callback_data: `select_network_usdttrc20` }],
-                        [{ text: 'USDT (BEP-20)', callback_data: `select_network_usdtbep20` }],
+                        // FIXED: Changed usdtbep20 to usdtbsc for NOWPayments API compatibility
+                        [{ text: 'USDT (BEP-20)', callback_data: `select_network_usdtbsc` }],
                         [{ text: '⬅️ Back', callback_data: `select_plan_${state.planId}` }]
                     ]
                 }
@@ -259,7 +260,7 @@ bot.on('callback_query', async (callbackQuery) => {
         
         // Stage 3: Crypto Network Selection and Payment Creation
         if (data.startsWith('select_network_')) {
-            const network = data.split('_')[2]; // e.g., usdttrc20
+            const network = data.split('_')[2]; // e.g., usdtbsc
             const state = userRegistrationState[chatId];
             if (!state || !state.telegramHandle) {
                 return bot.sendMessage(chatId, "Something went wrong. Please start the registration over with /start.");
@@ -435,3 +436,4 @@ module.exports = {
     bot,
     setupWebhook
 };
+
