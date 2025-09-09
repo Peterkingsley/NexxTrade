@@ -347,7 +347,7 @@ _(This precise amount includes network fees to ensure the full plan price is cov
                 let statusMessage = `Current status: *${statusData.payment_status}*
 (VIP Channel will be unlocked as soon as your payment is confirmed)
 
-Make sure you’ve sent the required payment to the address provided`;
+Make sure you’ve sent the required amount to the address provided`;
 
                 const state = userRegistrationState[chatId];
 
