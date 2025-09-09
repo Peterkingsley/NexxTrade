@@ -152,10 +152,16 @@ bot.on('callback_query', async (callbackQuery) => {
 
         const chatId = msg.chat.id;
         const data = callbackQuery.data;
+        const telegramUser = callbackQuery.from; // Get user info from the callback query
+
         bot.answerCallbackQuery(callbackQuery.id); // Acknowledge the button press
 
         // --- Main Menu Navigation ---
         if (data === 'pricing' || data === 'join_vip' || data === 'back_to_plans') {
+            // Check if we are coming back to plans, if so, clear state.
+            if(data === 'back_to_plans' && userRegistrationState[chatId]) {
+                 delete userRegistrationState[chatId];
+            }
             return showSubscriptionPlans(chatId, 'Choose your plan to continue');
         }
         if (data === 'recent_signals') {
@@ -165,12 +171,15 @@ bot.on('callback_query', async (callbackQuery) => {
             return handleSignalStats(chatId);
         }
         if (data === 'main_menu') {
+             if (userRegistrationState[chatId]) {
+                delete userRegistrationState[chatId];
+            }
             return bot.sendMessage(chatId, introMessage, mainMenuOptions);
         }
 
         // --- Registration and Payment Flow ---
 
-        // Stage 1: Plan Selection - Kicks off the registration conversation
+        // Stage 1: Plan Selection - Kicks off the payment flow
         if (data.startsWith('select_plan_')) {
             const planId = parseInt(data.split('_')[2], 10);
             const response = await fetch(`${serverUrl}/api/pricing`);
@@ -179,57 +188,115 @@ bot.on('callback_query', async (callbackQuery) => {
 
             if (!selectedPlan) return bot.sendMessage(chatId, "Sorry, that plan is no longer available.");
             
+            // Automatically get telegram handle
+            const telegramHandle = telegramUser.username ? `@${telegramUser.username}` : `user_${telegramUser.id}`;
+
             userRegistrationState[chatId] = {
                 planId: planId,
                 planName: selectedPlan.plan_name,
                 priceUSD: selectedPlan.price,
-                stage: 'awaiting_name'
+                telegramHandle: telegramHandle,
+                stage: 'awaiting_payment_method' // New stage
             };
 
-            bot.sendMessage(chatId, "Great! To get started, please tell me your full name.");
+            const paymentMessage = `You've selected the *${selectedPlan.plan_name}*. Your Telegram handle *${telegramHandle}* has been recorded.\n\nPlease choose your payment method:`;
+            const paymentKeyboard = {
+                reply_markup: {
+                    inline_keyboard: [
+                        [{ text: 'Pay with Crypto', callback_data: `select_payment_crypto` }],
+                        [{ text: 'Pay with Fiat', callback_data: `select_payment_fiat` }],
+                        [{ text: '⬅️ Back to Plans', callback_data: 'back_to_plans' }]
+                    ]
+                }
+            };
+            bot.sendMessage(chatId, paymentMessage, { parse_mode: 'Markdown', ...paymentKeyboard });
+            return; // Stop further processing for this callback
         }
 
         // Stage 2: Payment Method Selection
-        if (data.startsWith('pay_opay_')) {
-            const planId = data.split('_')[2];
-            let planQueryParam = 'monthly';
+        if (data === 'select_payment_fiat') {
             const state = userRegistrationState[chatId];
-            if (state && state.planName) {
-                if (state.planName.toLowerCase().includes('quarterly')) planQueryParam = 'quarterly';
-                if (state.planName.toLowerCase().includes('bi-annually')) planQueryParam = 'yearly';
+            if (!state || !state.planName) {
+                 return bot.sendMessage(chatId, "Something went wrong. Please start the registration over with /start.");
             }
-            const opayMessage = `To complete your payment for the *${state.planName}* with OPay, please use the button below to visit our secure checkout page. Your details will be pre-filled.`;
+            
+            let planQueryParam = 'monthly';
+            if (state.planName.toLowerCase().includes('quarterly')) planQueryParam = 'quarterly';
+            if (state.planName.toLowerCase().includes('bi-annually')) planQueryParam = 'yearly';
+
+            // Fiat payment now requires name and email at the end, so we can't pre-fill.
+            // Let's guide them to the website.
+            const opayMessage = `To complete your payment for the *${state.planName}* with Fiat, please use the button below to visit our secure checkout page.`;
             const opayKeyboard = {
                 inline_keyboard: [
-                    [{ text: 'Proceed to OPay Checkout', url: `${serverUrl}/join?plan=${planQueryParam}` }],
-                    [{ text: '⬅️ Back', callback_data: 'back_to_plans' }]
+                    [{ text: 'Proceed to Fiat Checkout', url: `${serverUrl}/join?plan=${planQueryParam}&telegram=${state.telegramHandle.replace('@','')}` }],
+                    [{ text: '⬅️ Back', callback_data: `select_plan_${state.planId}` }]
                 ]
             };
             bot.sendMessage(chatId, opayMessage, { parse_mode: 'Markdown', reply_markup: opayKeyboard });
+            return;
         }
 
-        if (data.startsWith('pay_crypto_')) {
+        if (data === 'select_payment_crypto') {
             const state = userRegistrationState[chatId];
-            if (!state || !state.fullName || !state.email || !state.telegramHandle) {
+             if (!state) {
+                 return bot.sendMessage(chatId, "Something went wrong. Please start the registration over with /start.");
+            }
+            state.stage = 'awaiting_crypto_network';
+            const cryptoNetworkMessage = `Please select the crypto network for your USDT payment:`;
+            const cryptoNetworkKeyboard = {
+                 reply_markup: {
+                    inline_keyboard: [
+                        [{ text: 'USDT (TRC-20)', callback_data: `select_network_usdttrc20` }],
+                        [{ text: 'USDT (BEP-20)', callback_data: `select_network_usdtbep20` }],
+                        [{ text: '⬅️ Back', callback_data: `select_plan_${state.planId}` }]
+                    ]
+                }
+            };
+            bot.sendMessage(chatId, cryptoNetworkMessage, cryptoNetworkKeyboard);
+            return;
+        }
+        
+        // Stage 3: Crypto Network Selection and Payment Creation
+        if (data.startsWith('select_network_')) {
+            const network = data.split('_')[2]; // e.g., usdttrc20
+            const state = userRegistrationState[chatId];
+            if (!state || !state.telegramHandle) {
                 return bot.sendMessage(chatId, "Something went wrong. Please start the registration over with /start.");
             }
             
             bot.sendMessage(chatId, "Generating your unique crypto payment address... please wait.");
+            
+            // We need a temporary user record to associate the payment with.
+            // Since we don't have name/email yet, we'll use the telegram handle.
+            // The record will be updated later.
+            const tempName = `User ${state.telegramHandle}`;
+            const tempEmail = `${state.telegramHandle.replace('@','')}_${Date.now()}@nexxtrade.com`;
 
             const response = await fetch(`${serverUrl}/api/payments/nowpayments/create`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    fullname: state.fullName,
-                    email: state.email,
+                    // Use temporary details for now
+                    fullname: tempName,
+                    email: tempEmail,
                     telegram: state.telegramHandle,
-                    plan: state.planName.toLowerCase().includes('monthly') ? 'monthly' : state.planName.toLowerCase().includes('quarterly') ? 'quarterly' : 'yearly'
+                    plan: state.planName.toLowerCase().includes('monthly') ? 'monthly' : state.planName.toLowerCase().includes('quarterly') ? 'quarterly' : 'yearly',
+                    pay_currency: network // Pass the selected network
                 }),
             });
             
-            if (!response.ok) throw new Error('Failed to create crypto payment.');
+            if (!response.ok) {
+                 const errorData = await response.json();
+                 console.error("NOWPayments API Error:", errorData);
+                 throw new Error('Failed to create crypto payment.');
+            }
 
             const paymentData = await response.json();
+            
+            // Store payment ID to check status later
+            state.paymentId = paymentData.payment_id;
+
             const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${paymentData.pay_address}&size=200x200`;
 
             const paymentMessage = `
@@ -245,7 +312,15 @@ I will monitor the payment and notify you once it's confirmed. This address is u
 
             // Start polling for payment confirmation
             pollPaymentStatus(chatId, paymentData.payment_id);
+            return;
         }
+
+        // Old payment callback queries are now deprecated by the new flow
+        if (data.startsWith('pay_opay_') || data.startsWith('pay_crypto_')) {
+             bot.sendMessage(chatId, "This action is outdated due to a flow update. Please start again from the plan selection.");
+             return showSubscriptionPlans(chatId, 'Please choose your plan to continue');
+        }
+
 
     } catch (error) {
         console.error("Critical error in callback_query handler:", error);
@@ -269,14 +344,12 @@ function pollPaymentStatus(chatId, paymentId) {
             
             if (['finished', 'confirmed'].includes(statusData.payment_status)) {
                 clearInterval(state.paymentCheckInterval);
-                bot.sendMessage(chatId, "✅ Payment confirmed! Generating your unique invite link...");
+                bot.sendMessage(chatId, "✅ Payment confirmed! Let's get your details to finalize your account.");
 
-                // Generate one-time invite link
-                const inviteLink = await bot.createChatInviteLink(privateChannelId, { member_limit: 1 });
-                await bot.sendMessage(chatId, `Here is your one-time invite link to the VIP channel. Please note it can only be used once:\n\n${inviteLink.invite_link}`);
-
-                // Clean up user state
-                delete userRegistrationState[chatId];
+                // NEW: Ask for name after payment
+                state.stage = 'awaiting_name_after_payment';
+                bot.sendMessage(chatId, "What is your full name?");
+                
             } else if (['failed', 'expired'].includes(statusData.payment_status)) {
                 clearInterval(state.paymentCheckInterval);
                 bot.sendMessage(chatId, `❌ Payment has ${statusData.payment_status}. Please try the registration again or contact support if you believe this is an error.`);
@@ -290,7 +363,8 @@ function pollPaymentStatus(chatId, paymentId) {
 
 
 // --- Conversational Message Handler ---
-bot.on('message', (msg) => {
+bot.on('message', async (msg) => {
+    // This handler now only processes messages from users who are in a specific state
     if (!msg.chat || !msg.chat.id || !msg.text || msg.text.startsWith('/')) {
         return; // Ignore commands, non-text messages, or invalid messages
     }
@@ -299,45 +373,58 @@ bot.on('message', (msg) => {
     const text = msg.text;
     const state = userRegistrationState[chatId];
 
-    // If the user is not in a registration flow, guide them to the start
+    // If the user is not in a registration flow, do nothing.
     if (!state || !state.stage) {
-        bot.sendMessage(chatId, "I'm not sure how to respond to that. Please use the /start command to see the main menu.", mainMenuOptions);
         return;
     }
 
     // Process messages based on the user's current registration stage
     switch (state.stage) {
-        case 'awaiting_name':
+        // NEW Post-payment stages
+        case 'awaiting_name_after_payment':
             state.fullName = text;
-            state.stage = 'awaiting_email';
+            state.stage = 'awaiting_email_after_payment';
             bot.sendMessage(chatId, `Thanks, ${text}! Now, please enter your email address.`);
             break;
 
-        case 'awaiting_email':
+        case 'awaiting_email_after_payment':
             if (!text.includes('@') || !text.includes('.')) {
                 bot.sendMessage(chatId, "That doesn't look like a valid email. Please try again.");
                 return;
             }
             state.email = text;
-            state.stage = 'awaiting_telegram';
-            const suggestedHandle = msg.from.username ? `(e.g., @${msg.from.username})` : '(e.g., @your_handle)';
-            bot.sendMessage(chatId, `Got it. Finally, please provide your Telegram handle ${suggestedHandle}.`);
-            break;
+            state.stage = 'finalizing_subscription';
+            bot.sendMessage(chatId, `Got it. Finalizing your subscription and generating your invite link...`);
+            
+            try {
+                // NOTE: This requires a new API endpoint `/api/users/update-details` in server.js
+                // It will find the user by their telegram_handle and update their name and email.
+                const updateResponse = await fetch(`${serverUrl}/api/users/update-details`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        telegram_handle: state.telegramHandle,
+                        full_name: state.fullName,
+                        email: state.email
+                    })
+                });
 
-        case 'awaiting_telegram':
-            state.telegramHandle = text.startsWith('@') ? text : `@${text}`;
-            state.stage = 'awaiting_payment_method'; // Move to next logical step
-
-            const paymentMessage = `Thank you! All details collected for the *${state.planName}*. Please choose your payment method:`;
-            const paymentKeyboard = {
-                reply_markup: {
-                    inline_keyboard: [
-                        [{ text: 'Pay with Crypto', callback_data: `pay_crypto_${state.planId}` }],
-                        [{ text: 'Pay with Fiat', callback_data: `pay_opay_${state.planId}` }],
-                    ]
+                if (!updateResponse.ok) {
+                    throw new Error("Failed to update user details in the database.");
                 }
-            };
-            bot.sendMessage(chatId, paymentMessage, { parse_mode: 'Markdown', ...paymentKeyboard });
+
+                // Generate one-time invite link
+                const inviteLink = await bot.createChatInviteLink(privateChannelId, { member_limit: 1 });
+                await bot.sendMessage(chatId, `All done! Here is your one-time invite link to the VIP channel. Please note it can only be used once:\n\n${inviteLink.invite_link}`);
+
+                // Clean up user state
+                delete userRegistrationState[chatId];
+
+            } catch(err) {
+                console.error("Error finalizing subscription: ", err);
+                bot.sendMessage(chatId, "I encountered an error while finalizing your account. Please contact support.");
+                delete userRegistrationState[chatId];
+            }
             break;
     }
 });
@@ -348,4 +435,3 @@ module.exports = {
     bot,
     setupWebhook
 };
-

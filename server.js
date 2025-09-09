@@ -501,7 +501,7 @@ app.post('/api/payments/opay', async (req, res) => {
 
 app.post('/api/payments/nowpayments/create', async (req, res) => {
     try {
-        const { fullname, email, telegram, plan } = req.body;
+        const { fullname, email, telegram, plan, pay_currency } = req.body; // Added pay_currency
         
         const prices = { monthly: 35, quarterly: 89, yearly: 210 };
         const amountUSD = prices[plan];
@@ -513,10 +513,18 @@ app.post('/api/payments/nowpayments/create', async (req, res) => {
         const order_id = `nexxtrade-${telegram.replace('@', '')}-${Date.now()}`;
         
         const registrationDate = new Date().toISOString().split('T')[0];
+        // Using ON CONFLICT to handle cases where a user might restart the bot flow.
+        // It finds a user by their unique telegram handle and updates their pending record.
         await pool.query(
             `INSERT INTO users (full_name, email, telegram_handle, plan_name, subscription_status, registration_date, order_id)
              VALUES ($1, $2, $3, $4, 'pending', $5, $6)
-             ON CONFLICT (email) DO UPDATE SET full_name = $1, telegram_handle = $2, plan_name = $4, subscription_status = 'pending', order_id = $6`,
+             ON CONFLICT (telegram_handle) DO UPDATE SET 
+                full_name = EXCLUDED.full_name, 
+                email = EXCLUDED.email, 
+                plan_name = EXCLUDED.plan_name, 
+                subscription_status = 'pending', 
+                order_id = EXCLUDED.order_id,
+                registration_date = EXCLUDED.registration_date`,
             [fullname, email, telegram, plan, registrationDate, order_id]
         );
 
@@ -529,7 +537,7 @@ app.post('/api/payments/nowpayments/create', async (req, res) => {
             body: JSON.stringify({
                 price_amount: amountUSD,
                 price_currency: 'usd',
-                pay_currency: 'usdttrc20',
+                pay_currency: pay_currency, // Use the currency from the request
                 ipn_callback_url: `${process.env.APP_BASE_URL}/api/payments/nowpayments/webhook`,
                 order_id: order_id,
                 order_description: `NexxTrade ${plan} plan for ${telegram}`
@@ -722,6 +730,36 @@ app.post('/api/users/verify-telegram', async (req, res) => {
         res.status(500).json({ message: 'Server Error' });
     }
 });
+
+// NEW ENDPOINT: Update user details after successful payment
+app.put('/api/users/update-details', async (req, res) => {
+    const { telegram_handle, full_name, email } = req.body;
+
+    if (!telegram_handle || !full_name || !email) {
+        return res.status(400).json({ message: 'Missing required user details.' });
+    }
+
+    try {
+        const { rowCount } = await pool.query(
+            'UPDATE users SET full_name = $1, email = $2 WHERE telegram_handle = $3',
+            [full_name, email, telegram_handle]
+        );
+
+        if (rowCount > 0) {
+            res.status(200).json({ message: 'User details updated successfully.' });
+        } else {
+            res.status(404).json({ message: 'User with that Telegram handle not found.' });
+        }
+    } catch (err) {
+        console.error('Error updating user details:', err);
+        // Handle potential unique constraint violation on email
+        if (err.code === '23505') {
+            return res.status(409).json({ message: 'This email address is already in use.' });
+        }
+        res.status(500).json({ message: 'Server Error' });
+    }
+});
+
 
 // NEW: Add a POST route to handle Telegram webhooks.
 const telegramToken = process.env.TELEGRAM_BOT_TOKEN;
