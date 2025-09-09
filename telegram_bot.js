@@ -156,7 +156,7 @@ bot.on('callback_query', async (callbackQuery) => {
 
         // --- Main Menu Navigation ---
         if (data === 'pricing' || data === 'join_vip' || data === 'back_to_plans') {
-            return showSubscriptionPlans(chatId, 'Here are our current pricing plans. Select one to begin registration:');
+            return showSubscriptionPlans(chatId, 'Choose your plan to continue');
         }
         if (data === 'recent_signals') {
             return createLinkMenu(chatId, 'Click the button below to see our recent signals and full performance history.', `${serverUrl}/performance`);
