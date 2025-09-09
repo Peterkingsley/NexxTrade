@@ -12,9 +12,8 @@ const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch
 const TelegramBot = require('node-telegram-bot-api');
 const token = process.env.TELEGRAM_BOT_TOKEN;
 
-// Get the server URL and Private Channel ID from your .env file
+// Get the server URL from your .env file
 const serverUrl = process.env.APP_BASE_URL;
-const privateChannelId = process.env.PRIVATE_CHANNEL_ID;
 
 // Create a new Telegram bot instance without polling.
 const bot = new TelegramBot(token, { polling: false });
@@ -47,8 +46,11 @@ const mainMenuOptions = {
 };
 
 const introMessage = `
-Welcome NexxTrader. I'm your dedicated AI assistant for all things NexxTrade. My job is to help you navigate our services and onboard you in just a few clicks
+Hi NexxTrader. I'm your dedicated AI assistant. 
 
+My job is to help you navigate our services and onboard you in just a few clicks
+
+Trade like the Banks.
  Make $100-$500 Daily with Our Ultra-Precise Signals!
   👉 Daily 2-3 Futures Signal
   👉 Automated Access and Signals
@@ -60,6 +62,7 @@ Welcome NexxTrader. I'm your dedicated AI assistant for all things NexxTrade. My
   👉 Trading Psychology Insights & more
 
 Please choose from the options below to get started
+
 
 `;
 
@@ -196,6 +199,7 @@ bot.on('callback_query', async (callbackQuery) => {
                 planName: selectedPlan.plan_name,
                 priceUSD: selectedPlan.price,
                 telegramHandle: telegramHandle,
+                telegramGroupId: selectedPlan.telegram_group_id, // Store the group ID for this plan
                 stage: 'awaiting_payment_method' // New stage
             };
 
@@ -248,7 +252,6 @@ bot.on('callback_query', async (callbackQuery) => {
                  reply_markup: {
                     inline_keyboard: [
                         [{ text: 'USDT (TRC-20)', callback_data: `select_network_usdttrc20` }],
-                        // FIXED: Changed usdtbep20 to usdtbsc for NOWPayments API compatibility
                         [{ text: 'USDT (BEP-20)', callback_data: `select_network_usdtbsc` }],
                         [{ text: '⬅️ Back', callback_data: `select_plan_${state.planId}` }]
                     ]
@@ -268,9 +271,6 @@ bot.on('callback_query', async (callbackQuery) => {
             
             bot.sendMessage(chatId, "Generating your unique crypto payment address... please wait.");
             
-            // We need a temporary user record to associate the payment with.
-            // Since we don't have name/email yet, we'll use the telegram handle.
-            // The record will be updated later.
             const tempName = `User ${state.telegramHandle}`;
             const tempEmail = `${state.telegramHandle.replace('@','')}_${Date.now()}@nexxtrade.com`;
 
@@ -278,12 +278,11 @@ bot.on('callback_query', async (callbackQuery) => {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    // Use temporary details for now
                     fullname: tempName,
                     email: tempEmail,
                     telegram: state.telegramHandle,
                     plan: state.planName.toLowerCase().includes('monthly') ? 'monthly' : state.planName.toLowerCase().includes('quarterly') ? 'quarterly' : 'yearly',
-                    pay_currency: network // Pass the selected network
+                    pay_currency: network
                 }),
             });
             
@@ -295,7 +294,6 @@ bot.on('callback_query', async (callbackQuery) => {
 
             const paymentData = await response.json();
             
-            // Store payment ID to check status later
             state.paymentId = paymentData.payment_id;
 
             const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${paymentData.pay_address}&size=200x200`;
@@ -313,12 +311,10 @@ I will monitor the payment and notify you once it's confirmed. This address is u
             
             await bot.sendPhoto(chatId, qrCodeUrl, { caption: paymentMessage, parse_mode: 'Markdown' });
 
-            // Start polling for payment confirmation
             pollPaymentStatus(chatId, paymentData.payment_id);
             return;
         }
 
-        // Old payment callback queries are now deprecated by the new flow
         if (data.startsWith('pay_opay_') || data.startsWith('pay_crypto_')) {
              bot.sendMessage(chatId, "This action is outdated due to a flow update. Please start again from the plan selection.");
              return showSubscriptionPlans(chatId, 'Please choose your plan to continue');
@@ -349,7 +345,6 @@ function pollPaymentStatus(chatId, paymentId) {
                 clearInterval(state.paymentCheckInterval);
                 bot.sendMessage(chatId, "✅ Payment confirmed! Let's get your details to finalize your account.");
 
-                // NEW: Ask for name after payment
                 state.stage = 'awaiting_name_after_payment';
                 bot.sendMessage(chatId, "What is your full name?");
                 
@@ -367,23 +362,19 @@ function pollPaymentStatus(chatId, paymentId) {
 
 // --- Conversational Message Handler ---
 bot.on('message', async (msg) => {
-    // This handler now only processes messages from users who are in a specific state
     if (!msg.chat || !msg.chat.id || !msg.text || msg.text.startsWith('/')) {
-        return; // Ignore commands, non-text messages, or invalid messages
+        return;
     }
     
     const chatId = msg.chat.id;
     const text = msg.text;
     const state = userRegistrationState[chatId];
 
-    // If the user is not in a registration flow, do nothing.
     if (!state || !state.stage) {
         return;
     }
 
-    // Process messages based on the user's current registration stage
     switch (state.stage) {
-        // NEW Post-payment stages
         case 'awaiting_name_after_payment':
             state.fullName = text;
             state.stage = 'awaiting_email_after_payment';
@@ -400,8 +391,6 @@ bot.on('message', async (msg) => {
             bot.sendMessage(chatId, `Got it. Finalizing your subscription and generating your invite link...`);
             
             try {
-                // NOTE: This requires a new API endpoint `/api/users/update-details` in server.js
-                // It will find the user by their telegram_handle and update their name and email.
                 const updateResponse = await fetch(`${serverUrl}/api/users/update-details`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
@@ -416,11 +405,14 @@ bot.on('message', async (msg) => {
                     throw new Error("Failed to update user details in the database.");
                 }
 
-                // Generate one-time invite link
-                const inviteLink = await bot.createChatInviteLink(privateChannelId, { member_limit: 1 });
+                if (!state.telegramGroupId) {
+                    throw new Error("Telegram Group ID not found for this plan. Please check admin configuration.");
+                }
+
+                // Generate one-time invite link using the specific group ID for the plan
+                const inviteLink = await bot.createChatInviteLink(state.telegramGroupId, { member_limit: 1 });
                 await bot.sendMessage(chatId, `All done! Here is your one-time invite link to the VIP channel. Please note it can only be used once:\n\n${inviteLink.invite_link}`);
 
-                // Clean up user state
                 delete userRegistrationState[chatId];
 
             } catch(err) {

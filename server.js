@@ -130,8 +130,7 @@ app.delete('/api/blogs/:id', async (req, res) => {
 
 
 // API Routes for Pricing Plans Management
-// Based on the 'pricingplans' table from your SQL dump.
-// The columns are: id, plan_name, price, term, description, features, is_best_value
+// Now includes the 'telegram_group_id' field
 app.get('/api/pricing', async (req, res) => {
   try {
     const { rows } = await pool.query('SELECT * FROM pricingplans ORDER BY price ASC');
@@ -144,10 +143,10 @@ app.get('/api/pricing', async (req, res) => {
 
 app.post('/api/pricing', async (req, res) => {
   try {
-    const { plan_name, price, term, description, features, is_best_value } = req.body;
+    const { plan_name, price, term, description, features, is_best_value, telegram_group_id } = req.body;
     const { rows } = await pool.query(
-      'INSERT INTO pricingplans(plan_name, price, term, description, features, is_best_value) VALUES($1, $2, $3, $4, $5, $6) RETURNING *',
-      [plan_name, price, term, description, features, is_best_value]
+      'INSERT INTO pricingplans(plan_name, price, term, description, features, is_best_value, telegram_group_id) VALUES($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+      [plan_name, price, term, description, features, is_best_value, telegram_group_id]
     );
     res.status(201).json(rows[0]);
   } catch (err) {
@@ -159,10 +158,10 @@ app.post('/api/pricing', async (req, res) => {
 app.put('/api/pricing/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { plan_name, price, term, description, features, is_best_value } = req.body;
+    const { plan_name, price, term, description, features, is_best_value, telegram_group_id } = req.body;
     const { rows } = await pool.query(
-      'UPDATE pricingplans SET plan_name = $1, price = $2, term = $3, description = $4, features = $5, is_best_value = $6 WHERE id = $7 RETURNING *',
-      [plan_name, price, term, description, features, is_best_value, id]
+      'UPDATE pricingplans SET plan_name = $1, price = $2, term = $3, description = $4, features = $5, is_best_value = $6, telegram_group_id = $7 WHERE id = $8 RETURNING *',
+      [plan_name, price, term, description, features, is_best_value, telegram_group_id, id]
     );
     if (rows.length === 0) {
       return res.status(404).send('Pricing plan not found.');
@@ -444,64 +443,14 @@ app.get('/api/users/stats', async (req, res) => {
   }
 });
 
-// NEW ROUTE: Endpoint for OPay payment initiation
-// This route is called by the frontend form submission
-app.post('/api/payments/opay', async (req, res) => {
-    try {
-        const { fullname, email, telegram, plan } = req.body;
-
-        // Approximate conversion rate (1 USD to NGN)
-        const USD_TO_NGN_RATE = 750;
-
-        const prices = {
-            monthly: 39,
-            quarterly: 99,
-            yearly: 299
-        };
-        const amountUSD = prices[plan];
-
-        if (!amountUSD) {
-            return res.status(400).json({ message: 'Invalid plan selected.' });
-        }
-
-        // Convert the USD price to NGN for OPay
-        const amountNGN = amountUSD * USD_TO_NGN_RATE;
-
-        // Generate a unique token for this transaction. This will be used to
-        // securely identify the user later when OPay's webhook pings us.
-        const transactionRef = crypto.randomBytes(16).toString('hex');
-        const telegramInviteToken = crypto.randomBytes(32).toString('hex');
-
-        // --- 1. Save the user to the database with a 'pending' status ---
-        const registrationDate = new Date().toISOString().split('T')[0];
-        const { rows } = await pool.query(
-            `INSERT INTO users (full_name, email, telegram_handle, plan_name, subscription_status, registration_date, telegram_invite_token)
-             VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-            [fullname, email, telegram, plan, 'pending', registrationDate, telegramInviteToken]
-        );
-        // --- 3. Return the redirect URL from OPay to the frontend ---
-        // For now, we'll return a mock URL.
-        const mockRedirectUrl = `https://mock-opay.com/pay?ref=${transactionRef}&amount=${amountNGN}`;
-
-        res.status(200).json({
-            message: 'Payment initiated successfully.',
-            redirectUrl: mockRedirectUrl,
-            transactionRef: transactionRef
-        });
-
-    } catch (err) {
-        console.error('Error initiating OPay payment:', err);
-        res.status(500).json({ message: 'Server Error during payment initiation.' });
-    }
-});
 
 // =================================================================
 // --- START: NOWPayments API Routes ---
 // =================================================================
-
+// MODIFIED: Accepts 'pay_currency' from the bot
 app.post('/api/payments/nowpayments/create', async (req, res) => {
     try {
-        const { fullname, email, telegram, plan, pay_currency } = req.body; // Added pay_currency
+        const { fullname, email, telegram, plan, pay_currency } = req.body;
         
         const prices = { monthly: 35, quarterly: 89, yearly: 210 };
         const amountUSD = prices[plan];
@@ -509,22 +458,17 @@ app.post('/api/payments/nowpayments/create', async (req, res) => {
         if (!amountUSD) {
             return res.status(400).json({ message: 'Invalid plan selected.' });
         }
+         if (!pay_currency) {
+            return res.status(400).json({ message: 'Crypto network not specified.' });
+        }
         
         const order_id = `nexxtrade-${telegram.replace('@', '')}-${Date.now()}`;
         
         const registrationDate = new Date().toISOString().split('T')[0];
-        // Using ON CONFLICT to handle cases where a user might restart the bot flow.
-        // It finds a user by their unique telegram handle and updates their pending record.
         await pool.query(
             `INSERT INTO users (full_name, email, telegram_handle, plan_name, subscription_status, registration_date, order_id)
              VALUES ($1, $2, $3, $4, 'pending', $5, $6)
-             ON CONFLICT (telegram_handle) DO UPDATE SET 
-                full_name = EXCLUDED.full_name, 
-                email = EXCLUDED.email, 
-                plan_name = EXCLUDED.plan_name, 
-                subscription_status = 'pending', 
-                order_id = EXCLUDED.order_id,
-                registration_date = EXCLUDED.registration_date`,
+             ON CONFLICT (telegram_handle) DO UPDATE SET full_name = $1, email = $2, plan_name = $4, subscription_status = 'pending', order_id = $6`,
             [fullname, email, telegram, plan, registrationDate, order_id]
         );
 
@@ -537,7 +481,7 @@ app.post('/api/payments/nowpayments/create', async (req, res) => {
             body: JSON.stringify({
                 price_amount: amountUSD,
                 price_currency: 'usd',
-                pay_currency: pay_currency, // Use the currency from the request
+                pay_currency: pay_currency, // Use the network selected by the user
                 ipn_callback_url: `${process.env.APP_BASE_URL}/api/payments/nowpayments/webhook`,
                 order_id: order_id,
                 order_description: `NexxTrade ${plan} plan for ${telegram}`
@@ -585,9 +529,9 @@ app.post('/api/payments/nowpayments/webhook', async (req, res) => {
             const user = userResult.rows[0];
             
             let expirationDate = new Date();
-            if (user.plan_name === 'monthly') expirationDate.setMonth(expirationDate.getMonth() + 1);
-            else if (user.plan_name === 'quarterly') expirationDate.setMonth(expirationDate.getMonth() + 3);
-            else if (user.plan_name === 'yearly') expirationDate.setMonth(expirationDate.getMonth() + 6);
+            if (user.plan_name.toLowerCase().includes('monthly')) expirationDate.setMonth(expirationDate.getMonth() + 1);
+            else if (user.plan_name.toLowerCase().includes('quarterly')) expirationDate.setMonth(expirationDate.getMonth() + 3);
+            else if (user.plan_name.toLowerCase().includes('bi-annually')) expirationDate.setMonth(expirationDate.getMonth() + 6);
 
             await pool.query(
                 `UPDATE users SET subscription_status = 'active', subscription_expiration = $1 WHERE order_id = $2`,
@@ -627,6 +571,31 @@ app.get('/api/payments/nowpayments/status/:payment_id', async (req, res) => {
 // =================================================================
 // --- END: NOWPayments API Routes ---
 // =================================================================
+
+// NEW: Endpoint to update user details after payment
+app.put('/api/users/update-details', async (req, res) => {
+    const { telegram_handle, full_name, email } = req.body;
+    if (!telegram_handle || !full_name || !email) {
+        return res.status(400).json({ message: 'Missing required user details.' });
+    }
+    try {
+        // Find user by telegram_handle and update their name and email.
+        const { rows } = await pool.query(
+            "UPDATE users SET full_name = $1, email = $2 WHERE telegram_handle = $3 RETURNING *",
+            [full_name, email, telegram_handle]
+        );
+        if (rows.length === 0) {
+            return res.status(404).json({ message: 'User not found.' });
+        }
+        res.status(200).json(rows[0]);
+    } catch (err) {
+        console.error('Error updating user details:', err);
+         if (err.code === '23505') { // Handle unique constraint violation for email
+            return res.status(409).json({ message: 'This email address is already in use.' });
+        }
+        res.status(500).json({ message: 'Server Error' });
+    }
+});
 
 
 // NEW ROUTE: Endpoint for cleaning up expired subscriptions
@@ -731,36 +700,6 @@ app.post('/api/users/verify-telegram', async (req, res) => {
     }
 });
 
-// NEW ENDPOINT: Update user details after successful payment
-app.put('/api/users/update-details', async (req, res) => {
-    const { telegram_handle, full_name, email } = req.body;
-
-    if (!telegram_handle || !full_name || !email) {
-        return res.status(400).json({ message: 'Missing required user details.' });
-    }
-
-    try {
-        const { rowCount } = await pool.query(
-            'UPDATE users SET full_name = $1, email = $2 WHERE telegram_handle = $3',
-            [full_name, email, telegram_handle]
-        );
-
-        if (rowCount > 0) {
-            res.status(200).json({ message: 'User details updated successfully.' });
-        } else {
-            res.status(404).json({ message: 'User with that Telegram handle not found.' });
-        }
-    } catch (err) {
-        console.error('Error updating user details:', err);
-        // Handle potential unique constraint violation on email
-        if (err.code === '23505') {
-            return res.status(409).json({ message: 'This email address is already in use.' });
-        }
-        res.status(500).json({ message: 'Server Error' });
-    }
-});
-
-
 // NEW: Add a POST route to handle Telegram webhooks.
 const telegramToken = process.env.TELEGRAM_BOT_TOKEN;
 app.post(`/bot${telegramToken}`, (req, res) => {
@@ -819,3 +758,4 @@ app.listen(port, async () => {
   console.log(`Server is running on http://localhost:${port}`);
   await setupWebhook();
 });
+
