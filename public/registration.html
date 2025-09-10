@@ -173,6 +173,7 @@
 
     <form id="checkout-form" class="space-y-6">
       <input type="hidden" name="plan" id="plan-input" value="monthly">
+      <input type="hidden" name="plan_name" id="plan-name-input" value="">
       
       <div class="space-y-4">
         <h3 class="font-semibold text-lg">Change Your Plan</h3>
@@ -293,22 +294,26 @@
         const fetchPlans = async () => {
             try {
                 const response = await fetch(`${API_BASE_URL}/pricing`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
                 const plans = await response.json();
                 
-                // FIXED: Corrected the logic to prevent plans from overwriting each other.
-                // This now explicitly checks for keywords in the plan name.
+                // FIXED: Use the 'term' field for logic, which is more reliable than 'plan_name'
                 plans.forEach(p => {
-                    const lowerCasePlanName = p.plan_name.toLowerCase();
+                    if (!p.term) return; // Skip if term is not defined
+                    const lowerCaseTerm = p.term.toLowerCase();
                     let key;
-                    if (lowerCasePlanName.includes('bi-annually')) {
+
+                    if (lowerCaseTerm.includes('6 months') || lowerCaseTerm.includes('bi-annually') || lowerCaseTerm.includes('yearly')) {
                         key = 'yearly';
-                    } else if (lowerCasePlanName.includes('quarterly')) {
+                    } else if (lowerCaseTerm.includes('quarterly')) {
                         key = 'quarterly';
-                    } else if (lowerCasePlanName.includes('monthly')) {
+                    } else if (lowerCaseTerm.includes('month')) {
                         key = 'monthly';
                     }
                     
-                    if (key) { // Only add plans that have a matching key
+                    if (key) {
                         plansData[key] = {
                             name: p.plan_name,
                             priceUSD: p.price,
@@ -357,6 +362,8 @@
             planNameElement.textContent = plan.name;
             planPriceElement.textContent = `$${plan.priceUSD}`;
             planInput.value = planKey;
+            // FIXED: Store the full plan name in a hidden input for the server
+            document.getElementById('plan-name-input').value = plan.name;
 
             document.querySelectorAll('#plan-selection-buttons .plan-button').forEach(btn => {
                 btn.classList.toggle('active', btn.dataset.plan === planKey);
@@ -510,3 +517,4 @@
   </script>
 </body>
 </html>
+
