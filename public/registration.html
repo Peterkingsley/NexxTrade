@@ -173,7 +173,6 @@
 
     <form id="checkout-form" class="space-y-6">
       <input type="hidden" name="plan" id="plan-input" value="monthly">
-      <input type="hidden" name="plan_name" id="plan-name-input" value="">
       
       <div class="space-y-4">
         <h3 class="font-semibold text-lg">Change Your Plan</h3>
@@ -284,6 +283,7 @@
         const payButton = document.getElementById('pay-button');
         const cryptoPaymentModal = document.getElementById('crypto-payment-modal');
 
+        // MODIFIED: Get elements for crypto network selection
         const paymentDetailsBox = document.getElementById('payment-details-box');
         const cryptoNetworkSelection = document.getElementById('crypto-network-selection');
         const networkButtonsContainer = document.getElementById('network-buttons');
@@ -291,34 +291,21 @@
         let activePaymentMethod = 'opay';
         let paymentCheckInterval; 
 
+        // Fetch plans from the API to populate the page
         const fetchPlans = async () => {
             try {
                 const response = await fetch(`${API_BASE_URL}/pricing`);
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
                 const plans = await response.json();
                 
-                // FIXED: Use the 'term' field for logic, which is more reliable than 'plan_name'
+                // Convert array to object for easier lookup
                 plans.forEach(p => {
-                    if (!p.term) return; // Skip if term is not defined
-                    const lowerCaseTerm = p.term.toLowerCase();
-                    let key;
-
-                    if (lowerCaseTerm.includes('6 months') || lowerCaseTerm.includes('bi-annually') || lowerCaseTerm.includes('yearly')) {
-                        key = 'yearly';
-                    } else if (lowerCaseTerm.includes('quarterly')) {
-                        key = 'quarterly';
-                    } else if (lowerCaseTerm.includes('month')) {
-                        key = 'monthly';
-                    }
-                    
-                    if (key) {
-                        plansData[key] = {
-                            name: p.plan_name,
-                            priceUSD: p.price,
-                        };
-                    }
+                    let key = 'monthly';
+                    if (p.plan_name.toLowerCase().includes('quarterly')) key = 'quarterly';
+                    if (p.plan_name.toLowerCase().includes('bi-annually')) key = 'yearly';
+                    plansData[key] = {
+                        name: p.plan_name,
+                        priceUSD: p.price,
+                    };
                 });
                 
                 populatePlanButtons();
@@ -362,8 +349,6 @@
             planNameElement.textContent = plan.name;
             planPriceElement.textContent = `$${plan.priceUSD}`;
             planInput.value = planKey;
-            // FIXED: Store the full plan name in a hidden input for the server
-            document.getElementById('plan-name-input').value = plan.name;
 
             document.querySelectorAll('#plan-selection-buttons .plan-button').forEach(btn => {
                 btn.classList.toggle('active', btn.dataset.plan === planKey);
@@ -376,6 +361,7 @@
             cryptoOption.classList.toggle('active', method === 'crypto');
             payButton.textContent = method === 'opay' ? 'Pay Now with Fiat' : 'Pay with Crypto';
 
+            // MODIFIED: Show/hide crypto network selection based on payment method
             if (method === 'crypto') {
                 paymentDetailsBox.classList.remove('hidden');
                 cryptoNetworkSelection.classList.remove('hidden');
@@ -388,6 +374,7 @@
         opayOption.addEventListener('click', () => setActivePayment('opay'));
         cryptoOption.addEventListener('click', () => setActivePayment('crypto'));
         
+        // MODIFIED: Event listener for network selection styling
         networkButtonsContainer.addEventListener('click', (e) => {
             const label = e.target.closest('label.plan-button');
             if (label) {
@@ -457,6 +444,7 @@
             const formData = new FormData(checkoutForm);
             const data = Object.fromEntries(formData.entries());
 
+            // MODIFIED: Add pay_currency if crypto is selected
             if (activePaymentMethod === 'crypto') {
                 const selectedNetwork = document.querySelector('input[name="pay_currency"]:checked');
                 if (!selectedNetwork) {
@@ -517,4 +505,3 @@
   </script>
 </body>
 </html>
-
