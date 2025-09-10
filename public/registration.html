@@ -299,9 +299,15 @@
                 
                 // Convert array to object for easier lookup
                 plans.forEach(p => {
-                    let key = 'monthly';
-                    if (p.plan_name.toLowerCase().includes('quarterly')) key = 'quarterly';
-                    if (p.plan_name.toLowerCase().includes('bi-annually')) key = 'yearly';
+                    const lowerCasePlanName = p.plan_name.toLowerCase();
+                    let key;
+                    if (lowerCasePlanName.includes('quarterly')) {
+                        key = 'quarterly';
+                    } else if (lowerCasePlanName.includes('elite') || lowerCasePlanName.includes('6 months') || lowerCasePlanName.includes('bi-annually')) {
+                        key = 'yearly';
+                    } else { // default to monthly
+                        key = 'monthly';
+                    }
                     plansData[key] = {
                         name: p.plan_name,
                         priceUSD: p.price,
@@ -505,3 +511,4 @@
   </script>
 </body>
 </html>
+
