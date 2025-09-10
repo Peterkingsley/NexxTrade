@@ -467,17 +467,11 @@ app.post('/api/payments/nowpayments/create', async (req, res) => {
     try {
         const { fullname, email, telegram, plan, pay_currency } = req.body;
         
-        // FIXED: Fetch price from the database to avoid inconsistencies
-        const planResult = await pool.query('SELECT price FROM pricingplans WHERE term ILIKE $1', [plan]);
-
-        if (planResult.rows.length === 0) {
-            return res.status(400).json({ message: 'Invalid plan selected.' });
-        }
-        
-        const amountUSD = planResult.rows[0].price;
+        const prices = { monthly: 35, quarterly: 89, yearly: 210 };
+        const amountUSD = prices[plan];
 
         if (!amountUSD) {
-            return res.status(400).json({ message: 'Invalid plan selected or price is zero.' });
+            return res.status(400).json({ message: 'Invalid plan selected.' });
         }
          if (!pay_currency) {
             return res.status(400).json({ message: 'Crypto network not specified.' });
@@ -779,4 +773,3 @@ app.listen(port, async () => {
   console.log(`Server is running on http://localhost:${port}`);
   await setupWebhook();
 });
-
