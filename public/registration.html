@@ -177,18 +177,7 @@
       <div class="space-y-4">
         <h3 class="font-semibold text-lg">Change Your Plan</h3>
         <div id="plan-selection-buttons" class="grid grid-cols-1 sm:grid-cols-3 gap-4 plan-selection-grid">
-          <button type="button" data-plan="monthly" class="plan-button active">
-            <div class="font-semibold">Monthly</div>
-            <div class="text-muted text-sm">$35</div>
-          </button>
-          <button type="button" data-plan="quarterly" class="plan-button">
-            <div class="font-semibold">Quarterly</div>
-            <div class="text-muted text-sm">$89</div>
-          </button>
-          <button type="button" data-plan="yearly" class="plan-button">
-            <div class="font-semibold">Bi-annually</div>
-            <div class="text-muted text-sm">$210</div>
-          </button>
+          <!-- Plan buttons will be populated dynamically -->
         </div>
       </div>
 
@@ -229,12 +218,28 @@
             </svg>
             <span class="font-medium">Pay with Crypto</span>
           </div>
-          <p class="text-sm text-muted">USDT (TRC20, BEP20, ERC20).</p>
+          <p class="text-sm text-muted">USDT (TRC20, BEP20).</p>
         </div>
       </div>
       
+      <!-- MODIFIED: This box will now contain the crypto network selection -->
       <div id="payment-details-box" class="card p-4 hidden space-y-4">
+        <div id="crypto-network-selection" class="hidden space-y-2">
+            <h4 class="font-semibold text-md text-muted">Select Crypto Network</h4>
+            <div class="grid grid-cols-2 gap-4" id="network-buttons">
+                <label for="usdttrc20" class="plan-button active">
+                    <input type="radio" name="pay_currency" value="usdttrc20" id="usdttrc20" class="sr-only" checked>
+                    <span class="font-semibold">USDT</span>
+                    <span class="text-sm text-muted">TRC20</span>
+                </label>
+                <label for="usdtbsc" class="plan-button">
+                    <input type="radio" name="pay_currency" value="usdtbsc" id="usdtbsc" class="sr-only">
+                    <span class="font-semibold">USDT</span>
+                    <span class="text-sm text-muted">BEP20</span>
+                </label>
+            </div>
         </div>
+      </div>
       
       <div class="flex flex-col gap-4">
         <button type="submit" id="pay-button" class="btn mt-4">Pay Now</button>
@@ -262,197 +267,241 @@
 
 
   <script>
-    lucide.createIcons();
-    
-    const urlParams = new URLSearchParams(window.location.search);
-    const selectedPlanFromUrl = urlParams.get('plan') || 'monthly';
+    document.addEventListener('DOMContentLoaded', () => {
+        lucide.createIcons();
+        
+        const API_BASE_URL = '/api';
+        let plansData = {};
 
-    const plans = {
-      monthly: { name: 'Monthly Plan', priceUSD: 35, priceNGN: 53656.75 },
-      quarterly: { name: 'Quarterly Plan', priceUSD: 89, priceNGN: 136441.45 },
-      yearly: { name: 'Bi-annually Plan', priceUSD: 210, priceNGN: 321940.50 }
-    };
-    
-    const planNameElement = document.getElementById('plan-name');
-    const planPriceElement = document.getElementById('plan-price');
-    const planButtons = document.querySelectorAll('#plan-selection-buttons .plan-button');
-    const planInput = document.getElementById('plan-input');
-    const opayOption = document.getElementById('opay-option');
-    const cryptoOption = document.getElementById('crypto-option');
-    const checkoutForm = document.getElementById('checkout-form');
-    const payButton = document.getElementById('pay-button');
-    const cryptoPaymentModal = document.getElementById('crypto-payment-modal');
+        const planNameElement = document.getElementById('plan-name');
+        const planPriceElement = document.getElementById('plan-price');
+        const planSelectionButtonsContainer = document.getElementById('plan-selection-buttons');
+        const planInput = document.getElementById('plan-input');
+        const opayOption = document.getElementById('opay-option');
+        const cryptoOption = document.getElementById('crypto-option');
+        const checkoutForm = document.getElementById('checkout-form');
+        const payButton = document.getElementById('pay-button');
+        const cryptoPaymentModal = document.getElementById('crypto-payment-modal');
 
-    let activePaymentMethod = 'opay';
-    let currency = 'USD';
-    let paymentCheckInterval; // To hold the interval ID
+        // MODIFIED: Get elements for crypto network selection
+        const paymentDetailsBox = document.getElementById('payment-details-box');
+        const cryptoNetworkSelection = document.getElementById('crypto-network-selection');
+        const networkButtonsContainer = document.getElementById('network-buttons');
 
-    function updatePlanDisplay(planKey) {
-      const plan = plans[planKey] || plans.monthly;
-      planNameElement.textContent = plan.name;
-      
-      if (currency === 'USD') {
-        planPriceElement.textContent = `$${plan.priceUSD}`;
-      } else {
-        planPriceElement.textContent = `₦${plan.priceNGN.toLocaleString('en-NG')}`;
-      }
-      planInput.value = planKey;
+        let activePaymentMethod = 'opay';
+        let paymentCheckInterval; 
 
-      planButtons.forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.plan === planKey);
-      });
-    }
+        // Fetch plans from the API to populate the page
+        const fetchPlans = async () => {
+            try {
+                const response = await fetch(`${API_BASE_URL}/pricing`);
+                const plans = await response.json();
+                
+                // Convert array to object for easier lookup
+                plans.forEach(p => {
+                    let key = 'monthly';
+                    if (p.plan_name.toLowerCase().includes('quarterly')) key = 'quarterly';
+                    if (p.plan_name.toLowerCase().includes('bi-annually')) key = 'yearly';
+                    plansData[key] = {
+                        name: p.plan_name,
+                        priceUSD: p.price,
+                    };
+                });
+                
+                populatePlanButtons();
+                const urlParams = new URLSearchParams(window.location.search);
+                const selectedPlanFromUrl = urlParams.get('plan') || 'monthly';
+                updatePlanDisplay(selectedPlanFromUrl);
 
-    updatePlanDisplay(selectedPlanFromUrl);
+            } catch (error) {
+                console.error("Failed to fetch pricing plans:", error);
+                showMessage('Could not load pricing plans. Please refresh the page.', 'error');
+            }
+        };
 
-    planButtons.forEach(button => {
-      button.addEventListener('click', () => {
-        updatePlanDisplay(button.dataset.plan);
-      });
-    });
+        const populatePlanButtons = () => {
+            planSelectionButtonsContainer.innerHTML = '';
+            const planOrder = ['monthly', 'quarterly', 'yearly'];
 
-    const currencyToggle = document.createElement('div');
-    currencyToggle.className = 'flex justify-center mt-4';
-    currencyToggle.innerHTML = `
-        <div class="flex items-center space-x-2">
-            <span id="usd-toggle" class="cursor-pointer text-accent font-semibold">USD</span>
-            <span class="text-muted">|</span>
-            <span id="ngn-toggle" class="cursor-pointer text-muted">NGN</span>
-        </div>
-    `;
-    document.querySelector('.card').insertBefore(currencyToggle, checkoutForm);
+            planOrder.forEach(key => {
+                if (plansData[key]) {
+                    const plan = plansData[key];
+                    const button = document.createElement('button');
+                    button.type = 'button';
+                    button.dataset.plan = key;
+                    button.className = 'plan-button';
+                    button.innerHTML = `
+                        <div class="font-semibold">${plan.name}</div>
+                        <div class="text-muted text-sm">$${plan.priceUSD}</div>
+                    `;
+                    button.addEventListener('click', () => {
+                        updatePlanDisplay(key);
+                    });
+                    planSelectionButtonsContainer.appendChild(button);
+                }
+            });
+        };
 
-    const usdToggle = document.getElementById('usd-toggle');
-    const ngnToggle = document.getElementById('ngn-toggle');
+        function updatePlanDisplay(planKey) {
+            const plan = plansData[planKey];
+            if (!plan) return;
 
-    usdToggle.addEventListener('click', () => {
-        currency = 'USD';
-        usdToggle.classList.add('text-accent', 'font-semibold');
-        ngnToggle.classList.remove('text-accent', 'font-semibold');
-        ngnToggle.classList.add('text-muted');
-        updatePlanDisplay(planInput.value);
-    });
+            planNameElement.textContent = plan.name;
+            planPriceElement.textContent = `$${plan.priceUSD}`;
+            planInput.value = planKey;
 
-    ngnToggle.addEventListener('click', () => {
-        currency = 'NGN';
-        ngnToggle.classList.add('text-accent', 'font-semibold');
-        usdToggle.classList.remove('text-accent', 'font-semibold');
-        usdToggle.classList.add('text-muted');
-        updatePlanDisplay(planInput.value);
-    });
+            document.querySelectorAll('#plan-selection-buttons .plan-button').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.plan === planKey);
+            });
+        }
+        
+        function setActivePayment(method) {
+            activePaymentMethod = method;
+            opayOption.classList.toggle('active', method === 'opay');
+            cryptoOption.classList.toggle('active', method === 'crypto');
+            payButton.textContent = method === 'opay' ? 'Pay Now with Fiat' : 'Pay with Crypto';
 
-    function setActivePayment(method) {
-        activePaymentMethod = method;
-        opayOption.classList.toggle('active', method === 'opay');
-        cryptoOption.classList.toggle('active', method === 'crypto');
-        payButton.textContent = method === 'opay' ? 'Pay Now with OPay' : 'Pay with Crypto';
-    }
+            // MODIFIED: Show/hide crypto network selection based on payment method
+            if (method === 'crypto') {
+                paymentDetailsBox.classList.remove('hidden');
+                cryptoNetworkSelection.classList.remove('hidden');
+            } else {
+                paymentDetailsBox.classList.add('hidden');
+                cryptoNetworkSelection.classList.add('hidden');
+            }
+        }
 
-    opayOption.addEventListener('click', () => setActivePayment('opay'));
-    cryptoOption.addEventListener('click', () => setActivePayment('crypto'));
-
-    function displayCryptoPaymentModal(paymentData) {
-        document.getElementById('crypto-amount').textContent = paymentData.pay_amount;
-        document.getElementById('crypto-currency').textContent = paymentData.pay_currency;
-        document.getElementById('wallet-address').textContent = paymentData.pay_address;
-
-        const qrcodeContainer = document.getElementById('qrcode');
-        qrcodeContainer.innerHTML = '';
-        new QRCode(qrcodeContainer, {
-            text: paymentData.pay_address,
-            width: 150,
-            height: 150,
+        opayOption.addEventListener('click', () => setActivePayment('opay'));
+        cryptoOption.addEventListener('click', () => setActivePayment('crypto'));
+        
+        // MODIFIED: Event listener for network selection styling
+        networkButtonsContainer.addEventListener('click', (e) => {
+            const label = e.target.closest('label.plan-button');
+            if (label) {
+                networkButtonsContainer.querySelectorAll('label.plan-button').forEach(l => l.classList.remove('active'));
+                label.classList.add('active');
+                const radio = label.querySelector('input[type="radio"]');
+                if (radio) radio.checked = true;
+            }
         });
 
-        cryptoPaymentModal.classList.remove('hidden');
+        function displayCryptoPaymentModal(paymentData) {
+            document.getElementById('crypto-amount').textContent = paymentData.pay_amount;
+            document.getElementById('crypto-currency').textContent = paymentData.pay_currency;
+            document.getElementById('wallet-address').textContent = paymentData.pay_address;
 
-        // Clear any existing interval before starting a new one
-        if (paymentCheckInterval) clearInterval(paymentCheckInterval);
-        
-        paymentCheckInterval = setInterval(async () => {
-            try {
-                const statusResponse = await fetch(`/api/payments/nowpayments/status/${paymentData.payment_id}`);
-                if (!statusResponse.ok) return;
-
-                const statusData = await statusResponse.json();
-                if (['finished', 'confirmed', 'partially_paid'].includes(statusData.payment_status)) {
-                    clearInterval(paymentCheckInterval);
-                    cryptoPaymentModal.classList.add('hidden');
-                    showMessage('Payment successful! Redirecting...', 'success');
-                    setTimeout(() => {
-                        window.location.href = 'https://t.me/YOUR_TELEGRAM_BOT_USERNAME'; 
-                    }, 3000);
-                } else if (['failed', 'expired', 'refunded'].includes(statusData.payment_status)) {
-                    clearInterval(paymentCheckInterval);
-                    cryptoPaymentModal.classList.add('hidden');
-                    showMessage(`Payment ${statusData.payment_status}. Please try again.`, 'error');
-                }
-            } catch (err) {
-                console.error('Error checking payment status:', err);
-            }
-        }, 10000); // Check every 10 seconds
-    }
-
-    checkoutForm.addEventListener('submit', async (event) => {
-        event.preventDefault();
-        
-        const requiredFields = ['fullname', 'email', 'telegram'];
-        for (const fieldId of requiredFields) {
-            const field = document.getElementById(fieldId);
-            if (!field.value) {
-                showMessage(`Please fill out the ${field.previousElementSibling.textContent} field.`, 'error');
-                return;
-            }
-        }
-        
-        payButton.disabled = true;
-        payButton.textContent = 'Processing...';
-
-        const formData = new FormData(checkoutForm);
-        const data = Object.fromEntries(formData.entries());
-
-        const endpoint = activePaymentMethod === 'opay' ? '/api/payments/opay' : '/api/payments/nowpayments/create';
-
-        try {
-            const response = await fetch(endpoint, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data),
+            const qrcodeContainer = document.getElementById('qrcode');
+            qrcodeContainer.innerHTML = '';
+            new QRCode(qrcodeContainer, {
+                text: paymentData.pay_address,
+                width: 150,
+                height: 150,
             });
 
-            const result = await response.json();
+            cryptoPaymentModal.classList.remove('hidden');
 
-            if (response.ok) {
-                if (activePaymentMethod === 'opay') {
-                    window.location.href = result.redirectUrl;
-                } else {
-                    displayCryptoPaymentModal(result);
+            if (paymentCheckInterval) clearInterval(paymentCheckInterval);
+            
+            paymentCheckInterval = setInterval(async () => {
+                try {
+                    const statusResponse = await fetch(`${API_BASE_URL}/payments/nowpayments/status/${paymentData.payment_id}`);
+                    if (!statusResponse.ok) return;
+
+                    const statusData = await statusResponse.json();
+                    if (['finished', 'confirmed', 'partially_paid'].includes(statusData.payment_status)) {
+                        clearInterval(paymentCheckInterval);
+                        cryptoPaymentModal.classList.add('hidden');
+                        showMessage('Payment successful! Redirecting...', 'success');
+                        setTimeout(() => {
+                            window.location.href = 'https://t.me/YOUR_TELEGRAM_BOT_USERNAME'; 
+                        }, 3000);
+                    } else if (['failed', 'expired', 'refunded'].includes(statusData.payment_status)) {
+                        clearInterval(paymentCheckInterval);
+                        cryptoPaymentModal.classList.add('hidden');
+                        showMessage(`Payment ${statusData.payment_status}. Please try again.`, 'error');
+                    }
+                } catch (err) {
+                    console.error('Error checking payment status:', err);
                 }
-            } else {
-                showMessage(result.message || 'An error occurred.', 'error');
-            }
-        } catch (error) {
-            console.error('Submission error:', error);
-            showMessage('An unexpected error occurred. Please try again.', 'error');
-        } finally {
-            payButton.disabled = false;
-            payButton.textContent = activePaymentMethod === 'opay' ? 'Pay Now with OPay' : 'Pay with Crypto';
+            }, 10000); 
         }
-    });
 
-    function showMessage(message, type) {
-        const messageBox = document.createElement('div');
-        const colorClass = type === 'error' ? 'bg-red-500/10 text-danger border-red-500/20' : 'bg-green-500/10 text-accent border-green-500/20';
-        messageBox.className = `p-4 mb-4 text-sm rounded-lg border ${colorClass}`;
-        messageBox.textContent = message;
-        
-        const existingMessageBox = document.querySelector('.message-box');
-        if (existingMessageBox) existingMessageBox.remove();
-        
-        checkoutForm.prepend(messageBox);
-        
-        setTimeout(() => messageBox.remove(), 5000);
-    }
+        checkoutForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            
+            const requiredFields = ['fullname', 'email', 'telegram'];
+            for (const fieldId of requiredFields) {
+                const field = document.getElementById(fieldId);
+                if (!field.value) {
+                    showMessage(`Please fill out the ${field.previousElementSibling.textContent} field.`, 'error');
+                    return;
+                }
+            }
+            
+            payButton.disabled = true;
+            payButton.textContent = 'Processing...';
+
+            const formData = new FormData(checkoutForm);
+            const data = Object.fromEntries(formData.entries());
+
+            // MODIFIED: Add pay_currency if crypto is selected
+            if (activePaymentMethod === 'crypto') {
+                const selectedNetwork = document.querySelector('input[name="pay_currency"]:checked');
+                if (!selectedNetwork) {
+                    showMessage('Please select a crypto network.', 'error');
+                    payButton.disabled = false;
+                    payButton.textContent = 'Pay with Crypto';
+                    return;
+                }
+                data.pay_currency = selectedNetwork.value;
+            }
+
+            const endpoint = activePaymentMethod === 'opay' ? `${API_BASE_URL}/payments/opay` : `${API_BASE_URL}/payments/nowpayments/create`;
+
+            try {
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data),
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    if (activePaymentMethod === 'opay') {
+                        window.location.href = result.redirectUrl;
+                    } else {
+                        displayCryptoPaymentModal(result);
+                    }
+                } else {
+                    showMessage(result.message || 'An error occurred.', 'error');
+                }
+            } catch (error) {
+                console.error('Submission error:', error);
+                showMessage('An unexpected error occurred. Please try again.', 'error');
+            } finally {
+                payButton.disabled = false;
+                payButton.textContent = activePaymentMethod === 'opay' ? 'Pay Now with Fiat' : 'Pay with Crypto';
+            }
+        });
+
+        function showMessage(message, type) {
+            const messageBox = document.createElement('div');
+            const colorClass = type === 'error' ? 'bg-red-500/10 text-danger border-red-500/20' : 'bg-green-500/10 text-accent border-green-500/20';
+            messageBox.className = `p-4 mb-4 text-sm rounded-lg border ${colorClass}`;
+            messageBox.textContent = message;
+            
+            const existingMessageBox = document.querySelector('form .p-4');
+            if (existingMessageBox) existingMessageBox.remove();
+            
+            checkoutForm.prepend(messageBox);
+            
+            setTimeout(() => messageBox.remove(), 5000);
+        }
+
+        // Initial call to load data
+        fetchPlans();
+    });
   </script>
 </body>
 </html>
