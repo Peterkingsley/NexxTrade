@@ -295,6 +295,8 @@
                 const response = await fetch(`${API_BASE_URL}/pricing`);
                 const plans = await response.json();
                 
+                // FIXED: Corrected the logic to prevent plans from overwriting each other.
+                // This now explicitly checks for keywords in the plan name.
                 plans.forEach(p => {
                     const lowerCasePlanName = p.plan_name.toLowerCase();
                     let key;
@@ -302,13 +304,16 @@
                         key = 'yearly';
                     } else if (lowerCasePlanName.includes('quarterly')) {
                         key = 'quarterly';
-                    } else {
+                    } else if (lowerCasePlanName.includes('monthly')) {
                         key = 'monthly';
                     }
-                    plansData[key] = {
-                        name: p.plan_name,
-                        priceUSD: p.price,
-                    };
+                    
+                    if (key) { // Only add plans that have a matching key
+                        plansData[key] = {
+                            name: p.plan_name,
+                            priceUSD: p.price,
+                        };
+                    }
                 });
                 
                 populatePlanButtons();
@@ -505,4 +510,3 @@
   </script>
 </body>
 </html>
-
