@@ -283,7 +283,6 @@
         const payButton = document.getElementById('pay-button');
         const cryptoPaymentModal = document.getElementById('crypto-payment-modal');
 
-        // MODIFIED: Get elements for crypto network selection
         const paymentDetailsBox = document.getElementById('payment-details-box');
         const cryptoNetworkSelection = document.getElementById('crypto-network-selection');
         const networkButtonsContainer = document.getElementById('network-buttons');
@@ -291,21 +290,19 @@
         let activePaymentMethod = 'opay';
         let paymentCheckInterval; 
 
-        // Fetch plans from the API to populate the page
         const fetchPlans = async () => {
             try {
                 const response = await fetch(`${API_BASE_URL}/pricing`);
                 const plans = await response.json();
                 
-                // Convert array to object for easier lookup
                 plans.forEach(p => {
                     const lowerCasePlanName = p.plan_name.toLowerCase();
                     let key;
-                    if (lowerCasePlanName.includes('quarterly')) {
-                        key = 'quarterly';
-                    } else if (lowerCasePlanName.includes('elite') || lowerCasePlanName.includes('6 months') || lowerCasePlanName.includes('bi-annually')) {
+                    if (lowerCasePlanName.includes('bi-annually')) {
                         key = 'yearly';
-                    } else { // default to monthly
+                    } else if (lowerCasePlanName.includes('quarterly')) {
+                        key = 'quarterly';
+                    } else {
                         key = 'monthly';
                     }
                     plansData[key] = {
@@ -367,7 +364,6 @@
             cryptoOption.classList.toggle('active', method === 'crypto');
             payButton.textContent = method === 'opay' ? 'Pay Now with Fiat' : 'Pay with Crypto';
 
-            // MODIFIED: Show/hide crypto network selection based on payment method
             if (method === 'crypto') {
                 paymentDetailsBox.classList.remove('hidden');
                 cryptoNetworkSelection.classList.remove('hidden');
@@ -380,7 +376,6 @@
         opayOption.addEventListener('click', () => setActivePayment('opay'));
         cryptoOption.addEventListener('click', () => setActivePayment('crypto'));
         
-        // MODIFIED: Event listener for network selection styling
         networkButtonsContainer.addEventListener('click', (e) => {
             const label = e.target.closest('label.plan-button');
             if (label) {
@@ -450,7 +445,6 @@
             const formData = new FormData(checkoutForm);
             const data = Object.fromEntries(formData.entries());
 
-            // MODIFIED: Add pay_currency if crypto is selected
             if (activePaymentMethod === 'crypto') {
                 const selectedNetwork = document.querySelector('input[name="pay_currency"]:checked');
                 if (!selectedNetwork) {
