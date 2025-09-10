@@ -23,14 +23,24 @@ const bot = new TelegramBot(token, { polling: false });
 const userRegistrationState = {};
 
 
-// This function sets up the webhook on Telegram's side.
+// This function sets up the webhook on Telegram's side and registers the commands.
 const setupWebhook = async () => {
     try {
         const webhookUrl = `${serverUrl}/bot${token}`;
         await bot.setWebHook(webhookUrl);
         console.log(`Webhook set to: ${webhookUrl}`);
+
+        // Define the list of commands to be displayed in the menu
+        const commands = [
+            { command: 'start', description: 'Start the bot' },
+        ];
+        
+        // Set the commands for the bot
+        await bot.setMyCommands(commands);
+        console.log('Bot commands have been set successfully.');
+
     } catch (error) {
-        console.error('Failed to set webhook:', error);
+        console.error('Failed to set webhook or commands:', error);
     }
 };
 
@@ -491,3 +501,4 @@ module.exports = {
     bot,
     setupWebhook
 };
+
