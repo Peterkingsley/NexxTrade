@@ -231,6 +231,17 @@
           </div>
           <p class="text-sm text-muted">USDT (TRC20, BEP20, ERC20).</p>
         </div>
+        
+        <!-- New Crypto Network Selection -->
+        <div id="crypto-network-section" class="space-y-4 hidden">
+          <h3 class="font-semibold text-lg">Select Crypto Network</h3>
+          <select id="crypto-network" name="crypto-network" class="input-field">
+            <option value="usdttrc20">USDT - TRC20 (Tron)</option>
+            <option value="usdtbep20">USDT - BEP20 (Binance Smart Chain)</option>
+            <option value="usdterc20">USDT - ERC20 (Ethereum)</option>
+          </select>
+        </div>
+
       </div>
       
       <div id="payment-details-box" class="card p-4 hidden space-y-4">
@@ -282,10 +293,18 @@
     const checkoutForm = document.getElementById('checkout-form');
     const payButton = document.getElementById('pay-button');
     const cryptoPaymentModal = document.getElementById('crypto-payment-modal');
+    const cryptoNetworkSection = document.getElementById('crypto-network-section');
+    const cryptoNetworkSelect = document.getElementById('crypto-network');
+
 
     let activePaymentMethod = 'opay';
     let currency = 'USD';
+    let selectedCrypto = 'usdttrc20';
     let paymentCheckInterval; // To hold the interval ID
+
+    cryptoNetworkSelect.addEventListener('change', () => {
+        selectedCrypto = cryptoNetworkSelect.value;
+    });
 
     function updatePlanDisplay(planKey) {
       const plan = plans[planKey] || plans.monthly;
@@ -346,6 +365,9 @@
         opayOption.classList.toggle('active', method === 'opay');
         cryptoOption.classList.toggle('active', method === 'crypto');
         payButton.textContent = method === 'opay' ? 'Pay Now with OPay' : 'Pay with Crypto';
+        
+        // Toggle visibility of the crypto network dropdown
+        cryptoNetworkSection.classList.toggle('hidden', method !== 'crypto');
     }
 
     opayOption.addEventListener('click', () => setActivePayment('opay'));
@@ -411,6 +433,10 @@
         const formData = new FormData(checkoutForm);
         const data = Object.fromEntries(formData.entries());
 
+        if (activePaymentMethod === 'crypto') {
+            data.pay_currency = selectedCrypto; // REQUIRED for backend
+        }
+
         const endpoint = activePaymentMethod === 'opay' ? '/api/payments/opay' : '/api/payments/nowpayments/create';
 
         try {
@@ -441,17 +467,24 @@
     });
 
     function showMessage(message, type) {
+        // Ensure this function is defined or remove if not used in your final implementation
+        const messageContainer = document.querySelector('.card'); // Or a more specific container
+        const existingMessage = messageContainer.querySelector('.message-box');
+        if (existingMessage) {
+            existingMessage.remove();
+        }
+
         const messageBox = document.createElement('div');
-        const colorClass = type === 'error' ? 'bg-red-500/10 text-danger border-red-500/20' : 'bg-green-500/10 text-accent border-green-500/20';
-        messageBox.className = `p-4 mb-4 text-sm rounded-lg border ${colorClass}`;
+        messageBox.className = 'message-box p-4 mb-4 text-sm rounded-lg';
+        const colorClass = type === 'error' ? 'bg-red-500/10 text-danger border border-red-500/20' : 'bg-green-500/10 text-accent border border-green-500/20';
+        messageBox.classList.add(...colorClass.split(' '));
         messageBox.textContent = message;
-        
-        const existingMessageBox = document.querySelector('.message-box');
-        if (existingMessageBox) existingMessageBox.remove();
         
         checkoutForm.prepend(messageBox);
         
-        setTimeout(() => messageBox.remove(), 5000);
+        setTimeout(() => {
+            messageBox.remove();
+        }, 5000);
     }
   </script>
 </body>
