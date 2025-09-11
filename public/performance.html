@@ -9,6 +9,7 @@
   <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js"></script>
+  <script src="https://cdn.rawgit.com/davidshimjs/qrcodejs/gh-pages/qrcode.min.js"></script>
   <style>
     :root{
       --bg:#0b0f14;
@@ -92,10 +93,12 @@
       font-family: 'Inter', sans-serif;
       transform: scale(.95);
       transition: transform .3s cubic-bezier(.175,.885,.32,1.275);
+      background-image: radial-gradient(circle at top right, rgba(42, 214, 120, 0.05), transparent 40%);
     }
     #roi-panel-overlay.active #roi-panel { transform: scale(1); }
-    .roi-header, .roi-footer { padding: 16px 24px; }
-    .roi-body { padding: 24px; text-align: center; }
+    .roi-header { padding: 16px 24px; }
+    .roi-body { padding: 24px; text-align: left; }
+    .roi-footer { padding: 16px 24px; }
 
     @media (max-width: 980px) {
         .f-grid { grid-template-columns: 1fr; }
@@ -260,39 +263,27 @@
     <div id="roi-panel">
         <div id="roi-panel-content">
             <div class="roi-header flex justify-between items-center border-b border-line">
-              <div class="brand">
+                <div class="brand">
                     <span class="logo"></span>
                     <strong>NexxTrade</strong>
                 </div>
-                <p class="text-sm text-muted">Shared on <span id="roi-date"></span></p>
-                
+                <div class="text-right">
+                    <p class="font-semibold">Dr_Crypto1</p>
+                    <p class="text-xs text-muted" id="roi-date"></p>
+                </div>
             </div>
             <div class="roi-body">
-                <h2 class="text-2xl font-bold" id="roi-pair">CTSIUSDT Perpetual</h2>
-                <p class="text-lg" id="roi-direction-leverage">Long | 15X</p>
-                <p class="text-6xl font-extrabold my-4" id="roi-pnl">+123.84%</p>
-                <!-- Candlestick SVG Placeholder -->
-                <div class="h-24 w-full my-4">
-                  <svg width="100%" height="100%" viewBox="0 0 200 80" preserveAspectRatio="none">
-                    <path d="M 10 70 Q 40 10, 80 50 T 190 20" stroke="var(--accent)" fill="none" stroke-width="2" />
-                    <rect x="30" y="20" width="15" height="40" fill="#374151"></rect>
-                    <rect x="32.5" y="10" width="10" height="60" fill="var(--accent)"></rect>
-                    <rect x="70" y="30" width="15" height="30" fill="#374151"></rect>
-                    <rect x="72.5" y="25" width="10" height="40" fill="var(--accent)"></rect>
-                    <rect x="110" y="40" width="15" height="25" fill="#374151"></rect>
-                    <rect x="112.5" y="30" width="10" height="45" fill="var(--accent)"></rect>
-                     <rect x="150" y="10" width="15" height="50" fill="#374151"></rect>
-                    <rect x="152.5" y="5" width="10" height="60" fill="var(--accent)"></rect>
-                  </svg>
-                </div>
-                <div class="flex justify-between text-left text-sm mt-4 border-t border-line pt-4">
+                <h2 class="text-2xl font-bold" id="roi-pair"></h2>
+                <p class="text-lg text-muted" id="roi-direction-leverage"></p>
+                <p class="text-7xl font-extrabold my-6" id="roi-pnl"></p>
+                <div class="flex justify-between text-sm mt-4 border-t border-line pt-4">
                     <div>
-                        <p class="text-muted">Avg Entry Price</p>
-                        <p class="font-semibold" id="roi-entry"> $0.08126</p>
+                        <p class="text-muted">Entry Price</p>
+                        <p class="font-semibold text-lg" id="roi-entry"></p>
                     </div>
                     <div>
-                        <p class="text-muted">Avg Close Price</p>
-                        <p class="font-semibold" id="roi-exit">$0.08809</p>
+                        <p class="text-muted">Exit Price</p>
+                        <p class="font-semibold text-lg" id="roi-exit"></p>
                     </div>
                 </div>
             </div>
@@ -317,8 +308,8 @@
     const roiContent = document.getElementById('roi-panel-content');
 
     function showRoiPanel(signal) {
-        document.getElementById('roi-date').textContent = new Date(signal.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-        document.getElementById('roi-pair').textContent = signal.pair + ' Perpetual';
+        document.getElementById('roi-date').textContent = `Shared at: ${new Date(signal.date).toLocaleString()}`;
+        document.getElementById('roi-pair').textContent = signal.pair;
         const directionText = signal.is_long_position ? 'Long' : 'Short';
         document.getElementById('roi-direction-leverage').textContent = `${directionText} | ${signal.leverage}`;
         
@@ -331,7 +322,7 @@
             pnlEl.textContent = `+${signal.pnl_percent.replace('+', '')}`;
         }
 
-        pnlEl.className = pnlValue >= 0 ? 'text-6xl font-extrabold my-4 gain' : 'text-6xl font-extrabold my-4 loss';
+        pnlEl.className = pnlValue >= 0 ? 'text-7xl font-extrabold my-6 gain' : 'text-7xl font-extrabold my-6 loss';
         
         document.getElementById('roi-entry').textContent = `$${signal.entry_price}`;
         document.getElementById('roi-exit').textContent = `$${signal.exit_price}`;
