@@ -50,7 +50,8 @@ const mainMenuOptions = {
     reply_markup: {
         inline_keyboard: [
             [{ text: 'Join VIP', callback_data: 'join_vip' }, { text: 'Pricing', callback_data: 'pricing' }],
-            [{ text: 'Recent Signals', callback_data: 'recent_signals' }, { text: 'Signal Stats', callback_data: 'signal_stats' }]
+            [{ text: 'Recent Signals', callback_data: 'recent_signals' }, { text: 'Signal Stats', callback_data: 'signal_stats' }],
+            [{ text: 'Get Signals Now', callback_data: 'get_signals_now' }]
         ]
     }
 };
@@ -226,6 +227,10 @@ bot.on('callback_query', async (callbackQuery) => {
         }
         if (data === 'signal_stats') {
             return handleSignalStats(chatId);
+        }
+        if (data === 'get_signals_now') {
+            bot.sendMessage(chatId, "This feature is coming soon! You'll be able to get live signals directly from here.");
+            return;
         }
         if (data === 'main_menu') {
              if (userRegistrationState[chatId]) {
