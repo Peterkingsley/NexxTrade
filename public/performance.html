@@ -322,8 +322,15 @@
         document.getElementById('roi-direction-leverage').textContent = `${directionText} | ${signal.leverage}`;
         
         const pnlEl = document.getElementById('roi-pnl');
-        pnlEl.textContent = signal.pnl_percent.startsWith('+') ? signal.pnl_percent : `+${signal.pnl_percent}`; // Ensure plus sign
-        pnlEl.className = parseFloat(signal.pnl_percent) >= 0 ? 'text-6xl font-extrabold my-4 gain' : 'text-6xl font-extrabold my-4 loss';
+        const pnlValue = parseFloat(signal.pnl_percent);
+        
+        if (pnlValue < 0) {
+            pnlEl.textContent = signal.pnl_percent;
+        } else {
+            pnlEl.textContent = `+${signal.pnl_percent.replace('+', '')}`;
+        }
+
+        pnlEl.className = pnlValue >= 0 ? 'text-6xl font-extrabold my-4 gain' : 'text-6xl font-extrabold my-4 loss';
         
         document.getElementById('roi-entry').textContent = `$${signal.entry_price}`;
         document.getElementById('roi-exit').textContent = `$${signal.exit_price}`;
