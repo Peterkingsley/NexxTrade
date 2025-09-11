@@ -160,6 +160,7 @@ const handleSignalStats = async (chatId) => {
         const response = await fetch(`${serverUrl}/api/performances`);
         const signals = await response.json();
 
+        const totalSignalsIssued = signals.length;
         const wins = signals.filter(s => s.result_type === 'Win').length;
         const losses = signals.filter(s => s.result_type === 'Loss').length;
         const totalCompletedSignals = wins + losses;
@@ -173,10 +174,13 @@ const handleSignalStats = async (chatId) => {
 
         const message = `
 📊 *NexxTrade Signal Statistics*
-Total Signals: ${totalCompletedSignals}
+
+Total Signals Issued: ${totalSignalsIssued}
+Completed Trades: ${totalCompletedSignals}
 Wins: ${wins}
 Losses: ${losses}
-Win Rate: ${winRate}%
+
+Win Rate (based on completed trades): ${winRate}%
         `;
 
         bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
