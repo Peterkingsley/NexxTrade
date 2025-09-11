@@ -160,27 +160,24 @@ const handleSignalStats = async (chatId) => {
         const response = await fetch(`${serverUrl}/api/performances`);
         const signals = await response.json();
 
-        const totalSignalsIssued = signals.length;
-        const wins = signals.filter(s => s.result_type === 'Win').length;
-        const losses = signals.filter(s => s.result_type === 'Loss').length;
-        const totalCompletedSignals = wins + losses;
+        const wins = signals.filter(s => s.result_type === 'Win' || s.result_type === 'gain').length;
+        const losses = signals.filter(s => s.result_type === 'Loss' || s.result_type === 'loss').length;
+        const totalSignals = wins + losses;
 
-        if (totalCompletedSignals === 0) {
-            bot.sendMessage(chatId, "No completed signals available to calculate statistics. Please check back later.");
+        if (totalSignals === 0) {
+            bot.sendMessage(chatId, "No signals with a recorded outcome available. Please check back later.");
             return;
         }
 
-        const winRate = ((wins / totalCompletedSignals) * 100).toFixed(2);
+        const winRate = ((wins / totalSignals) * 100).toFixed(2);
 
         const message = `
 📊 *NexxTrade Signal Statistics*
 
-Total Signals Issued: ${totalSignalsIssued}
-Completed Trades: ${totalCompletedSignals}
+Total Signals: ${totalSignals}
 Wins: ${wins}
 Losses: ${losses}
-
-Win Rate (based on completed trades): ${winRate}%
+Win Rate: ${winRate}%
         `;
 
         bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
