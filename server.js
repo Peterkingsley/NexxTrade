@@ -462,16 +462,16 @@ app.get('/api/users/stats', async (req, res) => {
 // =================================================================
 // --- START: NOWPayments API Routes ---
 // =================================================================
-// MODIFIED: Accepts 'pay_currency' from the bot
+// FIXED: This route now accepts priceUSD directly and uses planName for descriptions and DB entries.
 app.post('/api/payments/nowpayments/create', async (req, res) => {
     try {
-        const { fullname, email, telegram, plan, pay_currency } = req.body;
+        const { fullname, email, telegram, planName, priceUSD, pay_currency } = req.body;
         
-        const prices = { monthly: 35, quarterly: 89, yearly: 210 };
-        const amountUSD = prices[plan];
+        // The hardcoded price object is removed. We will use the price sent from the bot.
+        const amountUSD = priceUSD;
 
         if (!amountUSD) {
-            return res.status(400).json({ message: 'Invalid plan selected.' });
+            return res.status(400).json({ message: 'Invalid plan price provided.' });
         }
          if (!pay_currency) {
             return res.status(400).json({ message: 'Crypto network not specified.' });
@@ -480,11 +480,12 @@ app.post('/api/payments/nowpayments/create', async (req, res) => {
         const order_id = `nexxtrade-${telegram.replace('@', '')}-${Date.now()}`;
         
         const registrationDate = new Date().toISOString().split('T')[0];
+        // Use the actual planName when inserting/updating the user record
         await pool.query(
             `INSERT INTO users (full_name, email, telegram_handle, plan_name, subscription_status, registration_date, order_id)
              VALUES ($1, $2, $3, $4, 'pending', $5, $6)
              ON CONFLICT (telegram_handle) DO UPDATE SET full_name = $1, email = $2, plan_name = $4, subscription_status = 'pending', order_id = $6`,
-            [fullname, email, telegram, plan, registrationDate, order_id]
+            [fullname, email, telegram, planName, registrationDate, order_id]
         );
 
         const nowPaymentsResponse = await fetch('https://api.nowpayments.io/v1/payment', {
@@ -494,12 +495,12 @@ app.post('/api/payments/nowpayments/create', async (req, res) => {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                price_amount: amountUSD,
+                price_amount: amountUSD, // Use the correct amount received from the bot
                 price_currency: 'usd',
-                pay_currency: pay_currency, // Use the network selected by the user
+                pay_currency: pay_currency,
                 ipn_callback_url: `${process.env.APP_BASE_URL}/api/payments/nowpayments/webhook`,
                 order_id: order_id,
-                order_description: `NexxTrade ${plan} plan for ${telegram}`
+                order_description: `NexxTrade ${planName} plan for ${telegram}` // Use planName for a better description
             })
         });
 

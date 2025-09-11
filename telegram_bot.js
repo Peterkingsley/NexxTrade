@@ -334,6 +334,7 @@ bot.on('callback_query', async (callbackQuery) => {
             const tempName = `User ${state.telegramHandle}`;
             const tempEmail = `${state.telegramHandle.replace('@','')}_${Date.now()}@nexxtrade.com`;
 
+            // FIXED: Send the correct price (priceUSD) and plan name to the backend.
             const response = await fetch(`${serverUrl}/api/payments/nowpayments/create`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -341,7 +342,8 @@ bot.on('callback_query', async (callbackQuery) => {
                     fullname: tempName,
                     email: tempEmail,
                     telegram: state.telegramHandle,
-                    plan: state.planName.toLowerCase().includes('monthly') ? 'monthly' : state.planName.toLowerCase().includes('quarterly') ? 'quarterly' : 'yearly',
+                    planName: state.planName, // Use the actual plan name for the description
+                    priceUSD: state.priceUSD, // Use the correct price stored in the state
                     pay_currency: network
                 }),
             });
@@ -555,4 +557,3 @@ module.exports = {
     bot,
     setupWebhook
 };
-
