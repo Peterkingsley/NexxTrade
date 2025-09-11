@@ -173,6 +173,33 @@ const handleSignalStats = async (chatId) => {
 
         // Standard win rate calculation: (Wins / Total Trades) * 100
         const winRate = ((wins / totalTrades) * 100).toFixed(2);
+        
+        // Calculate Cumulative ROI
+        let cumulativeROI = 0;
+        signals.forEach(s => {
+            if (s.pnl_percent) {
+                const pnl = parseFloat(s.pnl_percent.replace('%', ''));
+                if (!isNaN(pnl)) {
+                    cumulativeROI += pnl;
+                }
+            }
+        });
+
+        // Find the most traded pair
+        let mostTradedPair = 'N/A';
+        if (signals.length > 0) {
+            const pairCounts = signals.reduce((acc, s) => {
+                if(s.pair) {
+                    acc[s.pair] = (acc[s.pair] || 0) + 1;
+                }
+                return acc;
+            }, {});
+
+            if(Object.keys(pairCounts).length > 0) {
+                mostTradedPair = Object.keys(pairCounts).reduce((a, b) => pairCounts[a] > pairCounts[b] ? a : b);
+            }
+        }
+
 
         const message = `
 📊 *NexxTrade Signal Statistics*
@@ -180,7 +207,13 @@ const handleSignalStats = async (chatId) => {
 Total Signals: ${totalTrades}
 Wins: ${wins}
 Losses: ${losses}
+Cum. ROI: ${cumulativeROI.toFixed(2)}%
+
+Most traded Pair: ${mostTradedPair}
+
 Win Rate: ${winRate}%
+
+Take your next trade with us
         `;
 
         bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
