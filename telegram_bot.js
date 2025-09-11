@@ -218,7 +218,7 @@ Most traded Pair: ${mostTradedPair}
             parse_mode: 'Markdown',
             reply_markup: {
                 inline_keyboard: [
-                    [{ text: 'Take your next trade with us', callback_data: 'join_vip' }]
+                    [{ text: 'Take Your Next Trade with Us', callback_data: 'join_vip' }]
                 ]
             }
         };
