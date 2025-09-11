@@ -315,6 +315,59 @@ app.get('/api/performances', async (req, res) => {
   }
 });
 
+// NEW: API Route for Performance Statistics
+app.get('/api/performances/stats', async (req, res) => {
+  try {
+    // A single query to get most stats
+    const statsQuery = await pool.query(`
+      SELECT
+        COUNT(*) AS "totalSignals",
+        SUM(CASE WHEN result_type = 'Win' THEN 1 ELSE 0 END) AS "wins",
+        SUM(CASE WHEN result_type = 'Loss' THEN 1 ELSE 0 END) AS "losses",
+        SUM(CAST(REPLACE(pnl_percent, '%', '') AS NUMERIC)) as "cumulativeROI"
+      FROM performancesignals
+    `);
+
+    // A separate query for the most traded pair
+    const mostTradedQuery = await pool.query(`
+      SELECT pair FROM performancesignals
+      GROUP BY pair
+      ORDER BY COUNT(pair) DESC
+      LIMIT 1
+    `);
+
+    const stats = statsQuery.rows[0];
+    const totalSignals = parseInt(stats.totalSignals, 10);
+
+    if (totalSignals === 0) {
+      return res.json({
+        totalSignals: 0,
+        wins: 0,
+        losses: 0,
+        winRate: "0.00",
+        cumulativeROI: "0.00",
+        mostTradedPair: "N/A"
+      });
+    }
+
+    const wins = parseInt(stats.wins, 10);
+    const winRate = ((wins / totalSignals) * 100).toFixed(2);
+    
+    res.json({
+      totalSignals: totalSignals,
+      wins: wins,
+      losses: parseInt(stats.losses, 10),
+      winRate: winRate,
+      cumulativeROI: parseFloat(stats.cumulativeROI).toFixed(2),
+      mostTradedPair: mostTradedQuery.rows.length > 0 ? mostTradedQuery.rows[0].pair : "N/A"
+    });
+
+  } catch (err) {
+    console.error('Error fetching performance stats:', err);
+    res.status(500).send('Server Error');
+  }
+});
+
 app.get('/api/performances/:id', async (req, res) => {
     try {
         const { id } = req.params;
@@ -774,4 +827,3 @@ app.listen(port, async () => {
   console.log(`Server is running on http://localhost:${port}`);
   await setupWebhook();
 });
-
