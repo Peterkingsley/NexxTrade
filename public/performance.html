@@ -1,829 +1,984 @@
-// server.js
-// This file sets up a Node.js backend server using Express and a PostgreSQL database.
-// It handles API routes for managing blogs, pricing plans, roles, and performance data.
-
-// Import required modules
-const express = require('express');
-const cors = require('cors'); // Import the cors package
-const { Pool } = require('pg');
-const path = require('path');
-const bcrypt = require('bcrypt'); // Import bcrypt for password hashing
-const crypto = require('crypto'); // Import crypto for generating unique tokens
-const app = express();
-// Load environment variables from .env file
-require('dotenv').config();
-const port = process.env.PORT || 3000;
-
-// NEW: Import the Telegram bot and webhook setup function
-const { bot, setupWebhook } = require('./telegram_bot.js');
-
-// Middleware setup
-// Use the CORS middleware to allow cross-origin requests
-app.use(cors());
-// Use express.json() to parse incoming JSON payloads
-app.use(express.json({ limit: '10mb' }));
-// Use express.urlencoded() to parse URL-encoded bodies, important for form submissions
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-
-// PostgreSQL database connection pool
-// This uses a connection string from an environment variable for security.
-// Remember to set DATABASE_URL in your environment before running the server.
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: {
-    // This setting is often needed for cloud-hosted databases that use self-signed certificates.
-    // It tells the client to not reject the connection based on the certificate authority.
-    rejectUnauthorized: false
-  }
-});
-
-// Function to connect to the database and handle errors
-async function connectToDatabase() {
-  try {
-    const client = await pool.connect();
-    console.log('Successfully connected to the PostgreSQL database.');
-    client.release(); // Release the client back to the pool
-  } catch (error) {
-    console.error('Database connection failed:', error.stack);
-  }
-}
-
-// Call the function to test the database connection on server start
-connectToDatabase();
-
-// API Routes for Blogs Management
-// Based on the 'blogposts' table from your SQL dump.
-// The columns are: id, title, teaser, content, author, published_date, status, featured_image_url
-app.get('/api/blogs', async (req, res) => {
-  try {
-    const { rows } = await pool.query('SELECT * FROM blogposts ORDER BY published_date DESC');
-    res.json(rows);
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('Server Error');
-  }
-});
-
-app.get('/api/blogs/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { rows } = await pool.query('SELECT * FROM blogposts WHERE id = $1', [id]);
-    if (rows.length === 0) {
-      return res.status(404).send('Blog post not found.');
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NexxTrade — Take your next trade with us</title>
+  <meta name="description" content="View the full performance history of NexxTrade's futures signals." />
+  <!-- Lucide Icons for a clean, professional look -->
+  <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
+  <!-- html-to-image library for capturing the panel as an image -->
+  <script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.0/dist/html-to-image.min.js"></script>
+  <style>
+    :root{
+      --bg:#0b0f14;           /* deep navy/charcoal */
+      --bg-2:#0f141b;         /* card background */
+      --text:#e9edf3;         /* off-white */
+      --muted:#a8b3c7;        /* muted text */
+      --accent:#2ad678;       /* profit green */
+      --accent-2:#f0c75e;     /* gold for badges */
+      --danger:#ff5d5d;       /* soft red */
+      --line:#1b2330;         /* subtle borders */
+      --shadow:0 8px 24px rgba(0,0,0,.35);
+      --radius:16px;
+      --radius-lg:20px;
+      --max:1200px;
     }
-    res.json(rows[0]);
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('Server Error');
-  }
-});
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial,sans-serif;overflow-x:hidden}
+    a{color:inherit;text-decoration:none}
+    img{max-width:100%;display:block}
+    button{font:inherit}
 
-// MODIFIED: POST route to handle JSON body with Base64 image string
-app.post('/api/blogs', async (req, res) => {
-  try {
-    const { title, teaser, content, author, published_date, status, featured_image_url } = req.body;
-
-    const { rows } = await pool.query(
-      'INSERT INTO blogposts(title, teaser, content, author, published_date, status, featured_image_url) VALUES($1, $2, $3, $4, $5, $6, $7) RETURNING *',
-      [title, teaser, content, author, published_date, status, featured_image_url]
-    );
-    res.status(201).json(rows[0]);
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('Server Error');
-  }
-});
-
-// MODIFIED: PUT route to handle JSON body with Base64 image string
-app.put('/api/blogs/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { title, teaser, content, author, published_date, status, featured_image_url } = req.body;
-
-    const { rows } = await pool.query(
-      'UPDATE blogposts SET title = $1, teaser = $2, content = $3, author = $4, published_date = $5, status = $6, featured_image_url = $7 WHERE id = $8 RETURNING *',
-      [title, teaser, content, author, published_date, status, featured_image_url, id]
-    );
-    if (rows.length === 0) {
-      return res.status(404).send('Blog post not found.');
-    }
-    res.json(rows[0]);
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('Server Error');
-  }
-});
-
-app.delete('/api/blogs/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { rowCount } = await pool.query('DELETE FROM blogposts WHERE id = $1', [id]);
-    if (rowCount === 0) {
-      return res.status(404).send('Blog post not found.');
-    }
-    res.status(204).send(); // 204 No Content
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('Server Error');
-  }
-});
-
-
-// API Routes for Pricing Plans Management
-// Now includes the 'telegram_group_id' field
-app.get('/api/pricing', async (req, res) => {
-  try {
-    const { rows } = await pool.query('SELECT * FROM pricingplans ORDER BY price ASC');
-    res.json(rows);
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('Server Error');
-  }
-});
-
-// NEWLY ADDED ROUTE TO FIX THE BUG
-app.get('/api/pricing/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { rows } = await pool.query('SELECT * FROM pricingplans WHERE id = $1', [id]);
-    if (rows.length === 0) {
-      return res.status(404).send('Pricing plan not found.');
-    }
-    res.json(rows[0]);
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('Server Error');
-  }
-});
-
-app.post('/api/pricing', async (req, res) => {
-  try {
-    const { plan_name, price, term, description, features, is_best_value, telegram_group_id } = req.body;
-    const { rows } = await pool.query(
-      'INSERT INTO pricingplans(plan_name, price, term, description, features, is_best_value, telegram_group_id) VALUES($1, $2, $3, $4, $5, $6, $7) RETURNING *',
-      [plan_name, price, term, description, features, is_best_value, telegram_group_id]
-    );
-    res.status(201).json(rows[0]);
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('Server Error');
-  }
-});
-
-app.put('/api/pricing/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { plan_name, price, term, description, features, is_best_value, telegram_group_id } = req.body;
-    const { rows } = await pool.query(
-      'UPDATE pricingplans SET plan_name = $1, price = $2, term = $3, description = $4, features = $5, is_best_value = $6, telegram_group_id = $7 WHERE id = $8 RETURNING *',
-      [plan_name, price, term, description, features, is_best_value, telegram_group_id, id]
-    );
-    if (rows.length === 0) {
-      return res.status(404).send('Pricing plan not found.');
-    }
-    res.json(rows[0]);
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('Server Error');
-  }
-});
-
-app.delete('/api/pricing/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { rowCount } = await pool.query('DELETE FROM pricingplans WHERE id = $1', [id]);
-    if (rowCount === 0) {
-      return res.status(404).send('Pricing plan not found.');
-    }
-    res.status(204).send();
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('Server Error');
-  }
-});
-
-
-// API Routes for User Roles Management
-// Based on the 'adminusers' table from your SQL dump.
-// The columns are: id, username, hashed_password, role, permissions
-app.get('/api/roles', async (req, res) => {
-  try {
-    // Note: Do not expose sensitive data like hashed_password.
-    const { rows } = await pool.query('SELECT id, username, role, permissions FROM adminusers');
-    res.json(rows);
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('Server Error');
-  }
-});
-
-// NEW ROUTE: Create a new admin user
-app.post('/api/roles', async (req, res) => {
-  try {
-    const { username, password, role, permissions } = req.body;
-    const saltRounds = 10;
-
-    // Hash the password before saving to the database
-    const hashedPassword = await bcrypt.hash(password, saltRounds);
-
-    // Insert the new user into the adminusers table
-    const { rows } = await pool.query(
-      'INSERT INTO adminusers(username, hashed_password, role, permissions) VALUES($1, $2, $3, $4) RETURNING id, username, role, permissions',
-      [username, hashedPassword, role, permissions]
-    );
-
-    // Send a 201 Created status and the new user's info (without password)
-    res.status(201).json(rows[0]);
-  } catch (err) {
-    console.error('Error creating new user:', err);
-    // Handle specific errors, e.g., duplicate username
-    if (err.code === '23505') { // PostgreSQL error code for unique violation
-        return res.status(409).json({ message: 'Username already exists.' });
-    }
-    res.status(500).json({ message: 'Server Error' });
-  }
-});
-
-app.put('/api/roles/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { role, permissions } = req.body;
-    const { rows } = await pool.query(
-      'UPDATE adminusers SET role = $1, permissions = $2 WHERE id = $3 RETURNING id, username, role, permissions',
-      [role, permissions, id]
-    );
-    if (rows.length === 0) {
-      return res.status(404).send('User not found.');
-    }
-    res.json(rows[0]);
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('Server Error');
-  }
-});
-
-// NEW ROUTE: Handle admin login
-app.post('/api/login', async (req, res) => {
-    try {
-        const { username, password } = req.body;
-
-        // Find the user by username
-        const { rows } = await pool.query(
-            'SELECT * FROM adminusers WHERE username = $1',
-            [username]
-        );
-
-        if (rows.length > 0) {
-            const user = rows[0];
-            // Compare the provided password with the stored hashed password
-            const match = await bcrypt.compare(password, user.hashed_password);
-
-            if (match) {
-                // Return user data including permissions on successful login
-                res.status(200).json({
-                    message: 'Login successful',
-                    user: {
-                        id: user.id,
-                        username: user.username,
-                        role: user.role,
-                        permissions: user.permissions
-                    }
-                });
-            } else {
-                res.status(401).json({ message: 'Invalid credentials' });
-            }
-        } else {
-            res.status(401).json({ message: 'Invalid credentials' });
-        }
-    } catch (err) {
-        console.error('Login error:', err);
-        res.status(500).json({ message: 'Server error' });
-    }
-});
-
-
-// API Routes for Performance Signals
-// Based on the 'performancesignals' table from your SQL dump.
-// The columns are: id, date, pair, entry_price, exit_price, pnl_percent, leverage, is_long_position, result_type
-app.get('/api/performances', async (req, res) => {
-  try {
-    const { rows } = await pool.query('SELECT * FROM performancesignals ORDER BY date DESC');
-    res.json(rows);
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('Server Error');
-  }
-});
-
-// NEW: API Route for Performance Statistics
-app.get('/api/performances/stats', async (req, res) => {
-  try {
-    // A single query to get most stats
-    const statsQuery = await pool.query(`
-      SELECT
-        COUNT(*) AS "totalSignals",
-        SUM(CASE WHEN result_type = 'Win' THEN 1 ELSE 0 END) AS "wins",
-        SUM(CASE WHEN result_type = 'Loss' THEN 1 ELSE 0 END) AS "losses",
-        SUM(CAST(REPLACE(pnl_percent, '%', '') AS NUMERIC)) as "cumulativeROI"
-      FROM performancesignals
-    `);
-
-    // A separate query for the most traded pair
-    const mostTradedQuery = await pool.query(`
-      SELECT pair FROM performancesignals
-      GROUP BY pair
-      ORDER BY COUNT(pair) DESC
-      LIMIT 1
-    `);
-
-    const stats = statsQuery.rows[0];
-    const totalSignals = parseInt(stats.totalSignals, 10);
-
-    if (totalSignals === 0) {
-      return res.json({
-        totalSignals: 0,
-        wins: 0,
-        losses: 0,
-        winRate: "0.00",
-        cumulativeROI: "0.00",
-        mostTradedPair: "N/A"
-      });
-    }
-
-    const wins = parseInt(stats.wins, 10);
-    const winRate = ((wins / totalSignals) * 100).toFixed(2);
+    /* Utility */
+    .container{width:100%;max-width:var(--max);margin-inline:auto;padding-inline:20px}
+    .grid{display:grid;gap:20px}
+    .btn{display:inline-flex;align-items:center;gap:.6rem;padding:.9rem .9rem;border-radius:999px;border:1px solid transparent;cursor:pointer;transition:.2s ease;white-space:nowrap}
+    .btn-primary{background:var(--accent);color:#04140a;font-weight:600}
+    .btn-primary:hover{filter:brightness(1.1);transform:translateY(-1px)}
+    .btn-ghost{background:transparent;border-color:var(--line);color:var(--text)}
+    .btn-ghost:hover{background:#0f151d}
+    .badge{display:inline-flex;align-items:center;gap:.4rem;background:rgba(42,214,120,.1);color:var(--accent);border:1px solid rgba(42,214,120,.25);padding:.35rem .6rem;border-radius:999px;font-size:.78rem;font-weight:600; margin: 10px 0;}
+    .card{background:var(--bg-2);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+    .muted{color:var(--muted)}
+    .center{text-align:center}
+    .section-title { margin-top: 0; }
     
-    res.json({
-      totalSignals: totalSignals,
-      wins: wins,
-      losses: parseInt(stats.losses, 10),
-      winRate: winRate,
-      cumulativeROI: parseFloat(stats.cumulativeROI).toFixed(2),
-      mostTradedPair: mostTradedQuery.rows.length > 0 ? mostTradedQuery.rows[0].pair : "N/A"
+    /* Reveal animations */
+    .reveal{opacity:0;transform:translateY(12px);transition:opacity .5s ease, transform .5s ease}
+    .reveal.in{opacity:1;transform:none}
+
+    /* Header */
+    header{position:sticky;top:0;z-index:50;background:linear-gradient(180deg, rgba(11,15,20,.9), rgba(11,15,20,.6));backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+    .nav{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 20px;}
+    .brand{display:flex;align-items:center;gap:.6rem}
+    .logo{width:28px;height:28px;border-radius:7px;background:conic-gradient(from 30deg, #12b886, #2ad678, #8ef7bf);box-shadow:0 0 0 2px rgba(42,214,120,.15)}
+    nav a{opacity:.9}
+    nav a:hover{opacity:1}
+    .nav-links{display:flex;gap:18px;align-items:center}
+    .nav-toggle-btn { display: none; }
+    
+    /* Main Content Styling */
+    .main-content { padding: 48px 0; }
+    .back-link { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 24px; color: var(--muted); }
+    .back-link:hover { color: var(--text); }
+
+    /* Performance snapshot */
+    .performance{padding:48px 0;}
+    .perf-wrap{display:grid;grid-template-columns:1fr .9fr;gap:24px}
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:12px;border-bottom:1px solid var(--line);text-align:left}
+    th{color:var(--muted);font-weight:600}
+    /* Updated styles for P/L gain and loss */
+    .gain{color:var(--accent);font-weight:700}
+    .loss{color:var(--danger);font-weight:700}
+    /* Add cursor pointer to table rows to indicate clickability */
+    #signals-table tr { cursor: pointer; }
+
+    /* Blog section styling */
+    .blog-section {
+      padding: 56px 20px;
+    }
+    .blog-section .content {
+      display: grid;
+      grid-template-columns: 1fr;
+      align-items: center;
+      gap: 32px;
+    }
+    .blog-section .cta-panel {
+      padding: 24px;
+      text-align: center;
+    }
+    .blog-section .cta-panel h3 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-top: 0;
+      margin-bottom: 8px;
+    }
+
+    /* Footer */
+    footer{border-top:1px solid var(--line);background:#0b1017;padding:36px 20px 12px;}
+    .f-grid{display:grid;grid-template-columns:2fr 1fr 1fr 1.2fr;gap:20px;}
+    footer ul{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+    footer li a{color:var(--muted)}
+    footer li a:hover{color:var(--text)}
+    .subtle{font-size:.88rem;color:var(--muted)}
+
+    /* Sticky CTA (mobile) */
+    .sticky-cta{position:fixed;bottom:10px;left:10px;right:10px;z-index:60;display:none}
+    .sticky-cta .inner{display:flex;gap:10px;justify-content:space-between;align-items:center;background:#0e151e;border:1px solid var(--line);padding:10px 12px;border-radius:14px;box-shadow:var(--shadow)}
+    .sticky-cta .price{font-weight:800}
+
+    /* Pagination */
+    .pagination {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 8px;
+        margin-top: 16px;
+    }
+    .pagination a, .pagination span {
+        display: inline-flex;
+        justify-content: center;
+        align-items: center;
+        height: 36px;
+        border-radius: 50%;
+        color: var(--muted);
+        text-decoration: none;
+        transition: background-color 0.2s ease;
+    }
+    .pagination .page-number {
+        width: 36px;
+    }
+    .pagination .nav-btn {
+        width: auto;
+        padding: 0 12px;
+        border-radius: 999px;
+    }
+    .pagination a:hover {
+        background-color: var(--line);
+    }
+    .pagination .active {
+        background-color: var(--accent);
+        color: #04140a;
+        font-weight: 700;
+    }
+    .pagination .disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    /* --- New Styles for the ROI Panel --- */
+    .roi-panel-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 100;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+
+    .roi-panel-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .roi-panel {
+      position: relative;
+      background: var(--bg-2);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 24px;
+      width: 90%;
+      max-width: 400px;
+      transform: scale(0.95);
+      transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .roi-panel-overlay.active .roi-panel {
+      transform: scale(1);
+    }
+
+    .roi-panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .roi-panel-header .brand {
+      margin: 0;
+    }
+    
+    .roi-panel-header .close-btn {
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      padding: 5px;
+      transition: color 0.2s ease;
+    }
+
+    .roi-panel-header .close-btn:hover {
+      color: var(--text);
+    }
+
+    .roi-pair {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 24px;
+    }
+    .roi-pair span {
+      color: var(--text);
+    }
+    
+    .roi-pair .badge {
+      font-size: 0.8rem;
+      padding: 0.25rem 0.5rem;
+    }
+    .roi-panel .badge-long {
+      background-color: rgba(42,214,120,0.1);
+      color: var(--accent);
+      border: 1px solid rgba(42,214,120,0.25);
+    }
+    .roi-panel .badge-short {
+      background-color: rgba(255, 93, 93, 0.1);
+      color: var(--danger);
+      border: 1px solid rgba(255, 93, 93, 0.25);
+    }
+
+    .roi-percent {
+      font-size: 3rem;
+      font-weight: 800;
+      margin-bottom: 12px;
+      line-height: 1;
+    }
+    .roi-percent.gain { color: var(--accent); }
+    .roi-percent.loss { color: var(--danger); }
+
+    .roi-details {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 24px;
+      border-top: 1px dashed var(--line);
+      padding-top: 16px;
+    }
+    .roi-detail-item {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .roi-detail-label {
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+    .roi-detail-value {
+      font-size: 1rem;
+      font-weight: 600;
+    }
+
+    /* --- Community Banner Styles --- */
+    .community-banner {
+      height: 120px;
+      background: linear-gradient(135deg, #2ad678, #12b886);
+      border-radius: 12px;
+      margin-bottom: 20px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      color: #04140a;
+      font-weight: 700;
+    }
+    .community-banner .banner-text {
+      font-size: 1.2rem;
+      margin-bottom: 4px;
+    }
+    .community-banner .banner-subtext {
+      font-size: 0.8rem;
+      opacity: 0.8;
+    }
+
+    .roi-actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 24px;
+      justify-content: flex-end;
+    }
+    .roi-actions .btn {
+      flex-grow: 1;
+    }
+
+    /* Responsive */
+    @media (max-width: 980px){
+      .container { padding-inline: 0; }
+      .perf-wrap, .f-grid{grid-template-columns:1fr;}
+      .performance table { font-size: 0.85rem; white-space: nowrap; }
+      .performance th, .performance td { padding: 8px; }
+      footer{ padding: 36px 20px 12px; }
+      .nav-links{display:none;}
+      .nav{padding:12px 16px;}
+      .nav-toggle-btn{display:block; cursor: pointer; background: transparent; border: none; font-size: 1.5rem; color: var(--text);}
+      header.mobile-nav-open .nav-links{
+        display:flex;
+        flex-direction: column;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        width: 100%;
+        background-color: var(--bg-2);
+        padding: 10px 0;
+        border-bottom: 1px solid var(--line);
+        box-shadow: var(--shadow);
+      }
+      header.mobile-nav-open .nav-links a{
+        padding: 10px 20px;
+        text-align: center;
+      }
+      .sticky-cta{display:block;}
+      .roi-panel { max-width: 90%; }
+      .blog-section .content {
+        grid-template-columns: 1fr;
+        text-align: center;
+      }
+    }
+    
+    @media (max-width: 580px){
+      .f-grid{grid-template-columns:1fr;}
+      .performance .grid {
+        grid-template-columns: 1fr;
+      }
+      .roi-panel {
+        padding: 20px;
+      }
+      .roi-percent {
+        font-size: 2.5rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header>
+    <div class="container nav">
+      <a class="brand" href="/" aria-label="NexxTrade home">
+        <span class="logo" aria-hidden="true"></span>
+        <strong>NexxTrade</strong>
+      </a>
+      <button class="nav-toggle-btn" aria-label="Toggle navigation" aria-controls="nav-menu">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
+      </button>
+      <nav class="nav-links" id="nav-menu" aria-label="primary">
+        <a href="#performance">Performance</a>
+        <a href="/#pricing">Pricing</a>
+        <a href="/#faq">FAQ</a>
+        <a href="/blog">Blog</a>
+        <a class="btn btn-primary" href="/join">Get Access</a>
+      </nav>
+    </div>
+  </header>
+  
+  <main class="main-content">
+    <div class="container">
+      <!-- NEW: Signal Statistics Section -->
+      <section id="signal-stats" class="mb-8 reveal">
+          <h2 class="text-2xl md:text-3xl font-bold mb-4 text-center">NexxTrade Signal Statistics</h2>
+          <div class="card p-6 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6 text-center">
+              <div class="p-4 border border-line rounded-lg">
+                  <p class="text-muted text-sm uppercase font-semibold">Total Signals</p>
+                  <div class="text-3xl font-bold mt-2" id="stats-total-signals">...</div>
+              </div>
+              <div class="p-4 border border-line rounded-lg">
+                  <p class="text-muted text-sm uppercase font-semibold">Wins</p>
+                  <div class="text-3xl font-bold mt-2 text-accent" id="stats-wins">...</div>
+              </div>
+              <div class="p-4 border border-line rounded-lg">
+                  <p class="text-muted text-sm uppercase font-semibold">Losses</p>
+                  <div class="text-3xl font-bold mt-2 text-danger" id="stats-losses">...</div>
+              </div>
+              <div class="p-4 border border-line rounded-lg">
+                  <p class="text-muted text-sm uppercase font-semibold">Cum. ROI</p>
+                  <div class="text-3xl font-bold mt-2" id="stats-cum-roi">...%</div>
+              </div>
+              <div class="p-4 border border-line rounded-lg">
+                  <p class="text-muted text-sm uppercase font-semibold">Most Traded</p>
+                  <div class="text-3xl font-bold mt-2" id="stats-most-traded">...</div>
+              </div>
+              <div class="p-4 border border-line rounded-lg">
+                  <p class="text-muted text-sm uppercase font-semibold">Win Rate</p>
+                  <div class="text-3xl font-bold mt-2" id="stats-win-rate">...%</div>
+              </div>
+          </div>
+      </section>
+
+      <a class="back-link" href="/">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+        Back to Home
+      </a>
+      
+      <section id="performance">
+        <div class="perf-wrap">
+          <div class="card reveal" style="padding:5px; font-size: 10px;">
+            <h3 style="margin:6px 0 10px; padding-left: 10px; font-size: 20px;">Full Recent Signals</h3>
+            <div style="overflow:auto">
+              <table aria-label="Full recent signals">
+                <thead>
+                  <tr><th>Date</th><th>Pair</th><th>Entry</th><th>Exit</th><th>P/L %</th></tr>
+                </thead>
+                <tbody id="signals-table">
+                  <!-- Fallback data for signals, will be replaced by API data if available -->
+                  <tr class="signal-row" data-pair="BTC/USDT" data-entry-price="57,240" data-exit-price="59,880" data-pnl-percent="+4.6%" data-leverage="20X" data-is-long="true" data-result-type="Win"><td>14/08/25</td><td style="color:var(--accent)">BTC/USDT</td><td>57,240</td><td>59,880</td><td class="gain">+4.6%</td></tr>
+                  <tr class="signal-row" data-pair="ETH/USDT" data-entry-price="2,420" data-exit-price="2,360" data-pnl-percent="+2.5%" data-leverage="10X" data-is-long="false" data-result-type="Win"><td>13/08/25</td><td style="color:var(--danger)">ETH/USDT</td><td>2,420</td><td>2,360</td><td class="gain">+2.5%</td></tr>
+                  <tr class="signal-row" data-pair="SOL/USDT" data-entry-price="168.5" data-exit-price="165.2" data-pnl-percent="-2.0%" data-leverage="15X" data-is-long="false" data-result-type="Loss"><td>12/08/25</td><td style="color:var(--danger)">SOL/USDT</td><td>168.5</td><td>165.2</td><td class="loss">-2.0%</td></tr>
+                  <tr class="signal-row" data-pair="BNB/USDT" data-entry-price="612" data-exit-price="635" data-pnl-percent="+3.7%" data-leverage="25X" data-is-long="true" data-result-type="Win"><td>11/08/25</td><td style="color:var(--accent)">BNB/USDT</td><td>612</td><td>635</td><td class="gain">+3.7%</td></tr>
+                  <tr class="signal-row" data-pair="ADA/USDT" data-entry-price="0.41" data-exit-price="0.39" data-pnl-percent="+4.8%" data-leverage="5X" data-is-long="false" data-result-type="Win"><td>10/08/25</td><td style="color:var(--danger)">ADA/USDT</td><td>0.41</td><td>0.39</td><td class="gain">+4.8%</td></tr>
+                  <tr class="signal-row" data-pair="LINK/USDT" data-entry-price="18.15" data-exit-price="18.72" data-pnl-percent="+3.1%" data-leverage="10X" data-is-long="true" data-result-type="Win"><td>09/08/25</td><td style="color:var(--accent)">LINK/USDT</td><td>18.15</td><td>18.72</td><td class="gain">+3.1%</td></tr>
+                  <tr class="signal-row" data-pair="DOT/USDT" data-entry-price="6.89" data-exit-price="7.01" data-pnl-percent="+1.7%" data-leverage="12X" data-is-long="true" data-result-type="Win"><td>08/08/25</td><td style="color:var(--accent)">DOT/USDT</td><td>6.89</td><td>7.01</td><td class="gain">+1.7%</td></tr>
+                  <tr class="signal-row" data-pair="LTC/USDT" data-entry-price="78.5" data-exit-price="76.0" data-pnl-percent="-3.2%" data-leverage="8X" data-is-long="false" data-result-type="Loss"><td>07/08/25</td><td style="color:var(--danger)">LTC/USDT</td><td>78.5</td><td>76.0</td><td class="loss">-3.2%</td></tr>
+                  <tr class="signal-row" data-pair="XRP/USDT" data-entry-price="0.52" data-exit-price="0.54" data-pnl-percent="+3.8%" data-leverage="18X" data-is-long="true" data-result-type="Win"><td>06/08/25</td><td style="color:var(--accent)">XRP/USDT</td><td>0.52</td><td>0.54</td><td class="gain">+3.8%</td></tr>
+                  <tr class="signal-row" data-pair="BCH/USDT" data-entry-price="380.1" data-exit-price="375.5" data-pnl-percent="+1.2%" data-leverage="20X" data-is-long="false" data-result-type="Win"><td>05/08/25</td><td style="color:var(--danger)">BCH/USDT</td><td>380.1</td><td>375.5</td><td class="gain">+1.2%</td></tr>
+                </tbody>
+              </table>
+            </div>
+           <div class="pagination" id="signals-table-pagination"></div>
+          </div>
+          <div class="card reveal" style="padding:18px">
+            <h3 style="margin:6px 0 10px">PNL Proof (full gallery)</h3>
+            <div class="grid" style="grid-template-columns:repeat(2,1fr);gap:12px" id="pnl-gallery">
+              <!-- Fallback data for PnL proofs, will be replaced by API data if available -->
+              <div class="panel" style="aspect-ratio:16/10;background:#101722;border:1px solid var(--line);border-radius:12px;position:relative;overflow:hidden">
+                <img src="https://placehold.co/400x250/101722/a8b3c7?text=PnL%20Proof%201" alt="PnL Proof 1" class="w-full h-full object-cover filter blur-sm brightness-75">
+                <div class="blurbar">PnL Proof 1</div>
+              </div>
+              <div class="panel" style="aspect-ratio:16/10;background:#101722;border:1px solid var(--line);border-radius:12px;position:relative;overflow:hidden">
+                <img src="https://placehold.co/400x250/101722/a8b3c7?text=PnL%20Proof%202" alt="PnL Proof 2" class="w-full h-full object-cover filter blur-sm brightness-75">
+                <div class="blurbar">PnL Proof 2</div>
+              </div>
+              <div class="panel" style="aspect-ratio:16/10;background:#101722;border:1px solid var(--line);border-radius:12px;position:relative;overflow:hidden">
+                <img src="https://placehold.co/400x250/101722/a8b3c7?text=PnL%20Proof%203" alt="PnL Proof 3" class="w-full h-full object-cover filter blur-sm brightness-75">
+                <div class="blurbar">PnL Proof 3</div>
+              </div>
+              <div class="panel" style="aspect-ratio:16/10;background:#101722;border:1px solid var(--line);border-radius:12px;position:relative;overflow:hidden">
+                <img src="https://placehold.co/400x250/101722/a8b3c7?text=PnL%20Proof%204" alt="PnL Proof 4" class="w-full h-full object-cover filter blur-sm brightness-75">
+                <div class="blurbar">PnL Proof 4</div>
+              </div>
+              <div class="panel" style="aspect-ratio:16/10;background:#101722;border:1px solid var(--line);border-radius:12px;position:relative;overflow:hidden">
+                <img src="https://placehold.co/400x250/101722/a8b3c7?text=PnL%20Proof%205" alt="PnL Proof 5" class="w-full h-full object-cover filter blur-sm brightness-75">
+                <div class="blurbar">PnL Proof 5</div>
+              </div>
+              <div class="panel" style="aspect-ratio:16/10;background:#101722;border:1px solid var(--line);border-radius:12px;position:relative;overflow:hidden">
+                <img src="https://placehold.co/400x250/101722/a8b3c7?text=PnL%20Proof%206" alt="PnL Proof 6" class="w-full h-full object-cover filter blur-sm brightness-75">
+                <div class="blurbar">PnL Proof 6</div>
+              </div>
+            </div>
+            <p class="muted" style="margin-top:12px">Sensitive details intentionally blurred. This is a full gallery.</p>
+            <div class="pagination" id="pnl-gallery-pagination"></div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+  
+  <!-- Blog section -->
+  <section class="blog-section container reveal">
+    <div class="content card">
+      <div class="cta-panel">
+        <h3 class="text-white">Learn to Trade Smarter</h3>
+        <p class="muted max-w-sm mx-auto">
+          Our blog offers market analysis, trading strategies, and educational content to help you sharpen your skills and stay informed.
+        </p>
+        <a href="/blog" class="btn btn-primary mt-4">
+          Read the Blog
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- New ROI Panel Overlay -->
+  <div id="roi-panel-overlay" class="roi-panel-overlay">
+    <div class="roi-panel" id="roi-panel-content">
+      <div class="roi-panel-header">
+        <div class="brand">
+          <span class="logo" aria-hidden="true"></span>
+          <strong>NexxTrade</strong>
+        </div>
+        <button class="close-btn" id="close-roi-panel" aria-label="Close">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      
+      <!-- Replaced ROI Chart with a Community Banner -->
+      <div id="community-banner" class="community-banner">
+          <div class="banner-text">Join the NexxTrade Community</div>
+          <div class="banner-subtext">Trade smarter with our team.</div>
+      </div>
+      
+      <div class="roi-pair" id="roi-pair-details">
+        <span id="roi-pair-name"></span>
+        <span id="roi-leverage" class="badge"></span>
+      </div>
+      
+      <div class="roi-percent" id="roi-percent-value"></div>
+      
+      <div class="roi-details">
+        <div class="roi-detail-item">
+          <div class="roi-detail-label">Entry Price</div>
+          <div class="roi-detail-value" id="roi-entry-price"></div>
+        </div>
+        <div class="roi-detail-item">
+          <div class="roi-detail-label">Exit Price</div>
+          <div class="roi-detail-value" id="roi-exit-price"></div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="roi-actions">
+        <button id="share-roi-btn" class="btn btn-ghost">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-share-2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+          Share
+        </button>
+        <button id="save-roi-btn" class="btn btn-primary">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+          Save
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Disclaimer -->
+  <div class="disclaimer container">
+    <strong>Risk Notice:</strong> Trading involves risk. Past performance does not guarantee future results. This is not financial advice.
+  </div>
+  
+  <!-- Footer -->
+  <footer>
+    <div class="container grid f-grid">
+      <div>
+        <div class="brand" style="margin-bottom:10px"><span class="logo"></span><strong>NexxTrade</strong></div>
+        <p class="subtle">Signals with structure. Community with standards.</p>
+      </div>
+      <div>
+        <h4>Links</h4>
+        <ul>
+          <li><a href="/">Home</a></li>
+          <li><a href="#performance">Performance</a></li>
+          <li><a href="/#pricing">Pricing</a></li>
+          <li><a href="/#faq">FAQ</a></li>
+          <li><a href="/blog">Blog</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Legal</h4>
+        <ul>
+          <li><a href="#">Terms</a></li>
+          <li><a href="#">Privacy</a></li>
+          <li><a href="#">Risk Disclaimer</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Payments & Social</h4>
+        <ul>
+          <li class="subtle">Fiat • Crypto</li>
+          <li><a href="#">Telegram</a></li>
+          <li><a href="#">X (Twitter)</a></li>
+          <li><a href="#">Support Email</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="container" style="border-top:1px solid var(--line);margin-top:18px;padding-top:12px">
+      <div class="subtle">© <span id="year"></span> NexxTrade. All rights reserved.</div>
+    </div>
+  </footer>
+
+  <!-- Sticky CTA (mobile) -->
+  <div class="sticky-cta" id="join">
+    <div class="inner">
+      <div>
+        <div style="font-weight:700">Join NexxTrade</div>
+        <div class="subtle">Instant Telegram access</div>
+      </div>
+      <a class="btn btn-primary" href="/join">Get Access</a>
+    </div>
+  </div>
+
+  <script>
+    // The API_BASE_URL is now a relative path, which is best for deployment
+    const API_BASE_URL = '/api';
+
+    // Current year
+    document.getElementById('year').textContent = new Date().getFullYear();
+
+    // Reveal on scroll
+    const io = new IntersectionObserver((entries)=>{
+      entries.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target);} });
+    },{threshold:.12});
+    document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+    
+    // Mobile navigation toggle
+    document.querySelector('.nav-toggle-btn').addEventListener('click', () => {
+        const header = document.querySelector('header');
+        header.classList.toggle('mobile-nav-open');
     });
 
-  } catch (err) {
-    console.error('Error fetching performance stats:', err);
-    res.status(500).send('Server Error');
-  }
-});
-
-app.get('/api/performances/:id', async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { rows } = await pool.query('SELECT * FROM performancesignals WHERE id = $1', [id]);
-        if (rows.length === 0) {
-            return res.status(404).send('Performance signal not found.');
-        }
-        res.json(rows[0]);
-    } catch (err) {
-        console.error(err);
-        res.status(500).send('Server Error');
-    }
-});
-
-app.post('/api/performances', async (req, res) => {
-  try {
-    const { date, pair, entry_price, exit_price, pnl_percent, leverage, is_long_position, result_type } = req.body;
-    const { rows } = await pool.query(
-      'INSERT INTO performancesignals(date, pair, entry_price, exit_price, pnl_percent, leverage, is_long_position, result_type) VALUES($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
-      [date, pair, entry_price, exit_price, pnl_percent, leverage, is_long_position, result_type]
-    );
-    res.status(201).json(rows[0]);
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('Server Error');
-  }
-});
-
-app.put('/api/performances/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { date, pair, entry_price, exit_price, pnl_percent, leverage, is_long_position, result_type } = req.body;
-    const { rows } = await pool.query(
-      'UPDATE performancesignals SET date = $1, pair = $2, entry_price = $3, exit_price = $4, pnl_percent = $5, leverage = $6, is_long_position = $7, result_type = $8 WHERE id = $9 RETURNING *',
-      [date, pair, entry_price, exit_price, pnl_percent, leverage, is_long_position, result_type, id]
-    );
-    if (rows.length === 0) {
-      return res.status(404).send('Performance signal not found.');
-    }
-    res.json(rows[0]);
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('Server Error');
-  }
-});
-
-app.delete('/api/performances/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { rowCount } = await pool.query('DELETE FROM performancesignals WHERE id = $1', [id]);
-    if (rowCount === 0) {
-      return res.status(404).send('Performance signal not found.');
-    }
-    res.status(204).send();
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('Server Error');
-  }
-});
-
-// NEW ROUTES: API routes for PNL Proofs
-// The columns are: id, image_url, description
-app.get('/api/pnlproofs', async (req, res) => {
-  try {
-    const { rows } = await pool.query('SELECT * FROM pnlproofs');
-    res.json(rows);
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('Server Error');
-  }
-});
-
-// FIXED: Removed 'date' from the INSERT query to match the pnlproofs table schema.
-app.post('/api/pnlproofs', async (req, res) => {
-  try {
-    const { image_url, description } = req.body;
-    const { rows } = await pool.query(
-      'INSERT INTO pnlproofs(image_url, description) VALUES($1, $2) RETURNING *',
-      [image_url, description]
-    );
-    res.status(201).json(rows[0]);
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('Server Error');
-  }
-});
-
-app.delete('/api/pnlproofs/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { rowCount } = await pool.query('DELETE FROM pnlproofs WHERE id = $1', [id]);
-    if (rowCount === 0) {
-      return res.status(404).send('PNL proof not found.');
-    }
-    res.status(204).send();
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('Server Error');
-  }
-});
-
-
-// MODIFIED: API routes for the users table to handle the new subscription fields
-app.get('/api/users', async (req, res) => {
-  try {
-    const { rows } = await pool.query('SELECT * FROM users ORDER BY registration_date DESC');
-    res.json(rows);
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('Server Error');
-  }
-});
-
-app.get('/api/users/stats', async (req, res) => {
-  try {
-    const now = new Date();
-    const today = now.toISOString().split('T')[0];
-    const firstDayOfWeek = new Date(now.setDate(now.getDate() - now.getDay())).toISOString().split('T')[0];
-    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-
-    // Total users registered today
-    const todayQuery = await pool.query('SELECT COUNT(*) FROM users WHERE registration_date = $1', [today]);
-    const todayCount = parseInt(todayQuery.rows[0].count, 10);
-
-    // Total users registered this week (Sunday to today)
-    const weekQuery = await pool.query('SELECT COUNT(*) FROM users WHERE registration_date >= $1', [firstDayOfWeek]);
-    const weekCount = parseInt(weekQuery.rows[0].count, 10);
-
-    // Total users registered this month
-    const monthQuery = await pool.query('SELECT COUNT(*) FROM users WHERE registration_date >= $1', [firstDayOfMonth]);
-    const monthCount = parseInt(monthQuery.rows[0].count, 10);
-
-    res.json({
-      daily: todayCount,
-      weekly: weekCount,
-      monthly: monthCount,
+    // Close mobile menu on link click
+    document.querySelectorAll('.nav-links a').forEach(link => {
+      link.addEventListener('click', () => {
+        const header = document.querySelector('header');
+        header.classList.remove('mobile-nav-open');
+      });
     });
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('Server Error');
-  }
-});
 
+    // Pagination Logic
+    function setupPagination(containerId, itemsPerPage, isTable = false) {
+      const container = document.getElementById(containerId);
+      const items = isTable ? Array.from(container.querySelectorAll('tr')) : Array.from(container.children);
+      const totalItems = items.length;
+      const totalPages = Math.ceil(totalItems / itemsPerPage);
+      let currentPage = 1;
 
-// =================================================================
-// --- START: NOWPayments API Routes ---
-// =================================================================
-// FIXED: This route now accepts priceUSD directly and uses planName for descriptions and DB entries.
-app.post('/api/payments/nowpayments/create', async (req, res) => {
-    try {
-        const { fullname, email, telegram, planName, priceUSD, pay_currency } = req.body;
-        
-        // The hardcoded price object is removed. We will use the price sent from the bot.
-        const amountUSD = priceUSD;
-
-        if (!amountUSD) {
-            return res.status(400).json({ message: 'Invalid plan price provided.' });
-        }
-         if (!pay_currency) {
-            return res.status(400).json({ message: 'Crypto network not specified.' });
-        }
-        
-        const order_id = `nexxtrade-${telegram.replace('@', '')}-${Date.now()}`;
-        
-        const registrationDate = new Date().toISOString().split('T')[0];
-        // Use the actual planName when inserting/updating the user record
-        await pool.query(
-            `INSERT INTO users (full_name, email, telegram_handle, plan_name, subscription_status, registration_date, order_id)
-             VALUES ($1, $2, $3, $4, 'pending', $5, $6)
-             ON CONFLICT (telegram_handle) DO UPDATE SET full_name = $1, email = $2, plan_name = $4, subscription_status = 'pending', order_id = $6`,
-            [fullname, email, telegram, planName, registrationDate, order_id]
-        );
-
-        const nowPaymentsResponse = await fetch('https://api.nowpayments.io/v1/payment', {
-            method: 'POST',
-            headers: {
-                'x-api-key': process.env.NOWPAYMENTS_API_KEY,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                price_amount: amountUSD, // Use the correct amount received from the bot
-                price_currency: 'usd',
-                pay_currency: pay_currency,
-                ipn_callback_url: `${process.env.APP_BASE_URL}/api/payments/nowpayments/webhook`,
-                order_id: order_id,
-                order_description: `NexxTrade ${planName} plan for ${telegram}` // Use planName for a better description
-            })
+      const paginationContainer = document.getElementById(`${containerId}-pagination`);
+      
+      // If there's no pagination container, create one.
+      if (!paginationContainer) {
+        return;
+      }
+      
+      function showPage(page) {
+        items.forEach((item, index) => {
+          const isVisible = index >= (page - 1) * itemsPerPage && index < page * itemsPerPage;
+          item.style.display = isVisible ? (isTable ? '' : 'block') : 'none';
         });
 
-        if (!nowPaymentsResponse.ok) {
-            const errorText = await nowPaymentsResponse.text();
-            throw new Error(`NOWPayments API error: ${errorText}`);
-        }
+        // Update active class
+        const pageLinks = paginationContainer.querySelectorAll('.page-link');
+        pageLinks.forEach(link => link.classList.remove('active'));
+        const activeLink = paginationContainer.querySelector(`[data-page='${page}']`);
+        if (activeLink) activeLink.classList.add('active');
 
-        const paymentData = await nowPaymentsResponse.json();
-        res.status(200).json(paymentData);
+        // Update nav button state
+        const prevBtn = paginationContainer.querySelector('.prev-page');
+        const nextBtn = paginationContainer.querySelector('.next-page');
+        if (prevBtn) prevBtn.classList.toggle('disabled', page === 1);
+        if (nextBtn) nextBtn.classList.toggle('disabled', page === totalPages);
+      }
 
-    } catch (err) {
-        console.error('Error creating NOWPayments payment:', err);
-        res.status(500).json({ message: 'Server Error during payment creation.' });
-    }
-});
+      function createPagination() {
+        paginationContainer.innerHTML = ''; // Clear old pagination
 
-app.post('/api/payments/nowpayments/webhook', async (req, res) => {
-    const ipnData = req.body;
-    const hmac = req.headers['x-nowpayments-sig'];
-
-    try {
-        const sortedData = JSON.stringify(ipnData, Object.keys(ipnData).sort());
-        const calculatedHmac = crypto.createHmac('sha512', process.env.NOWPAYMENTS_IPN_SECRET)
-            .update(Buffer.from(sortedData, 'utf-8'))
-            .digest('hex');
-
-        if (hmac !== calculatedHmac) {
-            console.warn('Invalid HMAC signature received.');
-            return res.status(401).send('Invalid HMAC signature');
-        }
-
-        if (['finished', 'confirmed'].includes(ipnData.payment_status)) {
-            const { order_id } = ipnData;
-            
-            const userResult = await pool.query('SELECT * FROM users WHERE order_id = $1', [order_id]);
-            if (userResult.rows.length === 0) {
-                console.error(`User with order_id ${order_id} not found.`);
-                return res.status(404).send('User not found.');
+        // Only create pagination links if there's more than one page
+        if (totalPages > 1) {
+          // Previous button
+          const prevBtn = document.createElement('a');
+          prevBtn.href = '#';
+          prevBtn.className = 'page-link nav-btn prev-page';
+          prevBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>';
+          prevBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (currentPage > 1) {
+              currentPage--;
+              showPage(currentPage);
             }
-            
-            const user = userResult.rows[0];
-            
-            let expirationDate = new Date();
-            if (user.plan_name.toLowerCase().includes('monthly')) expirationDate.setMonth(expirationDate.getMonth() + 1);
-            else if (user.plan_name.toLowerCase().includes('quarterly')) expirationDate.setMonth(expirationDate.getMonth() + 3);
-            else if (user.plan_name.toLowerCase().includes('bi-annually')) expirationDate.setMonth(expirationDate.getMonth() + 6);
+          });
+          paginationContainer.appendChild(prevBtn);
 
-            await pool.query(
-                `UPDATE users SET subscription_status = 'active', subscription_expiration = $1 WHERE order_id = $2`,
-                [expirationDate.toISOString().split('T')[0], order_id]
-            );
+          // Page numbers
+          for (let i = 1; i <= totalPages; i++) {
+            const pageLink = document.createElement('a');
+            pageLink.href = '#';
+            pageLink.className = 'page-link page-number';
+            pageLink.textContent = i;
+            pageLink.setAttribute('data-page', i);
+            pageLink.addEventListener('click', (e) => {
+              e.preventDefault();
+              currentPage = i;
+              showPage(currentPage);
+            });
+            paginationContainer.appendChild(pageLink);
+          }
 
-            console.log(`Subscription for ${user.email} activated. Expires: ${expirationDate.toISOString().split('T')[0]}`);
+          // Next button
+          const nextBtn = document.createElement('a');
+          nextBtn.href = '#';
+          nextBtn.className = 'page-link nav-btn next-page';
+          nextBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>';
+          nextBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (currentPage < totalPages) {
+              currentPage++;
+              showPage(currentPage);
+            }
+          });
+          paginationContainer.appendChild(nextBtn);
+        }
+      }
+      createPagination();
+      showPage(currentPage);
+    }
+    
+    // New JS to handle the ROI panel
+    function setupSignalClickHandlers() {
+      const overlay = document.getElementById('roi-panel-overlay');
+      const closeBtn = document.getElementById('close-roi-panel');
+      
+      // Get all the elements to update
+      const roiPanelContent = document.getElementById('roi-panel-content');
+      const roiPairName = document.getElementById('roi-pair-name');
+      const roiLeverage = document.getElementById('roi-leverage');
+      const roiPercentValue = document.getElementById('roi-percent-value');
+      const roiEntryPrice = document.getElementById('roi-entry-price');
+      const roiExitPrice = document.getElementById('roi-exit-price');
+      const shareBtn = document.getElementById('share-roi-btn');
+      const saveBtn = document.getElementById('save-roi-btn');
+      
+      // Keep track of animation timers to clear them
+      let animationIntervals = [];
+
+      function showSignalPanel(signal) {
+        // Populate the panel
+        roiPairName.textContent = signal.pair;
+        roiLeverage.textContent = signal.leverage;
+        roiPercentValue.textContent = signal.pnl_percent;
+        roiEntryPrice.textContent = signal.entry_price;
+        roiExitPrice.textContent = signal.exit_price;
+
+        // Clear existing animations
+        animationIntervals.forEach(interval => clearInterval(interval));
+        animationIntervals = [];
+
+        // Apply dynamic classes for styling and badge text
+        roiLeverage.classList.remove('badge-long', 'badge-short');
+        if (signal.is_long_position) {
+          roiLeverage.textContent = `LONG | ${signal.leverage}`;
+          roiLeverage.classList.add('badge-long');
+        } else if (signal.is_long_position === false) {
+          roiLeverage.textContent = `SHORT | ${signal.leverage}`;
+          roiLeverage.classList.add('badge-short');
+        } else {
+            roiLeverage.textContent = `BREAK-EVEN | ${signal.leverage}`;
         }
         
-        res.status(200).send('IPN received.');
-
-    } catch (err) {
-        console.error('Error processing NOWPayments webhook:', err);
-        res.status(500).send('Server Error');
-    }
-});
-
-app.get('/api/payments/nowpayments/status/:payment_id', async (req, res) => {
-    try {
-        const { payment_id } = req.params;
-        const response = await fetch(`https://api.nowpayments.io/v1/payment/${payment_id}`, {
-            headers: { 'x-api-key': process.env.NOWPAYMENTS_API_KEY }
-        });
-
-        if (!response.ok) {
-            throw new Error('Failed to fetch payment status from NOWPayments.');
+        roiPercentValue.classList.remove('gain', 'loss');
+        if (signal.pnl_percent.startsWith('+') || parseFloat(signal.pnl_percent) > 0) {
+          roiPercentValue.classList.add('gain');
+        } else if (signal.pnl_percent.startsWith('-') || parseFloat(signal.pnl_percent) < 0) {
+          roiPercentValue.classList.add('loss');
         }
+        
+        overlay.classList.add('active');
+      }
 
-        const data = await response.json();
-        res.json(data);
-    } catch (err) {
-        console.error('Error fetching payment status:', err.message);
-        res.status(500).send('Server Error');
-    }
-});
+      function closeSignalPanel() {
+        overlay.classList.remove('active');
+        // Clear all animation timers when closing
+        animationIntervals.forEach(interval => clearInterval(interval));
+        animationIntervals = [];
+      }
 
-// =================================================================
-// --- END: NOWPayments API Routes ---
-// =================================================================
+      // New function to handle sharing and saving the ROI panel
+      async function handleShareAndSave(action) {
+        try {
+          // Store original styles to restore them later
+          const originalMaxWidth = roiPanelContent.style.maxWidth;
+          const originalPadding = roiPanelContent.style.padding;
+          const originalMargin = roiPanelContent.style.margin;
 
-// NEW: Endpoint to update user details after payment
-app.put('/api/users/update-details', async (req, res) => {
-    const { telegram_handle, full_name, email } = req.body;
-    if (!telegram_handle || !full_name || !email) {
-        return res.status(400).json({ message: 'Missing required user details.' });
-    }
-    try {
-        // Find user by telegram_handle and update their name and email.
-        const { rows } = await pool.query(
-            "UPDATE users SET full_name = $1, email = $2 WHERE telegram_handle = $3 RETURNING *",
-            [full_name, email, telegram_handle]
-        );
-        if (rows.length === 0) {
-            return res.status(404).json({ message: 'User not found.' });
-        }
-        res.status(200).json(rows[0]);
-    } catch (err) {
-        console.error('Error updating user details:', err);
-         if (err.code === '23505') { // Handle unique constraint violation for email
-            return res.status(409).json({ message: 'This email address is already in use.' });
-        }
-        res.status(500).json({ message: 'Server Error' });
-    }
-});
+          // Temporarily modify styles for a full-width, clean image capture
+          roiPanelContent.style.maxWidth = '100vw';
+          roiPanelContent.style.padding = '32px';
+          roiPanelContent.style.margin = '0';
+          const actionsDiv = document.querySelector('.roi-actions');
+          actionsDiv.style.display = 'none';
 
+          // Convert the panel to an image
+          const dataUrl = await htmlToImage.toPng(roiPanelContent);
+          const blob = await (await fetch(dataUrl)).blob();
 
-// NEW ROUTE: Endpoint for cleaning up expired subscriptions
-app.post('/api/subscriptions/cleanup', async (req, res) => {
-    try {
-        const today = new Date().toISOString().split('T')[0];
+          // Restore the original styles and buttons
+          roiPanelContent.style.maxWidth = originalMaxWidth;
+          roiPanelContent.style.padding = originalPadding;
+          roiPanelContent.style.margin = originalMargin;
+          actionsDiv.style.display = 'flex';
 
-        // Find all users with active subscriptions that have expired
-        const { rows } = await pool.query(
-            "SELECT id, telegram_handle FROM users WHERE subscription_status = 'active' AND subscription_expiration < $1",
-            [today]
-        );
-
-        if (rows.length === 0) {
-            return res.status(200).json({ message: 'No expired subscriptions found.' });
-        }
-
-        // Update their status to 'expired'
-        await pool.query(
-            "UPDATE users SET subscription_status = 'expired' WHERE subscription_status = 'active' AND subscription_expiration < $1",
-            [today]
-        );
-        console.log(`Updated ${rows.length} users with expired subscriptions.`);
-        res.json({
-            message: `Processed ${rows.length} expired subscriptions.`,
-            expired_users: rows
-        });
-
-    } catch (err) {
-        console.error('Error processing subscription cleanup:', err);
-        res.status(500).json({ message: 'Server Error' });
-    }
-});
-
-
-// NEW ROUTE: Endpoint to find a user's status by Telegram handle
-app.get('/api/users/status-by-telegram-handle/:telegram_handle', async (req, res) => {
-    try {
-        const { telegram_handle } = req.params;
-        const { rows } = await pool.query(
-            'SELECT subscription_status, subscription_expiration FROM users WHERE telegram_handle = $1',
-            [`@${telegram_handle}`]
-        );
-        if (rows.length === 0) {
-            return res.status(404).json({ message: 'User not found.' });
-        }
-        res.json(rows[0]);
-    } catch (err) {
-        console.error('Error finding user status by Telegram handle:', err);
-        res.status(500).json({ message: 'Server Error' });
-    }
-});
-
-// NEW ROUTE: Endpoint to find a user's ID by Telegram handle
-app.get('/api/users/find-by-telegram-handle/:telegram_handle', async (req, res) => {
-    try {
-        const { telegram_handle } = req.params;
-        const { rows } = await pool.query(
-            'SELECT id, telegram_handle FROM users WHERE telegram_handle = $1',
-            [telegram_handle]
-        );
-        if (rows.length === 0) {
-            return res.status(404).json({ message: 'User not found.' });
-        }
-        res.json(rows[0]);
-    } catch (err) {
-        console.error('Error finding user by Telegram handle:', err);
-        res.status(500).json({ message: 'Server Error' });
-    }
-});
-
-// NEW ENDPOINT: Verify Telegram user and redeem token
-app.post('/api/users/verify-telegram', async (req, res) => {
-    const { telegram_handle, telegram_invite_token } = req.body;
-
-    if (!telegram_handle || !telegram_invite_token) {
-        return res.status(400).json({ message: 'Missing Telegram handle or token.' });
-    }
-
-    try {
-        const { rows } = await pool.query(
-            'SELECT * FROM users WHERE telegram_handle = $1 AND telegram_invite_token = $2',
-            [telegram_handle, telegram_invite_token]
-        );
-
-        if (rows.length > 0) {
-            const user = rows[0];
-            await pool.query(
-                'UPDATE users SET telegram_invite_token = NULL WHERE id = $1',
-                [user.id]
-            );
-            res.status(200).json({
-                message: 'Verification successful. User is active.',
-                user: { id: user.id, email: user.email, telegram_handle: user.telegram_handle, plan_name: user.plan_name }
+          if (action === 'share' && navigator.share) {
+            // Use the Web Share API for native sharing on supported devices
+            await navigator.share({
+              title: 'NexxTrade Signal ROI',
+              text: `Check out my latest signal from NexxTrade!`,
+              files: [new File([blob], 'NexxTrade_roi.png', { type: 'image/png' })]
             });
-        } else {
-            res.status(404).json({ message: 'User not found or token is invalid.' });
+          } else if (action === 'save' || !navigator.share) {
+            // Fallback for devices without Web Share API or for explicit "Save" action
+            const a = document.createElement('a');
+            a.href = dataUrl;
+            a.download = 'NexxTrade_roi.png';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+          }
+        } catch (error) {
+          console.error('Error generating or sharing image:', error);
+          // Fallback UI message if something goes wrong
+          const messageBox = document.createElement('div');
+          messageBox.textContent = 'Could not share/save image. Please try again.';
+          messageBox.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:rgba(255,0,0,0.8);color:white;padding:10px;border-radius:8px;z-index:200;';
+          document.body.appendChild(messageBox);
+          setTimeout(() => messageBox.remove(), 3000);
         }
-    } catch (err) {
-        console.error('Error verifying Telegram user:', err);
-        res.status(500).json({ message: 'Server Error' });
+      }
+
+      // We will attach event listeners to dynamically created rows, so we don't need this block.
+      // The fetchSignals function will handle it.
+      
+      // Add event listener to the close button
+      closeBtn.addEventListener('click', closeSignalPanel);
+      
+      // Add event listener to close the panel when clicking outside of it
+      overlay.addEventListener('click', (event) => {
+        if (event.target === overlay) {
+          closeSignalPanel();
+        }
+      });
+
+      // Add event listeners for the new share and save buttons
+      shareBtn.addEventListener('click', () => handleShareAndSave('share'));
+      saveBtn.addEventListener('click', () => handleShareAndSave('save'));
+
+      // Expose the function to the global scope so it can be called from fetchSignals
+      window.showSignalPanel = showSignalPanel;
     }
-});
 
-// NEW: Add a POST route to handle Telegram webhooks.
-const telegramToken = process.env.TELEGRAM_BOT_TOKEN;
-app.post(`/bot${telegramToken}`, (req, res) => {
-    bot.processUpdate(req.body);
-    res.sendStatus(200);
-});
+    // Fetch and display all performance signals
+    const fetchSignals = async () => {
+        const signalsTableBody = document.getElementById('signals-table');
+        
+        try {
+            const response = await fetch(`${API_BASE_URL}/performances`);
+            const signals = await response.json();
 
+            signalsTableBody.innerHTML = '';
+            if (signals.length === 0) {
+                // Display fallback message if no data from API
+                signalsTableBody.innerHTML = `<tr><td colspan="5" class="text-muted text-center py-4">No signals available.</td></tr>`;
+            } else {
+                signals.forEach(signal => {
+                    const row = document.createElement('tr');
+                    // Adding data attributes for the pop-up panel
+                    row.className = 'signal-row';
+                    
+                    // Determine P/L class based on value
+                    const pnlValue = parseFloat(signal.pnl_percent);
+                    const pnlClass = pnlValue >= 0 ? 'gain' : 'loss';
+                    
+                    // THIS IS THE ONLY CHANGED LINE
+                    const pairColor = 'var(--text)';
+                    
+                    row.innerHTML = `
+                        <td>${new Date(signal.date).toLocaleDateString()}</td>
+                        <td style="color:${pairColor}">${signal.pair}</td>
+                        <td>${signal.entry_price}</td>
+                        <td>${signal.exit_price}</td>
+                        <td class="${pnlClass}">${signal.pnl_percent}</td>
+                    `;
+                    
+                    row.addEventListener('click', () => {
+                        window.showSignalPanel({
+                            pair: signal.pair,
+                            leverage: signal.leverage,
+                            pnl_percent: signal.pnl_percent,
+                            entry_price: signal.entry_price,
+                            exit_price: signal.exit_price,
+                            is_long_position: signal.is_long_position,
+                            result_type: signal.result_type,
+                        });
+                    });
+                    
+                    signalsTableBody.appendChild(row);
+                });
+            }
+            setupPagination('signals-table', 10, true);
+        } catch (error) {
+            console.error('Error fetching signals:', error);
+            // The HTML already contains fallback data, so we don't need to do anything here.
+            // The existing HTML content will be used.
+        }
+    };
+    
+    // Fetch and display all PnL proofs
+    const fetchPnlProofs = async () => {
+      const pnlGallery = document.getElementById('pnl-gallery');
+      
+      try {
+        const response = await fetch(`${API_BASE_URL}/pnlproofs`);
+        const proofs = await response.json();
+        
+        pnlGallery.innerHTML = ''; // Clear fallback content
+        if (proofs.length === 0) {
+          pnlGallery.innerHTML = '<div class="text-muted text-center py-8 col-span-2">No PnL proofs available.</div>';
+        } else {
+          proofs.forEach(proof => {
+              const panel = document.createElement('div');
+              panel.className = 'panel';
+              panel.innerHTML = `
+                  <img src="${proof.image_url}" alt="${proof.description}" class="w-full h-full object-cover filter blur-sm brightness-75">
+                  <div class="blurbar">${proof.description}</div>
+              `;
+              pnlGallery.appendChild(panel);
+          });
+        }
+        setupPagination('pnl-gallery', 6);
+      } catch (error) {
+          console.error('Error fetching PnL proofs:', error);
+          // The HTML already contains fallback data, so we don't need to do anything here.
+          // The existing HTML content will be used.
+      }
+    };
 
-// --- UPDATED: Routes for Clean URLs ---
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
+    // NEW: Function to fetch and display signal statistics
+    const fetchSignalStats = async () => {
+        const totalSignalsEl = document.getElementById('stats-total-signals');
+        const winsEl = document.getElementById('stats-wins');
+        const lossesEl = document.getElementById('stats-losses');
+        const cumRoiEl = document.getElementById('stats-cum-roi');
+        const mostTradedEl = document.getElementById('stats-most-traded');
+        const winRateEl = document.getElementById('stats-win-rate');
+        
+        const loadingText = '...';
+        totalSignalsEl.textContent = loadingText;
+        winsEl.textContent = loadingText;
+        lossesEl.textContent = loadingText;
+        cumRoiEl.textContent = loadingText + '%';
+        mostTradedEl.textContent = loadingText;
+        winRateEl.textContent = loadingText + '%';
 
-app.get('/join', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'registration.html'));
-});
+        try {
+            const response = await fetch(`${API_BASE_URL}/performances/stats`);
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            const stats = await response.json();
 
-app.get('/performance', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'performance.html'));
-});
+            totalSignalsEl.textContent = stats.totalSignals;
+            winsEl.textContent = stats.wins;
+            lossesEl.textContent = stats.losses;
+            cumRoiEl.textContent = `${stats.cumulativeROI}%`;
+            mostTradedEl.textContent = stats.mostTradedPair;
+            winRateEl.textContent = `${stats.winRate}%`;
 
-app.get('/blog', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'blog.html'));
-});
+        } catch (error) {
+            console.error('Error fetching signal stats:', error);
+            const errorText = 'N/A';
+            totalSignalsEl.textContent = errorText;
+            winsEl.textContent = errorText;
+            lossesEl.textContent = errorText;
+            cumRoiEl.textContent = errorText;
+            mostTradedEl.textContent = errorText;
+            winRateEl.textContent = errorText;
+        }
+    };
 
-// Admin Routes
-app.get('/admin/login', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'admin.html'));
-});
-
-app.get('/admin/dashboard', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'admin_dashboard.html'));
-});
-
-app.get('/admin/blogs', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'admin_blogs.html'));
-});
-
-app.get('/admin/performance', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'admin_performance.html'));
-});
-
-app.get('/admin/pricing', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'admin_pricing.html'));
-});
-
-app.get('/admin/roles', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'admin_roles.html'));
-});
-
-// Serve static files from the 'public' directory
-app.use(express.static(path.join(__dirname, 'public')));
-
-// Start the server
-app.listen(port, async () => {
-  console.log(`Server is running on http://localhost:${port}`);
-  await setupWebhook();
-});
+    // Initialize all functionality on window load
+    window.onload = () => {
+        setupSignalClickHandlers();
+        fetchSignalStats(); // Fetch the new stats
+        fetchSignals();
+        fetchPnlProofs();
+        lucide.createIcons(); // Initialize Lucide Icons
+    };
+  </script>
+</body>
+</html>
