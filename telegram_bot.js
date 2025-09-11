@@ -212,11 +212,18 @@ Cum. ROI: ${cumulativeROI.toFixed(2)}%
 Most traded Pair: ${mostTradedPair}
 
 Win Rate: ${winRate}%
-
-Take your next trade with us
         `;
 
-        bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+        const opts = {
+            parse_mode: 'Markdown',
+            reply_markup: {
+                inline_keyboard: [
+                    [{ text: 'Take your next trade with us', callback_data: 'join_vip' }]
+                ]
+            }
+        };
+
+        bot.sendMessage(chatId, message, opts);
     } catch (error) {
         console.error('Error fetching signal stats:', error);
         bot.sendMessage(chatId, "I couldn't retrieve the signal statistics right now. Please check our performance page.");
