@@ -3,100 +3,69 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>NexxTrade — Take your next trade with us</title>
+  <title>NexxTrade — Performance Analytics</title>
   <meta name="description" content="View the full performance history of NexxTrade's futures signals." />
-  <!-- Lucide Icons for a clean, professional look -->
+  <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
-  <!-- html-to-image library for capturing the panel as an image -->
-  <script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.0/dist/html-to-image.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     :root{
-      --bg:#0b0f14;           /* deep navy/charcoal */
-      --bg-2:#0f141b;         /* card background */
-      --text:#e9edf3;         /* off-white */
-      --muted:#a8b3c7;        /* muted text */
-      --accent:#2ad678;       /* profit green */
-      --accent-2:#f0c75e;     /* gold for badges */
-      --danger:#ff5d5d;       /* soft red */
-      --line:#1b2330;         /* subtle borders */
+      --bg:#0b0f14;
+      --bg-2:#0f141b;
+      --text:#e9edf3;
+      --muted:#a8b3c7;
+      --accent:#2ad678;
+      --accent-2:#f0c75e;
+      --danger:#ff5d5d;
+      --line:#1b2330;
       --shadow:0 8px 24px rgba(0,0,0,.35);
       --radius:16px;
       --radius-lg:20px;
       --max:1200px;
     }
-    *{box-sizing:border-box}
     html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial,sans-serif;overflow-x:hidden}
     a{color:inherit;text-decoration:none}
     img{max-width:100%;display:block}
     button{font:inherit}
-
-    /* Utility */
     .container{width:100%;max-width:var(--max);margin-inline:auto;padding-inline:20px}
-    .grid{display:grid;gap:20px}
-    .btn{display:inline-flex;align-items:center;gap:.6rem;padding:.9rem .9rem;border-radius:999px;border:1px solid transparent;cursor:pointer;transition:.2s ease;white-space:nowrap}
-    .btn-primary{background:var(--accent);color:#04140a;font-weight:600}
+    .card{background:var(--bg-2);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+    .btn{display:inline-flex;align-items:center;gap:.6rem;padding:.9rem 1.4rem;border-radius:999px;border:1px solid transparent;cursor:pointer;transition:.2s ease;white-space:nowrap;font-weight:600}
+    .btn-primary{background:var(--accent);color:#04140a;}
     .btn-primary:hover{filter:brightness(1.1);transform:translateY(-1px)}
     .btn-ghost{background:transparent;border-color:var(--line);color:var(--text)}
     .btn-ghost:hover{background:#0f151d}
-    .badge{display:inline-flex;align-items:center;gap:.4rem;background:rgba(42,214,120,.1);color:var(--accent);border:1px solid rgba(42,214,120,.25);padding:.35rem .6rem;border-radius:999px;font-size:.78rem;font-weight:600; margin: 10px 0;}
-    .card{background:var(--bg-2);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
-    .muted{color:var(--muted)}
-    .center{text-align:center}
-    .section-title { margin-top: 0; }
     
-    /* Reveal animations */
-    .reveal{opacity:0;transform:translateY(12px);transition:opacity .5s ease, transform .5s ease}
-    .reveal.in{opacity:1;transform:none}
-
-    /* Header */
     header{position:sticky;top:0;z-index:50;background:linear-gradient(180deg, rgba(11,15,20,.9), rgba(11,15,20,.6));backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
     .nav{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 20px;}
     .brand{display:flex;align-items:center;gap:.6rem}
     .logo{width:28px;height:28px;border-radius:7px;background:conic-gradient(from 30deg, #12b886, #2ad678, #8ef7bf);box-shadow:0 0 0 2px rgba(42,214,120,.15)}
-    nav a{opacity:.9}
-    nav a:hover{opacity:1}
     .nav-links{display:flex;gap:18px;align-items:center}
-    .nav-toggle-btn { display: none; }
-    
-    /* Main Content Styling */
-    .main-content { padding: 48px 0; }
-    .back-link { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 24px; color: var(--muted); }
-    .back-link:hover { color: var(--text); }
 
-    /* Performance snapshot */
-    .performance{padding:48px 0;}
-    .perf-wrap{display:grid;grid-template-columns:1fr .9fr;gap:24px}
-    table{width:100%;border-collapse:collapse}
-    th,td{padding:12px;border-bottom:1px solid var(--line);text-align:left}
-    th{color:var(--muted);font-weight:600}
-    /* Updated styles for P/L gain and loss */
-    .gain{color:var(--accent);font-weight:700}
-    .loss{color:var(--danger);font-weight:700}
-    /* Add cursor pointer to table rows to indicate clickability */
-    #signals-table tr { cursor: pointer; }
+    .gain { color: var(--accent); }
+    .loss { color: var(--danger); }
 
-    /* Blog section styling */
-    .blog-section {
-      padding: 56px 20px;
+    table th {
+      color: var(--muted);
+      font-weight: 500;
+      border-bottom: 1px solid var(--line);
     }
-    .blog-section .content {
-      display: grid;
-      grid-template-columns: 1fr;
-      align-items: center;
-      gap: 32px;
+    table td {
+      border-bottom: 1px solid var(--line);
     }
-    .blog-section .cta-panel {
-      padding: 24px;
-      text-align: center;
+    .table-row-hover:hover {
+      background-color: #1a222c;
     }
-    .blog-section .cta-panel h3 {
-      font-size: 1.5rem;
-      font-weight: 700;
-      margin-top: 0;
-      margin-bottom: 8px;
+    .pagination button {
+      background: var(--bg-2);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 8px 12px;
     }
-
-    /* Footer */
+    .pagination button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .blurbar{position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.5);color:white;padding:8px 12px;font-size:0.9rem;backdrop-filter:blur(5px);text-align:center;}
     footer{border-top:1px solid var(--line);background:#0b1017;padding:36px 20px 12px;}
     .f-grid{display:grid;grid-template-columns:2fr 1fr 1fr 1.2fr;gap:20px;}
     footer ul{list-style:none;margin:0;padding:0;display:grid;gap:8px}
@@ -104,448 +73,127 @@
     footer li a:hover{color:var(--text)}
     .subtle{font-size:.88rem;color:var(--muted)}
 
-    /* Sticky CTA (mobile) */
-    .sticky-cta{position:fixed;bottom:10px;left:10px;right:10px;z-index:60;display:none}
-    .sticky-cta .inner{display:flex;gap:10px;justify-content:space-between;align-items:center;background:#0e151e;border:1px solid var(--line);padding:10px 12px;border-radius:14px;box-shadow:var(--shadow)}
-    .sticky-cta .price{font-weight:800}
-
-    /* Pagination */
-    .pagination {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        gap: 8px;
-        margin-top: 16px;
-    }
-    .pagination a, .pagination span {
-        display: inline-flex;
-        justify-content: center;
-        align-items: center;
-        height: 36px;
-        border-radius: 50%;
-        color: var(--muted);
-        text-decoration: none;
-        transition: background-color 0.2s ease;
-    }
-    .pagination .page-number {
-        width: 36px;
-    }
-    .pagination .nav-btn {
-        width: auto;
-        padding: 0 12px;
-        border-radius: 999px;
-    }
-    .pagination a:hover {
-        background-color: var(--line);
-    }
-    .pagination .active {
-        background-color: var(--accent);
-        color: #04140a;
-        font-weight: 700;
-    }
-    .pagination .disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-    }
-
-    /* --- New Styles for the ROI Panel --- */
-    .roi-panel-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.7);
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      z-index: 100;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.3s ease;
-    }
-
-    .roi-panel-overlay.active {
-      opacity: 1;
-      pointer-events: auto;
-    }
-
-    .roi-panel {
-      position: relative;
-      background: var(--bg-2);
-      border: 1px solid var(--line);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      padding: 24px;
-      width: 90%;
-      max-width: 400px;
-      transform: scale(0.95);
-      transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    }
-
-    .roi-panel-overlay.active .roi-panel {
-      transform: scale(1);
-    }
-
-    .roi-panel-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 20px;
-    }
-
-    .roi-panel-header .brand {
-      margin: 0;
-    }
-    
-    .roi-panel-header .close-btn {
-      background: none;
-      border: none;
-      color: var(--muted);
-      cursor: pointer;
-      padding: 5px;
-      transition: color 0.2s ease;
-    }
-
-    .roi-panel-header .close-btn:hover {
-      color: var(--text);
-    }
-
-    .roi-pair {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      color: var(--muted);
-      font-size: 1.1rem;
-      font-weight: 600;
-      margin-bottom: 24px;
-    }
-    .roi-pair span {
-      color: var(--text);
-    }
-    
-    .roi-pair .badge {
-      font-size: 0.8rem;
-      padding: 0.25rem 0.5rem;
-    }
-    .roi-panel .badge-long {
-      background-color: rgba(42,214,120,0.1);
-      color: var(--accent);
-      border: 1px solid rgba(42,214,120,0.25);
-    }
-    .roi-panel .badge-short {
-      background-color: rgba(255, 93, 93, 0.1);
-      color: var(--danger);
-      border: 1px solid rgba(255, 93, 93, 0.25);
-    }
-
-    .roi-percent {
-      font-size: 3rem;
-      font-weight: 800;
-      margin-bottom: 12px;
-      line-height: 1;
-    }
-    .roi-percent.gain { color: var(--accent); }
-    .roi-percent.loss { color: var(--danger); }
-
-    .roi-details {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-top: 24px;
-      border-top: 1px dashed var(--line);
-      padding-top: 16px;
-    }
-    .roi-detail-item {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-    .roi-detail-label {
-      font-size: 0.8rem;
-      color: var(--muted);
-    }
-    .roi-detail-value {
-      font-size: 1rem;
-      font-weight: 600;
-    }
-
-    /* --- Community Banner Styles --- */
-    .community-banner {
-      height: 120px;
-      background: linear-gradient(135deg, #2ad678, #12b886);
-      border-radius: 12px;
-      margin-bottom: 20px;
-      padding: 16px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      color: #04140a;
-      font-weight: 700;
-    }
-    .community-banner .banner-text {
-      font-size: 1.2rem;
-      margin-bottom: 4px;
-    }
-    .community-banner .banner-subtext {
-      font-size: 0.8rem;
-      opacity: 0.8;
-    }
-
-    .roi-actions {
-      display: flex;
-      gap: 12px;
-      margin-top: 24px;
-      justify-content: flex-end;
-    }
-    .roi-actions .btn {
-      flex-grow: 1;
-    }
-
-    /* Responsive */
-    @media (max-width: 980px){
-      .container { padding-inline: 0; }
-      .perf-wrap, .f-grid{grid-template-columns:1fr;}
-      .performance table { font-size: 0.85rem; white-space: nowrap; }
-      .performance th, .performance td { padding: 8px; }
-      footer{ padding: 36px 20px 12px; }
-      .nav-links{display:none;}
-      .nav{padding:12px 16px;}
-      .nav-toggle-btn{display:block; cursor: pointer; background: transparent; border: none; font-size: 1.5rem; color: var(--text);}
-      header.mobile-nav-open .nav-links{
-        display:flex;
-        flex-direction: column;
-        position: absolute;
-        top: 100%;
-        left: 0;
-        width: 100%;
-        background-color: var(--bg-2);
-        padding: 10px 0;
-        border-bottom: 1px solid var(--line);
-        box-shadow: var(--shadow);
-      }
-      header.mobile-nav-open .nav-links a{
-        padding: 10px 20px;
-        text-align: center;
-      }
-      .sticky-cta{display:block;}
-      .roi-panel { max-width: 90%; }
-      .blog-section .content {
-        grid-template-columns: 1fr;
-        text-align: center;
-      }
-    }
-    
-    @media (max-width: 580px){
-      .f-grid{grid-template-columns:1fr;}
-      .performance .grid {
-        grid-template-columns: 1fr;
-      }
-      .roi-panel {
-        padding: 20px;
-      }
-      .roi-percent {
-        font-size: 2.5rem;
-      }
+    @media (max-width: 980px) {
+        .f-grid { grid-template-columns: 1fr; }
     }
   </style>
 </head>
-<body>
-  <!-- Header -->
+<body class="antialiased">
+  
   <header>
     <div class="container nav">
       <a class="brand" href="/" aria-label="NexxTrade home">
         <span class="logo" aria-hidden="true"></span>
-        <strong>NexxTrade</strong>
+        <strong class="text-xl font-bold tracking-tight">NexxTrade</strong>
       </a>
-      <button class="nav-toggle-btn" aria-label="Toggle navigation" aria-controls="nav-menu">
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
-      </button>
-      <nav class="nav-links" id="nav-menu" aria-label="primary">
-        <a href="#performance">Performance</a>
-        <a href="/#pricing">Pricing</a>
-        <a href="/#faq">FAQ</a>
-        <a href="/blog">Blog</a>
+      <nav class="hidden md:flex items-center gap-6 text-sm font-medium">
+        <a href="/#performance" class="text-slate-400 hover:text-white">Performance</a>
+        <a href="/#pricing" class="text-slate-400 hover:text-white">Pricing</a>
+        <a href="/blog" class="text-slate-400 hover:text-white">Blog</a>
         <a class="btn btn-primary" href="/join">Get Access</a>
       </nav>
     </div>
   </header>
-  
-  <main class="main-content">
-    <div class="container">
-      <!-- NEW: Signal Statistics Section -->
-      <section id="signal-stats" class="mb-8 reveal">
-          <h2 class="text-2xl md:text-3xl font-bold mb-4 text-center">NexxTrade Signal Statistics</h2>
-          <div class="card p-4 flex flex-wrap justify-around items-center text-center gap-x-6 gap-y-4">
-              <div>
-                  <p class="text-muted text-sm uppercase font-semibold">Total Signals</p>
-                  <div class="text-2xl font-bold mt-1" id="stats-total-signals">...</div>
-              </div>
-              <div>
-                  <p class="text-muted text-sm uppercase font-semibold">Wins</p>
-                  <div class="text-2xl font-bold mt-1 text-accent" id="stats-wins">...</div>
-              </div>
-              <div>
-                  <p class="text-muted text-sm uppercase font-semibold">Losses</p>
-                  <div class="text-2xl font-bold mt-1 text-danger" id="stats-losses">...</div>
-              </div>
-              <div>
-                  <p class="text-muted text-sm uppercase font-semibold">Cum. ROI</p>
-                  <div class="text-2xl font-bold mt-1" id="stats-cum-roi">...%</div>
-              </div>
-              <div>
-                  <p class="text-muted text-sm uppercase font-semibold">Most Traded</p>
-                  <div class="text-2xl font-bold mt-1" id="stats-most-traded">...</div>
-              </div>
-              <div>
-                  <p class="text-muted text-sm uppercase font-semibold">Win Rate</p>
-                  <div class="text-2xl font-bold mt-1" id="stats-win-rate">...%</div>
-              </div>
-          </div>
+
+  <main class="container py-8 md:py-12">
+    <div class="space-y-12">
+      <!-- Page Header -->
+      <div class="text-center">
+        <a href="/" class="btn btn-ghost mb-4">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+          Back to Home
+        </a>
+        <h1 class="text-4xl md:text-5xl font-extrabold tracking-tight">Performance Dashboard</h1>
+        <p class="mt-4 max-w-2xl mx-auto text-lg text-muted">Full transparency into our trading signals and results.</p>
+      </div>
+
+      <!-- Key Statistics -->
+      <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div class="card p-5">
+          <p class="text-sm font-medium text-muted">Win Rate</p>
+          <p class="mt-1 text-3xl font-bold tracking-tight" id="stats-win-rate">...%</p>
+        </div>
+        <div class="card p-5">
+          <p class="text-sm font-medium text-muted">Cumulative ROI</p>
+          <p class="mt-1 text-3xl font-bold tracking-tight" id="stats-cum-roi">...%</p>
+        </div>
+        <div class="card p-5">
+          <p class="text-sm font-medium text-muted">Total Signals</p>
+          <p class="mt-1 text-3xl font-bold tracking-tight" id="stats-total-signals">...</p>
+        </div>
+        <div class="card p-5">
+          <p class="text-sm font-medium text-muted">Most Traded Pair</p>
+          <p class="mt-1 text-3xl font-bold tracking-tight" id="stats-most-traded">...</p>
+        </div>
       </section>
 
-      <a class="back-link" href="/">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
-        Back to Home
-      </a>
+      <!-- ROI Chart & Signal Breakdown -->
+      <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-2 card p-5">
+            <h3 class="text-lg font-semibold">Cumulative ROI Over Time</h3>
+            <div class="mt-4 h-80">
+                <canvas id="roiChart"></canvas>
+            </div>
+        </div>
+        <div class="card p-5 flex flex-col justify-center">
+          <h3 class="text-lg font-semibold mb-4">Signal Breakdown</h3>
+          <div class="space-y-4">
+            <div class="flex items-center justify-between">
+              <span class="text-muted">Winning Trades</span>
+              <span class="font-bold text-lg gain" id="stats-wins">...</span>
+            </div>
+            <div class="w-full bg-slate-700 rounded-full h-2.5">
+              <div class="bg-green-500 h-2.5 rounded-full" id="wins-progress-bar" style="width: 0%"></div>
+            </div>
+
+            <div class="flex items-center justify-between">
+              <span class="text-muted">Losing Trades</span>
+              <span class="font-bold text-lg loss" id="stats-losses">...</span>
+            </div>
+            <div class="w-full bg-slate-700 rounded-full h-2.5">
+              <div class="bg-red-500 h-2.5 rounded-full" id="losses-progress-bar" style="width: 0%"></div>
+            </div>
+          </div>
+        </div>
+      </section>
       
-      <section id="performance">
-        <div class="perf-wrap">
-          <div class="card reveal" style="padding:5px; font-size: 10px;">
-            <h3 style="margin:6px 0 10px; padding-left: 10px; font-size: 20px;">Full Recent Signals</h3>
-            <div style="overflow:auto">
-              <table aria-label="Full recent signals">
-                <thead>
-                  <tr><th>Date</th><th>Pair</th><th>Entry</th><th>Exit</th><th>P/L %</th></tr>
+      <!-- Full Signal History & PNL Proofs -->
+      <section class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        <div class="lg:col-span-3 card overflow-hidden">
+            <div class="p-5">
+              <h2 class="text-xl font-semibold">Full Signal History</h2>
+              <p class="mt-1 text-sm text-muted">A complete log of every signal sent.</p>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm text-left">
+                <thead class="bg-slate-800/50">
+                  <tr>
+                    <th scope="col" class="px-6 py-3">Date</th>
+                    <th scope="col" class="px-6 py-3">Pair</th>
+                    <th scope="col" class="px-6 py-3">Direction</th>
+                    <th scope="col" class="px-6 py-3">P/L %</th>
+                  </tr>
                 </thead>
                 <tbody id="signals-table">
-                  <!-- Fallback data for signals, will be replaced by API data if available -->
-                  <tr class="signal-row" data-pair="BTC/USDT" data-entry-price="57,240" data-exit-price="59,880" data-pnl-percent="+4.6%" data-leverage="20X" data-is-long="true" data-result-type="Win"><td>14/08/25</td><td style="color:var(--accent)">BTC/USDT</td><td>57,240</td><td>59,880</td><td class="gain">+4.6%</td></tr>
-                  <tr class="signal-row" data-pair="ETH/USDT" data-entry-price="2,420" data-exit-price="2,360" data-pnl-percent="+2.5%" data-leverage="10X" data-is-long="false" data-result-type="Win"><td>13/08/25</td><td style="color:var(--danger)">ETH/USDT</td><td>2,420</td><td>2,360</td><td class="gain">+2.5%</td></tr>
-                  <tr class="signal-row" data-pair="SOL/USDT" data-entry-price="168.5" data-exit-price="165.2" data-pnl-percent="-2.0%" data-leverage="15X" data-is-long="false" data-result-type="Loss"><td>12/08/25</td><td style="color:var(--danger)">SOL/USDT</td><td>168.5</td><td>165.2</td><td class="loss">-2.0%</td></tr>
-                  <tr class="signal-row" data-pair="BNB/USDT" data-entry-price="612" data-exit-price="635" data-pnl-percent="+3.7%" data-leverage="25X" data-is-long="true" data-result-type="Win"><td>11/08/25</td><td style="color:var(--accent)">BNB/USDT</td><td>612</td><td>635</td><td class="gain">+3.7%</td></tr>
-                  <tr class="signal-row" data-pair="ADA/USDT" data-entry-price="0.41" data-exit-price="0.39" data-pnl-percent="+4.8%" data-leverage="5X" data-is-long="false" data-result-type="Win"><td>10/08/25</td><td style="color:var(--danger)">ADA/USDT</td><td>0.41</td><td>0.39</td><td class="gain">+4.8%</td></tr>
-                  <tr class="signal-row" data-pair="LINK/USDT" data-entry-price="18.15" data-exit-price="18.72" data-pnl-percent="+3.1%" data-leverage="10X" data-is-long="true" data-result-type="Win"><td>09/08/25</td><td style="color:var(--accent)">LINK/USDT</td><td>18.15</td><td>18.72</td><td class="gain">+3.1%</td></tr>
-                  <tr class="signal-row" data-pair="DOT/USDT" data-entry-price="6.89" data-exit-price="7.01" data-pnl-percent="+1.7%" data-leverage="12X" data-is-long="true" data-result-type="Win"><td>08/08/25</td><td style="color:var(--accent)">DOT/USDT</td><td>6.89</td><td>7.01</td><td class="gain">+1.7%</td></tr>
-                  <tr class="signal-row" data-pair="LTC/USDT" data-entry-price="78.5" data-exit-price="76.0" data-pnl-percent="-3.2%" data-leverage="8X" data-is-long="false" data-result-type="Loss"><td>07/08/25</td><td style="color:var(--danger)">LTC/USDT</td><td>78.5</td><td>76.0</td><td class="loss">-3.2%</td></tr>
-                  <tr class="signal-row" data-pair="XRP/USDT" data-entry-price="0.52" data-exit-price="0.54" data-pnl-percent="+3.8%" data-leverage="18X" data-is-long="true" data-result-type="Win"><td>06/08/25</td><td style="color:var(--accent)">XRP/USDT</td><td>0.52</td><td>0.54</td><td class="gain">+3.8%</td></tr>
-                  <tr class="signal-row" data-pair="BCH/USDT" data-entry-price="380.1" data-exit-price="375.5" data-pnl-percent="+1.2%" data-leverage="20X" data-is-long="false" data-result-type="Win"><td>05/08/25</td><td style="color:var(--danger)">BCH/USDT</td><td>380.1</td><td>375.5</td><td class="gain">+1.2%</td></tr>
+                  <tr><td colspan="4" class="text-center p-6 text-muted">Loading signals...</td></tr>
                 </tbody>
               </table>
             </div>
-           <div class="pagination" id="signals-table-pagination"></div>
-          </div>
-          <div class="card reveal" style="padding:18px">
-            <h3 style="margin:6px 0 10px">PNL Proof (full gallery)</h3>
-            <div class="grid" style="grid-template-columns:repeat(2,1fr);gap:12px" id="pnl-gallery">
-              <!-- Fallback data for PnL proofs, will be replaced by API data if available -->
-              <div class="panel" style="aspect-ratio:16/10;background:#101722;border:1px solid var(--line);border-radius:12px;position:relative;overflow:hidden">
-                <img src="https://placehold.co/400x250/101722/a8b3c7?text=PnL%20Proof%201" alt="PnL Proof 1" class="w-full h-full object-cover filter blur-sm brightness-75">
-                <div class="blurbar">PnL Proof 1</div>
-              </div>
-              <div class="panel" style="aspect-ratio:16/10;background:#101722;border:1px solid var(--line);border-radius:12px;position:relative;overflow:hidden">
-                <img src="https://placehold.co/400x250/101722/a8b3c7?text=PnL%20Proof%202" alt="PnL Proof 2" class="w-full h-full object-cover filter blur-sm brightness-75">
-                <div class="blurbar">PnL Proof 2</div>
-              </div>
-              <div class="panel" style="aspect-ratio:16/10;background:#101722;border:1px solid var(--line);border-radius:12px;position:relative;overflow:hidden">
-                <img src="https://placehold.co/400x250/101722/a8b3c7?text=PnL%20Proof%203" alt="PnL Proof 3" class="w-full h-full object-cover filter blur-sm brightness-75">
-                <div class="blurbar">PnL Proof 3</div>
-              </div>
-              <div class="panel" style="aspect-ratio:16/10;background:#101722;border:1px solid var(--line);border-radius:12px;position:relative;overflow:hidden">
-                <img src="https://placehold.co/400x250/101722/a8b3c7?text=PnL%20Proof%204" alt="PnL Proof 4" class="w-full h-full object-cover filter blur-sm brightness-75">
-                <div class="blurbar">PnL Proof 4</div>
-              </div>
-              <div class="panel" style="aspect-ratio:16/10;background:#101722;border:1px solid var(--line);border-radius:12px;position:relative;overflow:hidden">
-                <img src="https://placehold.co/400x250/101722/a8b3c7?text=PnL%20Proof%205" alt="PnL Proof 5" class="w-full h-full object-cover filter blur-sm brightness-75">
-                <div class="blurbar">PnL Proof 5</div>
-              </div>
-              <div class="panel" style="aspect-ratio:16/10;background:#101722;border:1px solid var(--line);border-radius:12px;position:relative;overflow:hidden">
-                <img src="https://placehold.co/400x250/101722/a8b3c7?text=PnL%20Proof%206" alt="PnL Proof 6" class="w-full h-full object-cover filter blur-sm brightness-75">
-                <div class="blurbar">PnL Proof 6</div>
-              </div>
+            <div class="p-4 border-t border-line flex justify-between items-center" id="signals-table-pagination"></div>
+        </div>
+        <div class="lg:col-span-2 card p-5">
+            <h3 class="text-xl font-semibold">PNL Proof Gallery</h3>
+            <p class="mt-1 text-sm text-muted">Blurred for privacy.</p>
+            <div class="grid grid-cols-2 gap-4 mt-4" id="pnl-gallery">
+                <!-- PNL Proofs will be loaded here -->
             </div>
-            <p class="muted" style="margin-top:12px">Sensitive details intentionally blurred. This is a full gallery.</p>
-            <div class="pagination" id="pnl-gallery-pagination"></div>
-          </div>
+             <div class="mt-4 flex justify-center" id="pnl-gallery-pagination"></div>
         </div>
       </section>
+
     </div>
   </main>
-  
-  <!-- Blog section -->
-  <section class="blog-section container reveal">
-    <div class="content card">
-      <div class="cta-panel">
-        <h3 class="text-white">Learn to Trade Smarter</h3>
-        <p class="muted max-w-sm mx-auto">
-          Our blog offers market analysis, trading strategies, and educational content to help you sharpen your skills and stay informed.
-        </p>
-        <a href="/blog" class="btn btn-primary mt-4">
-          Read the Blog
-        </a>
-      </div>
-    </div>
-  </section>
 
-  <!-- New ROI Panel Overlay -->
-  <div id="roi-panel-overlay" class="roi-panel-overlay">
-    <div class="roi-panel" id="roi-panel-content">
-      <div class="roi-panel-header">
-        <div class="brand">
-          <span class="logo" aria-hidden="true"></span>
-          <strong>NexxTrade</strong>
-        </div>
-        <button class="close-btn" id="close-roi-panel" aria-label="Close">
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>
-      </div>
-      
-      <!-- Replaced ROI Chart with a Community Banner -->
-      <div id="community-banner" class="community-banner">
-          <div class="banner-text">Join the NexxTrade Community</div>
-          <div class="banner-subtext">Trade smarter with our team.</div>
-      </div>
-      
-      <div class="roi-pair" id="roi-pair-details">
-        <span id="roi-pair-name"></span>
-        <span id="roi-leverage" class="badge"></span>
-      </div>
-      
-      <div class="roi-percent" id="roi-percent-value"></div>
-      
-      <div class="roi-details">
-        <div class="roi-detail-item">
-          <div class="roi-detail-label">Entry Price</div>
-          <div class="roi-detail-value" id="roi-entry-price"></div>
-        </div>
-        <div class="roi-detail-item">
-          <div class="roi-detail-label">Exit Price</div>
-          <div class="roi-detail-value" id="roi-exit-price"></div>
-        </div>
-      </div>
-
-      <!-- Action Buttons -->
-      <div class="roi-actions">
-        <button id="share-roi-btn" class="btn btn-ghost">
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-share-2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
-          Share
-        </button>
-        <button id="save-roi-btn" class="btn btn-primary">
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
-          Save
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Disclaimer -->
-  <div class="disclaimer container">
-    <strong>Risk Notice:</strong> Trading involves risk. Past performance does not guarantee future results. This is not financial advice.
-  </div>
-  
-  <!-- Footer -->
   <footer>
     <div class="container grid f-grid">
       <div>
@@ -556,9 +204,8 @@
         <h4>Links</h4>
         <ul>
           <li><a href="/">Home</a></li>
-          <li><a href="#performance">Performance</a></li>
+          <li><a href="/performance">Performance</a></li>
           <li><a href="/#pricing">Pricing</a></li>
-          <li><a href="/#faq">FAQ</a></li>
           <li><a href="/blog">Blog</a></li>
         </ul>
       </div>
@@ -576,7 +223,6 @@
           <li class="subtle">Fiat • Crypto</li>
           <li><a href="#">Telegram</a></li>
           <li><a href="#">X (Twitter)</a></li>
-          <li><a href="#">Support Email</a></li>
         </ul>
       </div>
     </div>
@@ -585,400 +231,201 @@
     </div>
   </footer>
 
-  <!-- Sticky CTA (mobile) -->
-  <div class="sticky-cta" id="join">
-    <div class="inner">
-      <div>
-        <div style="font-weight:700">Join NexxTrade</div>
-        <div class="subtle">Instant Telegram access</div>
-      </div>
-      <a class="btn btn-primary" href="/join">Get Access</a>
-    </div>
-  </div>
-
   <script>
-    // The API_BASE_URL is now a relative path, which is best for deployment
+    lucide.createIcons();
+    
     const API_BASE_URL = '/api';
-
-    // Current year
     document.getElementById('year').textContent = new Date().getFullYear();
+    let roiChart = null;
 
-    // Reveal on scroll
-    const io = new IntersectionObserver((entries)=>{
-      entries.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target);} });
-    },{threshold:.12});
-    document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
-    
-    // Mobile navigation toggle
-    document.querySelector('.nav-toggle-btn').addEventListener('click', () => {
-        const header = document.querySelector('header');
-        header.classList.toggle('mobile-nav-open');
-    });
-
-    // Close mobile menu on link click
-    document.querySelectorAll('.nav-links a').forEach(link => {
-      link.addEventListener('click', () => {
-        const header = document.querySelector('header');
-        header.classList.remove('mobile-nav-open');
-      });
-    });
-
-    // Pagination Logic
-    function setupPagination(containerId, itemsPerPage, isTable = false) {
-      const container = document.getElementById(containerId);
-      const items = isTable ? Array.from(container.querySelectorAll('tr')) : Array.from(container.children);
-      const totalItems = items.length;
-      const totalPages = Math.ceil(totalItems / itemsPerPage);
-      let currentPage = 1;
-
-      const paginationContainer = document.getElementById(`${containerId}-pagination`);
-      
-      // If there's no pagination container, create one.
-      if (!paginationContainer) {
-        return;
-      }
-      
-      function showPage(page) {
-        items.forEach((item, index) => {
-          const isVisible = index >= (page - 1) * itemsPerPage && index < page * itemsPerPage;
-          item.style.display = isVisible ? (isTable ? '' : 'block') : 'none';
-        });
-
-        // Update active class
-        const pageLinks = paginationContainer.querySelectorAll('.page-link');
-        pageLinks.forEach(link => link.classList.remove('active'));
-        const activeLink = paginationContainer.querySelector(`[data-page='${page}']`);
-        if (activeLink) activeLink.classList.add('active');
-
-        // Update nav button state
-        const prevBtn = paginationContainer.querySelector('.prev-page');
-        const nextBtn = paginationContainer.querySelector('.next-page');
-        if (prevBtn) prevBtn.classList.toggle('disabled', page === 1);
-        if (nextBtn) nextBtn.classList.toggle('disabled', page === totalPages);
-      }
-
-      function createPagination() {
-        paginationContainer.innerHTML = ''; // Clear old pagination
-
-        // Only create pagination links if there's more than one page
-        if (totalPages > 1) {
-          // Previous button
-          const prevBtn = document.createElement('a');
-          prevBtn.href = '#';
-          prevBtn.className = 'page-link nav-btn prev-page';
-          prevBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>';
-          prevBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            if (currentPage > 1) {
-              currentPage--;
-              showPage(currentPage);
-            }
-          });
-          paginationContainer.appendChild(prevBtn);
-
-          // Page numbers
-          for (let i = 1; i <= totalPages; i++) {
-            const pageLink = document.createElement('a');
-            pageLink.href = '#';
-            pageLink.className = 'page-link page-number';
-            pageLink.textContent = i;
-            pageLink.setAttribute('data-page', i);
-            pageLink.addEventListener('click', (e) => {
-              e.preventDefault();
-              currentPage = i;
-              showPage(currentPage);
-            });
-            paginationContainer.appendChild(pageLink);
-          }
-
-          // Next button
-          const nextBtn = document.createElement('a');
-          nextBtn.href = '#';
-          nextBtn.className = 'page-link nav-btn next-page';
-          nextBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>';
-          nextBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            if (currentPage < totalPages) {
-              currentPage++;
-              showPage(currentPage);
-            }
-          });
-          paginationContainer.appendChild(nextBtn);
-        }
-      }
-      createPagination();
-      showPage(currentPage);
-    }
-    
-    // New JS to handle the ROI panel
-    function setupSignalClickHandlers() {
-      const overlay = document.getElementById('roi-panel-overlay');
-      const closeBtn = document.getElementById('close-roi-panel');
-      
-      // Get all the elements to update
-      const roiPanelContent = document.getElementById('roi-panel-content');
-      const roiPairName = document.getElementById('roi-pair-name');
-      const roiLeverage = document.getElementById('roi-leverage');
-      const roiPercentValue = document.getElementById('roi-percent-value');
-      const roiEntryPrice = document.getElementById('roi-entry-price');
-      const roiExitPrice = document.getElementById('roi-exit-price');
-      const shareBtn = document.getElementById('share-roi-btn');
-      const saveBtn = document.getElementById('save-roi-btn');
-      
-      // Keep track of animation timers to clear them
-      let animationIntervals = [];
-
-      function showSignalPanel(signal) {
-        // Populate the panel
-        roiPairName.textContent = signal.pair;
-        roiLeverage.textContent = signal.leverage;
-        roiPercentValue.textContent = signal.pnl_percent;
-        roiEntryPrice.textContent = signal.entry_price;
-        roiExitPrice.textContent = signal.exit_price;
-
-        // Clear existing animations
-        animationIntervals.forEach(interval => clearInterval(interval));
-        animationIntervals = [];
-
-        // Apply dynamic classes for styling and badge text
-        roiLeverage.classList.remove('badge-long', 'badge-short');
-        if (signal.is_long_position) {
-          roiLeverage.textContent = `LONG | ${signal.leverage}`;
-          roiLeverage.classList.add('badge-long');
-        } else if (signal.is_long_position === false) {
-          roiLeverage.textContent = `SHORT | ${signal.leverage}`;
-          roiLeverage.classList.add('badge-short');
-        } else {
-            roiLeverage.textContent = `BREAK-EVEN | ${signal.leverage}`;
-        }
-        
-        roiPercentValue.classList.remove('gain', 'loss');
-        if (signal.pnl_percent.startsWith('+') || parseFloat(signal.pnl_percent) > 0) {
-          roiPercentValue.classList.add('gain');
-        } else if (signal.pnl_percent.startsWith('-') || parseFloat(signal.pnl_percent) < 0) {
-          roiPercentValue.classList.add('loss');
-        }
-        
-        overlay.classList.add('active');
-      }
-
-      function closeSignalPanel() {
-        overlay.classList.remove('active');
-        // Clear all animation timers when closing
-        animationIntervals.forEach(interval => clearInterval(interval));
-        animationIntervals = [];
-      }
-
-      // New function to handle sharing and saving the ROI panel
-      async function handleShareAndSave(action) {
-        try {
-          // Store original styles to restore them later
-          const originalMaxWidth = roiPanelContent.style.maxWidth;
-          const originalPadding = roiPanelContent.style.padding;
-          const originalMargin = roiPanelContent.style.margin;
-
-          // Temporarily modify styles for a full-width, clean image capture
-          roiPanelContent.style.maxWidth = '100vw';
-          roiPanelContent.style.padding = '32px';
-          roiPanelContent.style.margin = '0';
-          const actionsDiv = document.querySelector('.roi-actions');
-          actionsDiv.style.display = 'none';
-
-          // Convert the panel to an image
-          const dataUrl = await htmlToImage.toPng(roiPanelContent);
-          const blob = await (await fetch(dataUrl)).blob();
-
-          // Restore the original styles and buttons
-          roiPanelContent.style.maxWidth = originalMaxWidth;
-          roiPanelContent.style.padding = originalPadding;
-          roiPanelContent.style.margin = originalMargin;
-          actionsDiv.style.display = 'flex';
-
-          if (action === 'share' && navigator.share) {
-            // Use the Web Share API for native sharing on supported devices
-            await navigator.share({
-              title: 'NexxTrade Signal ROI',
-              text: `Check out my latest signal from NexxTrade!`,
-              files: [new File([blob], 'NexxTrade_roi.png', { type: 'image/png' })]
-            });
-          } else if (action === 'save' || !navigator.share) {
-            // Fallback for devices without Web Share API or for explicit "Save" action
-            const a = document.createElement('a');
-            a.href = dataUrl;
-            a.download = 'NexxTrade_roi.png';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-          }
-        } catch (error) {
-          console.error('Error generating or sharing image:', error);
-          // Fallback UI message if something goes wrong
-          const messageBox = document.createElement('div');
-          messageBox.textContent = 'Could not share/save image. Please try again.';
-          messageBox.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:rgba(255,0,0,0.8);color:white;padding:10px;border-radius:8px;z-index:200;';
-          document.body.appendChild(messageBox);
-          setTimeout(() => messageBox.remove(), 3000);
-        }
-      }
-
-      // We will attach event listeners to dynamically created rows, so we don't need this block.
-      // The fetchSignals function will handle it.
-      
-      // Add event listener to the close button
-      closeBtn.addEventListener('click', closeSignalPanel);
-      
-      // Add event listener to close the panel when clicking outside of it
-      overlay.addEventListener('click', (event) => {
-        if (event.target === overlay) {
-          closeSignalPanel();
-        }
-      });
-
-      // Add event listeners for the new share and save buttons
-      shareBtn.addEventListener('click', () => handleShareAndSave('share'));
-      saveBtn.addEventListener('click', () => handleShareAndSave('save'));
-
-      // Expose the function to the global scope so it can be called from fetchSignals
-      window.showSignalPanel = showSignalPanel;
-    }
-
-    // Fetch and display all performance signals
-    const fetchSignals = async () => {
-        const signalsTableBody = document.getElementById('signals-table');
-        
-        try {
-            const response = await fetch(`${API_BASE_URL}/performances`);
-            const signals = await response.json();
-
-            signalsTableBody.innerHTML = '';
-            if (signals.length === 0) {
-                // Display fallback message if no data from API
-                signalsTableBody.innerHTML = `<tr><td colspan="5" class="text-muted text-center py-4">No signals available.</td></tr>`;
-            } else {
-                signals.forEach(signal => {
-                    const row = document.createElement('tr');
-                    // Adding data attributes for the pop-up panel
-                    row.className = 'signal-row';
-                    
-                    // Determine P/L class based on value
-                    const pnlValue = parseFloat(signal.pnl_percent);
-                    const pnlClass = pnlValue >= 0 ? 'gain' : 'loss';
-                    
-                    // THIS IS THE ONLY CHANGED LINE
-                    const pairColor = 'var(--text)';
-                    
-                    row.innerHTML = `
-                        <td>${new Date(signal.date).toLocaleDateString()}</td>
-                        <td style="color:${pairColor}">${signal.pair}</td>
-                        <td>${signal.entry_price}</td>
-                        <td>${signal.exit_price}</td>
-                        <td class="${pnlClass}">${signal.pnl_percent}</td>
-                    `;
-                    
-                    row.addEventListener('click', () => {
-                        window.showSignalPanel({
-                            pair: signal.pair,
-                            leverage: signal.leverage,
-                            pnl_percent: signal.pnl_percent,
-                            entry_price: signal.entry_price,
-                            exit_price: signal.exit_price,
-                            is_long_position: signal.is_long_position,
-                            result_type: signal.result_type,
-                        });
-                    });
-                    
-                    signalsTableBody.appendChild(row);
-                });
-            }
-            setupPagination('signals-table', 10, true);
-        } catch (error) {
-            console.error('Error fetching signals:', error);
-            // The HTML already contains fallback data, so we don't need to do anything here.
-            // The existing HTML content will be used.
-        }
-    };
-    
-    // Fetch and display all PnL proofs
-    const fetchPnlProofs = async () => {
-      const pnlGallery = document.getElementById('pnl-gallery');
-      
-      try {
-        const response = await fetch(`${API_BASE_URL}/pnlproofs`);
-        const proofs = await response.json();
-        
-        pnlGallery.innerHTML = ''; // Clear fallback content
-        if (proofs.length === 0) {
-          pnlGallery.innerHTML = '<div class="text-muted text-center py-8 col-span-2">No PnL proofs available.</div>';
-        } else {
-          proofs.forEach(proof => {
-              const panel = document.createElement('div');
-              panel.className = 'panel';
-              panel.innerHTML = `
-                  <img src="${proof.image_url}" alt="${proof.description}" class="w-full h-full object-cover filter blur-sm brightness-75">
-                  <div class="blurbar">${proof.description}</div>
-              `;
-              pnlGallery.appendChild(panel);
-          });
-        }
-        setupPagination('pnl-gallery', 6);
-      } catch (error) {
-          console.error('Error fetching PnL proofs:', error);
-          // The HTML already contains fallback data, so we don't need to do anything here.
-          // The existing HTML content will be used.
-      }
-    };
-
-    // NEW: Function to fetch and display signal statistics
     const fetchSignalStats = async () => {
-        const totalSignalsEl = document.getElementById('stats-total-signals');
-        const winsEl = document.getElementById('stats-wins');
-        const lossesEl = document.getElementById('stats-losses');
-        const cumRoiEl = document.getElementById('stats-cum-roi');
-        const mostTradedEl = document.getElementById('stats-most-traded');
-        const winRateEl = document.getElementById('stats-win-rate');
-        
-        const loadingText = '...';
-        totalSignalsEl.textContent = loadingText;
-        winsEl.textContent = loadingText;
-        lossesEl.textContent = loadingText;
-        cumRoiEl.textContent = loadingText + '%';
-        mostTradedEl.textContent = loadingText;
-        winRateEl.textContent = loadingText + '%';
-
         try {
             const response = await fetch(`${API_BASE_URL}/performances/stats`);
-            if (!response.ok) {
-                throw new Error('Network response was not ok');
-            }
+            if (!response.ok) throw new Error('Failed to fetch stats');
             const stats = await response.json();
 
-            totalSignalsEl.textContent = stats.totalSignals;
-            winsEl.textContent = stats.wins;
-            lossesEl.textContent = stats.losses;
-            cumRoiEl.textContent = `${stats.cumulativeROI}%`;
-            mostTradedEl.textContent = stats.mostTradedPair;
-            winRateEl.textContent = `${stats.winRate}%`;
+            document.getElementById('stats-win-rate').textContent = `${stats.winRate}%`;
+            document.getElementById('stats-cum-roi').textContent = `${stats.cumulativeROI}%`;
+            document.getElementById('stats-total-signals').textContent = stats.totalSignals;
+            document.getElementById('stats-most-traded').textContent = stats.mostTradedPair;
+            document.getElementById('stats-wins').textContent = stats.wins;
+            document.getElementById('stats-losses').textContent = stats.losses;
+            
+            const winsPercentage = (stats.wins / stats.totalSignals) * 100;
+            const lossesPercentage = (stats.losses / stats.totalSignals) * 100;
+            document.getElementById('wins-progress-bar').style.width = `${winsPercentage}%`;
+            document.getElementById('losses-progress-bar').style.width = `${lossesPercentage}%`;
 
         } catch (error) {
             console.error('Error fetching signal stats:', error);
             const errorText = 'N/A';
-            totalSignalsEl.textContent = errorText;
-            winsEl.textContent = errorText;
-            lossesEl.textContent = errorText;
-            cumRoiEl.textContent = errorText;
-            mostTradedEl.textContent = errorText;
-            winRateEl.textContent = errorText;
+            ['stats-win-rate', 'stats-cum-roi', 'stats-total-signals', 'stats-most-traded', 'stats-wins', 'stats-losses'].forEach(id => {
+              if(document.getElementById(id)) document.getElementById(id).textContent = errorText;
+            });
         }
     };
 
-    // Initialize all functionality on window load
-    window.onload = () => {
-        setupSignalClickHandlers();
-        fetchSignalStats(); // Fetch the new stats
+    const fetchSignals = async () => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/performances`);
+            if (!response.ok) throw new Error('Failed to fetch signals');
+            const signals = await response.json();
+            
+            renderSignalsTable(signals);
+            renderRoiChart(signals);
+
+        } catch (error) {
+            console.error('Error fetching signals:', error);
+            const signalsTableBody = document.getElementById('signals-table');
+            signalsTableBody.innerHTML = `<tr><td colspan="4" class="text-center p-6 text-muted">Failed to load signal history.</td></tr>`;
+        }
+    };
+    
+    const fetchPnlProofs = async () => {
+      const pnlGallery = document.getElementById('pnl-gallery');
+      try {
+        const response = await fetch(`${API_BASE_URL}/pnlproofs`);
+        const proofs = await response.json();
+        renderPnlGallery(proofs);
+      } catch (error) {
+          console.error('Error fetching PnL proofs:', error);
+          pnlGallery.innerHTML = '<div class="text-muted text-center col-span-2">Could not load proofs.</div>';
+      }
+    };
+
+    function renderPnlGallery(proofs) {
+        const pnlGallery = document.getElementById('pnl-gallery');
+        pnlGallery.innerHTML = '';
+        if (proofs.length === 0) {
+            pnlGallery.innerHTML = '<div class="text-muted text-center col-span-2">No proofs available.</div>';
+            return;
+        }
+
+        proofs.forEach(proof => {
+            const panel = document.createElement('div');
+            panel.className = 'relative aspect-video rounded-lg overflow-hidden border border-line';
+            panel.innerHTML = `
+                <img src="${proof.image_url}" alt="${proof.description}" class="w-full h-full object-cover">
+                <div class="blurbar">${proof.description}</div>
+            `;
+            pnlGallery.appendChild(panel);
+        });
+        setupPagination('pnl-gallery', 4, false);
+    }
+
+    function renderSignalsTable(signals) {
+        const signalsTableBody = document.getElementById('signals-table');
+        signalsTableBody.innerHTML = '';
+        if (signals.length === 0) {
+            signalsTableBody.innerHTML = `<tr><td colspan="4" class="text-center p-6 text-muted">No signals available.</td></tr>`;
+            return;
+        }
+
+        signals.forEach(signal => {
+            const row = document.createElement('tr');
+            row.className = 'table-row-hover';
+            
+            const pnlValue = parseFloat(signal.pnl_percent);
+            const pnlClass = pnlValue >= 0 ? 'gain' : 'loss';
+            const directionClass = signal.is_long_position ? 'text-green-400 bg-green-900/50' : 'text-red-400 bg-red-900/50';
+            
+            row.innerHTML = `
+                <td class="px-6 py-4 whitespace-nowrap">${new Date(signal.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</td>
+                <td class="px-6 py-4 whitespace-nowrap font-medium">${signal.pair}</td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${directionClass}">
+                      ${signal.is_long_position ? 'LONG' : 'SHORT'}
+                    </span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap font-bold ${pnlClass}">${signal.pnl_percent}</td>
+            `;
+            signalsTableBody.appendChild(row);
+        });
+        
+        setupPagination('signals-table', 10, true);
+    }
+
+    function renderRoiChart(signals) {
+        const sortedSignals = [...signals].reverse();
+        let cumulativeROI = 0;
+        const labels = sortedSignals.map(s => new Date(s.date).toLocaleDateString('en-CA'));
+        const data = sortedSignals.map(s => {
+            cumulativeROI += parseFloat(s.pnl_percent.replace('%', ''));
+            return cumulativeROI.toFixed(2);
+        });
+
+        const ctx = document.getElementById('roiChart').getContext('2d');
+        if(roiChart) roiChart.destroy();
+
+        roiChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Cumulative ROI %',
+                    data: data,
+                    borderColor: 'var(--accent)',
+                    backgroundColor: 'rgba(42, 214, 120, 0.1)',
+                    fill: true,
+                    tension: 0.3,
+                    borderWidth: 2,
+                    pointRadius: 0,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { ticks: { color: 'var(--muted)', callback: value => value + '%' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                    x: { ticks: { color: 'var(--muted)', maxTicksLimit: 8 }, grid: { display: false } }
+                },
+                plugins: { legend: { display: false } }
+            }
+        });
+    }
+
+    function setupPagination(containerId, itemsPerPage, isTable) {
+        const container = document.getElementById(containerId);
+        const items = Array.from(container.children);
+        if (items.length <= itemsPerPage) return;
+
+        const totalPages = Math.ceil(items.length / itemsPerPage);
+        let currentPage = 1;
+        const paginationContainer = document.getElementById(`${containerId}-pagination`);
+
+        function showPage(page) {
+            items.forEach((item, index) => {
+                item.style.display = (index >= (page - 1) * itemsPerPage && index < page * itemsPerPage) ? '' : 'none';
+            });
+            renderControls();
+        }
+
+        function renderControls() {
+            paginationContainer.innerHTML = '';
+            const prevBtn = document.createElement('button');
+            prevBtn.innerHTML = `&larr;`;
+            prevBtn.disabled = currentPage === 1;
+            prevBtn.onclick = () => { currentPage--; showPage(currentPage); };
+
+            const nextBtn = document.createElement('button');
+            nextBtn.innerHTML = `&rarr;`;
+            nextBtn.disabled = currentPage === totalPages;
+            nextBtn.onclick = () => { currentPage++; showPage(currentPage); };
+
+            const pageInfo = document.createElement('span');
+            pageInfo.className = 'text-sm text-muted';
+            pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
+            
+            paginationContainer.append(prevBtn, pageInfo, nextBtn);
+        }
+        showPage(1);
+    }
+    
+    document.addEventListener('DOMContentLoaded', () => {
+        fetchSignalStats();
         fetchSignals();
         fetchPnlProofs();
-        lucide.createIcons(); // Initialize Lucide Icons
-    };
+    });
   </script>
 </body>
 </html>
