@@ -215,7 +215,7 @@ bot.on('callback_query', async (callbackQuery) => {
         bot.answerCallbackQuery(callbackQuery.id); // Acknowledge the button press
 
         // --- Main Menu Navigation ---
-        if (data === 'pricing' || data === 'join_vip' || data === 'back_to_plans') {
+        if (data === 'pricing' || data === 'join_vip' || data === 'back_to_plans' || data === 'get_signals_now') {
             // Check if we are coming back to plans, if so, clear state.
             if(data === 'back_to_plans' && userRegistrationState[chatId]) {
                  delete userRegistrationState[chatId];
@@ -227,10 +227,6 @@ bot.on('callback_query', async (callbackQuery) => {
         }
         if (data === 'signal_stats') {
             return handleSignalStats(chatId);
-        }
-        if (data === 'get_signals_now') {
-            bot.sendMessage(chatId, "This feature is coming soon! You'll be able to get live signals directly from here.");
-            return;
         }
         if (data === 'main_menu') {
              if (userRegistrationState[chatId]) {
@@ -562,3 +558,4 @@ module.exports = {
     bot,
     setupWebhook
 };
+
