@@ -89,7 +89,6 @@ bot.onText(/\/start/, (msg) => {
         delete userRegistrationState[chatId];
     }
     bot.sendMessage(chatId, introMessage, mainMenuOptions);
-    updateBotCommandsForChat(chatId, mainMenuOptions);
 });
 
 bot.onText(/\/getsignals/, (msg) => {
@@ -120,44 +119,6 @@ bot.onText(/\/support/, (msg) => {
 
 // --- Helper Functions ---
 
-// Helper function to update bot commands dynamically for a specific chat
-const updateBotCommandsForChat = async (chatId, options) => {
-    try {
-        const baseCommands = [{ command: 'start', description: 'Start the bot' }];
-        let dynamicCommands = [];
-
-        const excludedPrefixes = ['select_plan_', 'select_network_', 'check_payment_status_'];
-
-        if (options && options.reply_markup && options.reply_markup.inline_keyboard) {
-            options.reply_markup.inline_keyboard.flat().forEach(button => {
-                const cb_data = button.callback_data;
-                // Check if callback_data exists, is valid, and is not in the excluded list
-                if (cb_data && /^[a-z0-9_]{1,32}$/.test(cb_data) && !excludedPrefixes.some(prefix => cb_data.startsWith(prefix))) {
-                    let description = button.text.replace(/[\⬅️🔐📊]/g, '').trim();
-                    if (description.length < 3 || description.length > 256) {
-                        description = cb_data; // fallback
-                    }
-
-                    dynamicCommands.push({
-                        command: cb_data,
-                        description: description
-                    });
-                }
-            });
-        }
-        
-        // Remove duplicates and combine with base commands
-        const uniqueDynamicCommands = [...new Map(dynamicCommands.map(item => [item['command'], item])).values()];
-        const finalCommands = [...baseCommands, ...uniqueDynamicCommands];
-
-        await bot.setMyCommands(finalCommands, { scope: { type: 'chat', chat_id: chatId } });
-
-    } catch (error) {
-        console.error(`Could not set commands for chat ${chatId}: ${error.message}`);
-    }
-};
-
-
 const showSubscriptionPlans = async (chatId, messageText) => {
     try {
         const response = await fetch(`${serverUrl}/api/pricing`);
@@ -175,7 +136,6 @@ const showSubscriptionPlans = async (chatId, messageText) => {
         };
 
         bot.sendMessage(chatId, messageText, keyboardOptions);
-        updateBotCommandsForChat(chatId, keyboardOptions);
 
     } catch (error) {
         console.error('Error fetching pricing for plans:', error);
@@ -268,7 +228,6 @@ const createLinkMenu = (chatId, text, url) => {
         }
     };
     bot.sendMessage(chatId, text, opts);
-    updateBotCommandsForChat(chatId, opts);
 };
 
 // --- Main Callback Query Handler for Inline Buttons ---
@@ -306,7 +265,6 @@ bot.on('callback_query', async (callbackQuery) => {
                 delete userRegistrationState[chatId];
             }
             bot.sendMessage(chatId, introMessage, mainMenuOptions);
-            updateBotCommandsForChat(chatId, mainMenuOptions);
             return;
         }
 
@@ -344,7 +302,6 @@ bot.on('callback_query', async (callbackQuery) => {
                 }
             };
             bot.sendMessage(chatId, paymentMessage, { parse_mode: 'Markdown', ...paymentKeyboard });
-            updateBotCommandsForChat(chatId, paymentKeyboard);
             return; // Stop further processing for this callback
         }
 
@@ -370,7 +327,6 @@ bot.on('callback_query', async (callbackQuery) => {
             };
             const opayOptions = { parse_mode: 'Markdown', reply_markup: opayKeyboard };
             bot.sendMessage(chatId, opayMessage, opayOptions);
-            updateBotCommandsForChat(chatId, opayOptions);
             return;
         }
 
@@ -391,7 +347,6 @@ bot.on('callback_query', async (callbackQuery) => {
                 }
             };
             bot.sendMessage(chatId, cryptoNetworkMessage, cryptoNetworkKeyboard);
-            updateBotCommandsForChat(chatId, cryptoNetworkKeyboard);
             return;
         }
         
@@ -464,7 +419,6 @@ _(This precise amount includes network fees to ensure the full plan price is cov
             await bot.sendPhoto(chatId, qrCodeUrl, { caption: addressMessage, parse_mode: 'Markdown' });
             await bot.sendMessage(chatId, monitoringMessage);
             await bot.sendMessage(chatId, "🔃Checking payment Status: ⏳", checkStatusKeyboard);
-            updateBotCommandsForChat(chatId, checkStatusKeyboard);
 
             pollPaymentStatus(chatId, paymentData.payment_id);
             return;
@@ -502,7 +456,6 @@ Make sure you’ve sent the required amount to the address provided`;
                         clearInterval(state.paymentCheckInterval);
                         delete userRegistrationState[chatId];
                     }
-                     updateBotCommandsForChat(chatId, mainMenuOptions);
                 }
 
                 bot.sendMessage(chatId, statusMessage, { parse_mode: 'Markdown' });
@@ -551,7 +504,6 @@ function pollPaymentStatus(chatId, paymentId) {
                 clearInterval(state.paymentCheckInterval);
                 bot.sendMessage(chatId, `❌ Payment has ${statusData.payment_status}. Please try the registration again or contact support if you believe this is an error.`);
                 delete userRegistrationState[chatId];
-                updateBotCommandsForChat(chatId, mainMenuOptions);
             }
         } catch (err) {
             console.error(`Error polling payment status for ${paymentId}:`, err);
@@ -614,7 +566,6 @@ bot.on('message', async (msg) => {
                 await bot.sendMessage(chatId, `All done! Here is your one-time invite link to the VIP channel. Please note it can only be used once:\n\n${inviteLink.invite_link}`);
 
                 delete userRegistrationState[chatId];
-                updateBotCommandsForChat(chatId, mainMenuOptions);
 
             } catch(err) {
                 console.error("Error finalizing subscription: ", err);
