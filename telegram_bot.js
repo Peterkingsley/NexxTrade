@@ -211,7 +211,7 @@ Cum. ROI: ${cumulativeROI.toFixed(2)}%
 
 Most traded Pair: ${mostTradedPair}
 
-Win Rate: ${winRate}%
+*Win Rate: ${winRate}%*
         `;
 
         const opts = {
