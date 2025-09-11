@@ -32,7 +32,10 @@ const setupWebhook = async () => {
 
         // Define the list of commands to be displayed in the menu
         const commands = [
-            { command: 'start', description: 'Start the bot' },
+            { command: 'start', description: 'Restart the Bot' },
+            { command: 'getsignals', description: 'Get Signals' },
+            { command: 'faq', description: 'View FAQ' },
+            { command: 'support', description: 'Contact Support' }
         ];
         
         // Set the commands for the bot
@@ -87,6 +90,31 @@ bot.onText(/\/start/, (msg) => {
     }
     bot.sendMessage(chatId, introMessage, mainMenuOptions);
     updateBotCommandsForChat(chatId, mainMenuOptions);
+});
+
+bot.onText(/\/getsignals/, (msg) => {
+    const chatId = msg.chat.id;
+    // This function shows the subscription plans, starting the registration flow.
+    showSubscriptionPlans(chatId, 'Choose your plan to continue');
+});
+
+bot.onText(/\/faq/, (msg) => {
+    const chatId = msg.chat.id;
+    // The FAQ link will point to the main page's FAQ section.
+    const faqUrl = `${serverUrl}/#faq`;
+    const opts = {
+        reply_markup: {
+            inline_keyboard: [
+                [{ text: 'View our FAQ', url: faqUrl }]
+            ]
+        }
+    };
+    bot.sendMessage(chatId, 'Click the button below to read our Frequently Asked Questions.', opts);
+});
+
+bot.onText(/\/support/, (msg) => {
+    const chatId = msg.chat.id;
+    bot.sendMessage(chatId, 'The support feature is coming soon!');
 });
 
 
@@ -218,7 +246,7 @@ Most traded Pair: ${mostTradedPair}
             parse_mode: 'Markdown',
             reply_markup: {
                 inline_keyboard: [
-                    [{ text: 'Take Your Next Trade with Us', callback_data: 'join_vip' }]
+                    [{ text: 'Take your next trade with us', callback_data: 'join_vip' }]
                 ]
             }
         };
@@ -603,3 +631,4 @@ module.exports = {
     bot,
     setupWebhook
 };
+
