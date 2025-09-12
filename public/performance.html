@@ -270,7 +270,8 @@
 
   <div id="roi-panel-overlay" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center opacity-0 pointer-events-none transition-opacity duration-300">
     <div id="roi-panel" class="bg-gradient-to-br from-[#0c1016] to-[#141a21] border border-slate-700 rounded-2xl shadow-xl w-11/12 max-w-lg transform scale-95 transition-transform duration-300">
-      <div class="flex items-center justify-between p-6 border-b border-slate-700">
+      <!-- Panel Header -->
+      <div class="flex items-center justify-between p-6">
         <div class="flex items-center gap-3">
           <span class="w-7 h-7 rounded-md bg-gradient-to-r from-green-400 to-green-600 shadow-inner"></span>
           <div class="font-bold text-lg">NexxTrade</div>
@@ -281,8 +282,9 @@
         </div>
       </div>
 
-      <div class="p-6 grid md:grid-cols-2 gap-6">
-        <div>
+      <!-- Panel Body -->
+      <div class="p-6 grid grid-cols-1 md:grid-cols-5 gap-6">
+        <div class="md:col-span-3">
           <h2 class="text-3xl font-extrabold" id="roi-pair">KCS/USDT</h2>
           <p class="text-slate-400 text-sm mt-1" id="roi-direction-leverage">Long / 10X</p>
           <p class="text-5xl font-extrabold mt-6" id="roi-pnl">+100%</p>
@@ -299,11 +301,12 @@
           </div>
         </div>
 
-        <div class="bg-slate-800/30 rounded-xl p-3 flex items-center justify-center" id="roi-chart-container">
-          </div>
+        <div class="md:col-span-2 bg-slate-800/30 rounded-xl p-3 flex items-center justify-center" id="roi-chart-container">
+        </div>
       </div>
 
-      <div class="flex justify-between items-center p-6 border-t border-slate-700">
+      <!-- Panel Footer -->
+      <div class="flex justify-between items-center p-6">
         <div class="flex items-center gap-3">
           <div id="roi-qrcode" class="bg-white p-1 rounded-md"></div>
           <div>
@@ -383,8 +386,13 @@
     function showRoiPanel(signal) {
         document.getElementById('roi-date').textContent = `Shared at: ${new Date(signal.date).toLocaleDateString()}`;
         document.getElementById('roi-pair').textContent = signal.pair;
-        const directionText = signal.is_long_position ? 'Long' : 'Short';
-        document.getElementById('roi-direction-leverage').textContent = `${directionText} / ${signal.leverage}`;
+        
+        const directionEl = document.getElementById('roi-direction-leverage');
+        if (signal.is_long_position) {
+            directionEl.innerHTML = `<span class="font-semibold text-green-400">Long</span> / ${signal.leverage}`;
+        } else {
+            directionEl.innerHTML = `<span class="font-semibold text-red-400">Short</span> / ${signal.leverage}`;
+        }
         
         const pnlEl = document.getElementById('roi-pnl');
         const pnlValue = parseFloat(signal.pnl_percent);
@@ -637,3 +645,4 @@
   </script>
 </body>
 </html>
+
