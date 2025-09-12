@@ -106,6 +106,13 @@
         }
         .sticky-cta { display: block; }
     }
+    
+    /* FIX: Added media query for small mobile screens */
+    @media (max-width: 580px){
+      #pnl-gallery {
+        grid-template-columns: 1fr;
+      }
+    }
   </style>
 </head>
 <body class="antialiased">
