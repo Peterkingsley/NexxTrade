@@ -331,7 +331,7 @@
     }
 
     function showRoiPanel(signal) {
-        document.getElementById('roi-date').textContent = `Shared at: ${new Date(signal.date).toLocaleString()}`;
+        document.getElementById('roi-date').textContent = `Shared at: ${new Date(signal.date).toLocaleDateString()}`;
         document.getElementById('roi-pair').textContent = signal.pair;
         const directionText = signal.is_long_position ? 'Long' : 'Short';
         document.getElementById('roi-direction-leverage').textContent = `${directionText} / ${signal.leverage}`;
@@ -585,4 +585,5 @@
   </script>
 </body>
 </html>
+
 
