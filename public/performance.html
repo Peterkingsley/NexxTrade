@@ -69,7 +69,6 @@
       opacity: 0.5;
       cursor: not-allowed;
     }
-    .blurbar{position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.5);color:white;padding:8px 12px;font-size:0.9rem;backdrop-filter:blur(5px);text-align:center;}
     footer{border-top:1px solid var(--line);background:#0b1017;padding:36px 20px 12px;}
     .f-grid{display:grid;grid-template-columns:2fr 1fr 1fr 1.2fr;gap:20px;}
     footer ul{list-style:none;margin:0;padding:0;display:grid;gap:8px}
@@ -222,7 +221,7 @@
         </div>
         <div class="lg:col-span-2 card p-5">
             <h3 class="text-xl font-semibold">PNL Proof Gallery</h3>
-            <p class="mt-1 text-sm text-muted">Blurred for privacy.</p>
+            <p class="mt-1 text-sm text-muted">Click on a proof to view it in full.</p>
             <div class="grid grid-cols-2 gap-4 mt-4" id="pnl-gallery">
                 </div>
              <div class="mt-4 flex justify-center" id="pnl-gallery-pagination"></div>
@@ -521,8 +520,7 @@
             const panel = document.createElement('div');
             panel.className = 'relative aspect-video rounded-lg overflow-hidden border border-line cursor-pointer';
             panel.innerHTML = `
-                <img src="${proof.image_url}" alt="${proof.description}" class="w-full h-full object-cover">
-                <div class="blurbar">${proof.description}</div>
+                <img src="${proof.image_url}" alt="PNL Proof" class="w-full h-full object-cover">
             `;
             panel.addEventListener('click', () => showPnlProofModal(proof.image_url));
             pnlGallery.appendChild(panel);
