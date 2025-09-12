@@ -81,6 +81,15 @@
     .sticky-cta{position:fixed;bottom:10px;left:10px;right:10px;z-index:60;display:none}
     .sticky-cta .inner{display:flex;gap:10px;justify-content:space-between;align-items:center;background:#0e151e;border:1px solid var(--line);padding:10px 12px;border-radius:14px;box-shadow:var(--shadow)}
    
+    /* PNL Proof Modal Styles */
+    #pnl-proof-modal {
+        transition: opacity 0.3s ease;
+    }
+    #pnl-proof-modal.hidden {
+        opacity: 0;
+        pointer-events: none;
+    }
+
     @media (max-width: 980px) {
         .container { padding-inline: 0; }
         .f-grid { grid-template-columns: 1fr; }
@@ -107,7 +116,6 @@
         .sticky-cta { display: block; }
     }
     
-    /* FIX: Added media query for small mobile screens */
     @media (max-width: 580px){
       #pnl-gallery {
         grid-template-columns: 1fr;
@@ -309,6 +317,15 @@
     </div>
   </div>
 
+  <div id="pnl-proof-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 hidden">
+    <div class="relative w-full max-w-3xl max-h-full">
+      <img id="pnl-proof-modal-img" src="" alt="PNL Proof" class="w-full h-auto rounded-lg shadow-2xl" />
+      <button id="pnl-proof-modal-close" class="absolute -top-4 -right-4 bg-red-500/80 hover:bg-red-500 text-white rounded-full p-2">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+      </button>
+    </div>
+  </div>
+
   <div class="sticky-cta">
     <div class="inner">
       <div>
@@ -329,6 +346,11 @@
     const roiOverlay = document.getElementById('roi-panel-overlay');
     const downloadBtn = document.getElementById('download-roi-btn');
     const roiPanel = document.getElementById('roi-panel');
+
+    // --- PNL Proof Modal Logic ---
+    const pnlProofModal = document.getElementById('pnl-proof-modal');
+    const pnlProofModalImg = document.getElementById('pnl-proof-modal-img');
+    const pnlProofModalClose = document.getElementById('pnl-proof-modal-close');
 
     function createCandlestickSVG(isLong, isWin) {
       const upColor = '#10b981';
@@ -417,6 +439,20 @@
             });
     });
 
+    function showPnlProofModal(imageUrl) {
+        pnlProofModalImg.src = imageUrl;
+        pnlProofModal.classList.remove('hidden');
+    }
+
+    pnlProofModalClose.addEventListener('click', () => {
+        pnlProofModal.classList.add('hidden');
+    });
+
+    pnlProofModal.addEventListener('click', (e) => {
+        if (e.target === pnlProofModal) {
+            pnlProofModal.classList.add('hidden');
+        }
+    });
 
     // --- Data Fetching and Rendering ---
     const fetchSignalStats = async () => {
@@ -483,11 +519,12 @@
 
         proofs.forEach(proof => {
             const panel = document.createElement('div');
-            panel.className = 'relative aspect-video rounded-lg overflow-hidden border border-line';
+            panel.className = 'relative aspect-video rounded-lg overflow-hidden border border-line cursor-pointer';
             panel.innerHTML = `
                 <img src="${proof.image_url}" alt="${proof.description}" class="w-full h-full object-cover">
                 <div class="blurbar">${proof.description}</div>
             `;
+            panel.addEventListener('click', () => showPnlProofModal(proof.image_url));
             pnlGallery.appendChild(panel);
         });
         setupPagination('pnl-gallery', 4, false);
