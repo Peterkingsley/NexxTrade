@@ -100,7 +100,6 @@
 
   <main class="container py-8 md:py-12">
     <div class="space-y-12">
-      <!-- Page Header -->
       <div class="text-center">
         <a href="/" class="btn btn-ghost mb-4">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
@@ -110,7 +109,6 @@
         <p class="mt-4 max-w-2xl mx-auto text-lg text-muted">Full transparency into our trading signals and results.</p>
       </div>
 
-      <!-- Key Statistics -->
       <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <div class="card p-5">
           <p class="text-sm font-medium text-muted">Win Rate</p>
@@ -130,14 +128,7 @@
         </div>
       </section>
 
-      <!-- ROI Chart & Signal Breakdown -->
-      <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div class="lg:col-span-2 card p-5">
-            <h3 class="text-lg font-semibold">Cumulative ROI Over Time</h3>
-            <div class="mt-4 h-80">
-                <canvas id="roiChart"></canvas>
-            </div>
-        </div>
+      <section class="grid grid-cols-1 gap-6">
         <div class="card p-5 flex flex-col justify-center">
           <h3 class="text-lg font-semibold mb-4">Signal Breakdown</h3>
           <div class="space-y-4">
@@ -160,7 +151,6 @@
         </div>
       </section>
       
-      <!-- Full Signal History & PNL Proofs -->
       <section class="grid grid-cols-1 lg:grid-cols-5 gap-6">
         <div class="lg:col-span-3 card overflow-hidden">
             <div class="p-5">
@@ -188,8 +178,7 @@
             <h3 class="text-xl font-semibold">PNL Proof Gallery</h3>
             <p class="mt-1 text-sm text-muted">Blurred for privacy.</p>
             <div class="grid grid-cols-2 gap-4 mt-4" id="pnl-gallery">
-                <!-- PNL Proofs will be loaded here -->
-            </div>
+                </div>
              <div class="mt-4 flex justify-center" id="pnl-gallery-pagination"></div>
         </div>
       </section>
@@ -234,10 +223,8 @@
     </div>
   </footer>
 
-  <!-- Enhanced ROI Panel for NexxTrade -->
   <div id="roi-panel-overlay" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center opacity-0 pointer-events-none transition-opacity duration-300">
     <div id="roi-panel" class="bg-gradient-to-br from-[#0c1016] to-[#141a21] border border-slate-700 rounded-2xl shadow-xl w-11/12 max-w-lg transform scale-95 transition-transform duration-300">
-      <!-- Header -->
       <div class="flex items-center justify-between p-6 border-b border-slate-700">
         <div class="flex items-center gap-3">
           <span class="w-7 h-7 rounded-md bg-gradient-to-r from-green-400 to-green-600 shadow-inner"></span>
@@ -249,7 +236,6 @@
         </div>
       </div>
 
-      <!-- Body -->
       <div class="p-6 grid md:grid-cols-2 gap-6">
         <div>
           <h2 class="text-3xl font-extrabold" id="roi-pair">KCS/USDT</h2>
@@ -268,13 +254,10 @@
           </div>
         </div>
 
-        <!-- Chart -->
         <div class="bg-slate-800/30 rounded-xl p-3 flex items-center justify-center" id="roi-chart-container">
-          <!-- Candlestick chart SVG injects here -->
-        </div>
+          </div>
       </div>
 
-      <!-- Footer -->
       <div class="flex justify-between items-center p-6 border-t border-slate-700">
         <div class="flex items-center gap-3">
           <div id="roi-qrcode" class="bg-white p-1 rounded-md"></div>
@@ -294,7 +277,6 @@
     
     const API_BASE_URL = '/api';
     document.getElementById('year').textContent = new Date().getFullYear();
-    let roiChart = null;
 
     // --- ROI Panel Logic ---
     const roiOverlay = document.getElementById('roi-panel-overlay');
@@ -424,7 +406,6 @@
             const signals = await response.json();
             
             renderSignalsTable(signals);
-            renderRoiChart(signals);
 
         } catch (error) {
             console.error('Error fetching signals:', error);
@@ -499,45 +480,6 @@
         setupPagination('signals-table', 10, true);
     }
 
-    function renderRoiChart(signals) {
-        const sortedSignals = [...signals].reverse();
-        let cumulativeROI = 0;
-        const labels = sortedSignals.map(s => new Date(s.date).toLocaleDateString('en-CA'));
-        const data = sortedSignals.map(s => {
-            cumulativeROI += parseFloat(s.pnl_percent.replace('%', ''));
-            return cumulativeROI.toFixed(2);
-        });
-
-        const ctx = document.getElementById('roiChart').getContext('2d');
-        if(roiChart) roiChart.destroy();
-
-        roiChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: labels,
-                datasets: [{
-                    label: 'Cumulative ROI %',
-                    data: data,
-                    borderColor: 'var(--accent)',
-                    backgroundColor: 'rgba(42, 214, 120, 0.1)',
-                    fill: true,
-                    tension: 0.3,
-                    borderWidth: 2,
-                    pointRadius: 0,
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: { ticks: { color: 'var(--muted)', callback: value => value + '%' }, grid: { color: 'rgba(255,255,255,0.05)' } },
-                    x: { ticks: { color: 'var(--muted)', maxTicksLimit: 8 }, grid: { display: false } }
-                },
-                plugins: { legend: { display: false } }
-            }
-        });
-    }
-
     function setupPagination(containerId, itemsPerPage, isTable) {
         const container = document.getElementById(containerId);
         const items = Array.from(container.children);
@@ -585,5 +527,3 @@
   </script>
 </body>
 </html>
-
-
