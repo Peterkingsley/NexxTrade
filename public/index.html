@@ -86,8 +86,21 @@
     .performance{padding:48px 0;}
     .perf-wrap{display:grid;grid-template-columns:1fr .9fr;gap:24px}
     .pnl-grid{grid-template-columns:repeat(2,1fr);gap:12px}
+    #pnl-gallery .panel {
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    #pnl-gallery .panel img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
     table{width:100%;border-collapse:collapse}
     th,td{padding:12px;border-bottom:1px solid var(--line);text-align:left}
+    .performance th, .performance td {
+        padding: 6px 8px; /* Reduced padding */
+        font-size: 0.72rem; /* Reduced font size */
+    }
     th{color:var(--muted);font-weight:600}
     .gain{color:var(--accent);font-weight:700}
     .loss{color:var(--danger);font-weight:700}
@@ -428,10 +441,10 @@
         <div style="overflow:auto">
           <table aria-label="Recent signals">
             <thead>
-              <tr><th>Date</th><th>Pair</th><th>Entry</th><th>Exit</th><th>P/L %</th></tr>
+              <tr><th>Pair</th><th>Entry</th><th>Exit</th><th>P/L %</th></tr>
             </thead>
             <tbody id="signals-table">
-              <tr><td colspan="5" class="text-center text-muted py-4">Loading signals...</td></tr>
+              <tr><td colspan="4" class="text-center text-muted py-4">Loading signals...</td></tr>
             </tbody>
           </table>
         </div>
@@ -713,7 +726,7 @@
           signalsTableBody.innerHTML = ''; // Clear loading text
 
           if (signals.length === 0) {
-            signalsTableBody.innerHTML = `<tr><td colspan="5" class="text-center text-muted py-4">No signals available.</td></tr>`;
+            signalsTableBody.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-4">No signals available.</td></tr>`;
             return;
           }
 
@@ -722,10 +735,8 @@
           recentSignals.forEach(signal => {
             const row = document.createElement('tr');
             const pnlClass = parseFloat(signal.pnl_percent) > 0 ? 'gain' : 'loss';
-            const formattedDate = new Date(signal.date).toLocaleDateString('en-GB');
 
             row.innerHTML = `
-              <td>${formattedDate}</td>
               <td>${signal.pair}</td>
               <td>${signal.entry_price}</td>
               <td>${signal.exit_price}</td>
@@ -736,7 +747,7 @@
         } catch (error) {
           console.error('Error fetching signals:', error);
           const signalsTableBody = document.getElementById('signals-table');
-          signalsTableBody.innerHTML = `<tr><td colspan="5" class="text-center text-muted py-4">Error loading signals.</td></tr>`;
+          signalsTableBody.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-4">Error loading signals.</td></tr>`;
         }
       };
 
@@ -759,8 +770,7 @@
             const panel = document.createElement('div');
             panel.className = 'panel';
             panel.innerHTML = `
-              <img src="${proof.image_url}" alt="${proof.description}" class="w-full h-full object-cover">
-              <div class="blurbar" style="backdrop-filter:none; background:none;"></div>
+              <img src="${proof.image_url}" alt="${proof.description}">
             `;
             pnlGallery.appendChild(panel);
           });
@@ -849,3 +859,4 @@
   </script>
 </body>
 </html>
+
