@@ -273,9 +273,16 @@
                 </div>
             </div>
             <div class="roi-body">
-                <h2 class="text-2xl font-bold" id="roi-pair"></h2>
-                <p class="text-lg text-muted" id="roi-direction-leverage"></p>
-                <p class="text-7xl font-extrabold my-6" id="roi-pnl"></p>
+                <div class="grid grid-cols-2 items-center">
+                    <div>
+                        <h2 class="text-2xl font-bold" id="roi-pair"></h2>
+                        <p class="text-lg text-muted" id="roi-direction-leverage"></p>
+                        <p class="text-6xl font-extrabold my-4" id="roi-pnl"></p>
+                    </div>
+                    <div id="roi-chart-container" class="h-32">
+                        <!-- Candlestick chart will be rendered here -->
+                    </div>
+                </div>
                 <div class="flex justify-between text-sm mt-4 border-t border-line pt-4">
                     <div>
                         <p class="text-muted">Entry Price</p>
@@ -307,11 +314,50 @@
     const downloadBtn = document.getElementById('download-roi-btn');
     const roiContent = document.getElementById('roi-panel-content');
 
+    function createCandlestickSVG(isLong, isWin) {
+        const upColor = 'var(--accent)';
+        const downColor = 'var(--danger)';
+        const wickColor = '#9ca3af';
+
+        // Base path for the trend line
+        let trendPath = "M20,70 Q50,60 80,40 T180,20";
+        if (!isLong) { // Invert for shorts
+            trendPath = "M20,20 Q50,30 80,50 T180,70";
+        }
+        
+        // Define candles based on long/short and win/loss
+        const candles = isLong 
+            ? [ // Long positions
+                { x: 40, y: isWin ? 60 : 50, h: 20, fill: isWin ? upColor : downColor },
+                { x: 80, y: isWin ? 50 : 40, h: 25, fill: isWin ? upColor : downColor },
+                { x: 120, y: isWin ? 40 : 30, h: 30, fill: isWin ? upColor : downColor },
+                { x: 160, y: isWin ? 30 : 20, h: 35, fill: isWin ? upColor : downColor }
+            ]
+            : [ // Short positions
+                { x: 40, y: isWin ? 20 : 30, h: 20, fill: isWin ? upColor : downColor },
+                { x: 80, y: isWin ? 30 : 40, h: 25, fill: isWin ? upColor : downColor },
+                { x: 120, y: isWin ? 40 : 50, h: 30, fill: isWin ? upColor : downColor },
+                { x: 160, y: isWin ? 50 : 60, h: 35, fill: isWin ? upColor : downColor }
+            ];
+
+        const candleElements = candles.map(c => `
+            <rect x="${c.x}" y="${c.y - c.h}" width="15" height="${c.h}" fill="${c.fill}" rx="2" />
+            <line x1="${c.x + 7.5}" y1="${c.y - c.h - 5}" x2="${c.x + 7.5}" y2="${c.y + 5}" stroke="${wickColor}" stroke-width="2" />
+        `).join('');
+
+        return `
+            <svg width="100%" height="100%" viewBox="0 0 200 80" preserveAspectRatio="xMidYMid meet">
+                <path d="${trendPath}" stroke="${isWin ? upColor : downColor}" fill="none" stroke-width="2" />
+                ${candleElements}
+            </svg>
+        `;
+    }
+
     function showRoiPanel(signal) {
         document.getElementById('roi-date').textContent = `Shared at: ${new Date(signal.date).toLocaleString()}`;
         document.getElementById('roi-pair').textContent = signal.pair;
         const directionText = signal.is_long_position ? 'Long' : 'Short';
-        document.getElementById('roi-direction-leverage').textContent = `${directionText} | ${signal.leverage}`;
+        document.getElementById('roi-direction-leverage').textContent = `${directionText} / ${signal.leverage}`;
         
         const pnlEl = document.getElementById('roi-pnl');
         const pnlValue = parseFloat(signal.pnl_percent);
@@ -322,10 +368,15 @@
             pnlEl.textContent = `+${signal.pnl_percent.replace('+', '')}`;
         }
 
-        pnlEl.className = pnlValue >= 0 ? 'text-7xl font-extrabold my-6 gain' : 'text-7xl font-extrabold my-6 loss';
+        pnlEl.className = pnlValue >= 0 ? 'text-6xl font-extrabold my-4 gain' : 'text-6xl font-extrabold my-4 loss';
         
         document.getElementById('roi-entry').textContent = `$${signal.entry_price}`;
         document.getElementById('roi-exit').textContent = `$${signal.exit_price}`;
+
+        // Generate and insert the candlestick SVG
+        const isWin = pnlValue >= 0;
+        const chartContainer = document.getElementById('roi-chart-container');
+        chartContainer.innerHTML = createCandlestickSVG(signal.is_long_position, isWin);
         
         roiOverlay.classList.add('active');
     }
