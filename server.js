@@ -315,15 +315,16 @@ app.get('/api/performances', async (req, res) => {
   }
 });
 
-// NEW: API Route for Performance Statistics
+// *** MODIFIED AND CORRECTED ROUTE ***
+// API Route for Performance Statistics
 app.get('/api/performances/stats', async (req, res) => {
   try {
-    // A single query to get most stats
+    // A single query to get most stats, accounting for 'win' and 'gain' (case-insensitive)
     const statsQuery = await pool.query(`
       SELECT
         COUNT(*) AS "totalSignals",
-        SUM(CASE WHEN result_type = 'Win' THEN 1 ELSE 0 END) AS "wins",
-        SUM(CASE WHEN result_type = 'Loss' THEN 1 ELSE 0 END) AS "losses",
+        SUM(CASE WHEN LOWER(result_type) IN ('win', 'gain') THEN 1 ELSE 0 END) AS "wins",
+        SUM(CASE WHEN LOWER(result_type) = 'loss' THEN 1 ELSE 0 END) AS "losses",
         SUM(CAST(REPLACE(pnl_percent, '%', '') AS NUMERIC)) as "cumulativeROI"
       FROM performancesignals
     `);
@@ -337,7 +338,7 @@ app.get('/api/performances/stats', async (req, res) => {
     `);
 
     const stats = statsQuery.rows[0];
-    const totalSignals = parseInt(stats.totalSignals, 10);
+    const totalSignals = parseInt(stats.wins, 10) + parseInt(stats.losses, 10);
 
     if (totalSignals === 0) {
       return res.json({
@@ -367,6 +368,7 @@ app.get('/api/performances/stats', async (req, res) => {
     res.status(500).send('Server Error');
   }
 });
+
 
 app.get('/api/performances/:id', async (req, res) => {
     try {
