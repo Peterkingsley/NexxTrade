@@ -323,7 +323,7 @@
     <div class="relative w-full max-w-3xl max-h-full">
       <img id="pnl-proof-modal-img" src="" alt="PNL Proof" class="w-full h-auto rounded-lg shadow-2xl" />
       <button id="pnl-proof-modal-close" class="absolute -top-4 -right-4 bg-red-500/80 hover:bg-red-500 text-white rounded-full p-2">
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
       </button>
     </div>
   </div>
@@ -396,8 +396,9 @@
         
         const pnlEl = document.getElementById('roi-pnl');
         const pnlValue = parseFloat(signal.pnl_percent);
+        const truncatedPnl = Math.trunc(pnlValue);
         
-        pnlEl.textContent = pnlValue < 0 ? signal.pnl_percent : `+${signal.pnl_percent.replace('+', '')}`;
+        pnlEl.textContent = truncatedPnl >= 0 ? `+${truncatedPnl}%` : `${truncatedPnl}%`;
         pnlEl.className = pnlValue >= 0 ? 'text-6xl font-extrabold mt-6 gain' : 'text-6xl font-extrabold mt-6 loss';
         
         document.getElementById('roi-entry').textContent = `$${signal.entry_price}`;
@@ -560,6 +561,8 @@
             const pnlValue = parseFloat(signal.pnl_percent);
             const pnlClass = pnlValue >= 0 ? 'gain' : 'loss';
             const directionClass = signal.is_long_position ? 'text-green-400 bg-green-900/50' : 'text-red-400 bg-red-900/50';
+            const truncatedPnl = Math.trunc(pnlValue);
+            const pnlText = truncatedPnl >= 0 ? `+${truncatedPnl}%` : `${truncatedPnl}%`;
             
             row.innerHTML = `
                 <td class="px-6 py-4 whitespace-nowrap">${new Date(signal.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</td>
@@ -569,7 +572,7 @@
                       ${signal.is_long_position ? 'LONG' : 'SHORT'}
                     </span>
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap font-bold ${pnlClass}">${signal.pnl_percent}</td>
+                <td class="px-6 py-4 whitespace-nowrap font-bold ${pnlClass}">${pnlText}</td>
             `;
             // Add click listener to show the ROI panel
             row.addEventListener('click', () => showRoiPanel(signal));
@@ -645,5 +648,4 @@
   </script>
 </body>
 </html>
-
 
