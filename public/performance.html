@@ -421,20 +421,29 @@
       }
     });
     
+    // MODIFIED: Switched to toBlob for better mobile compatibility
     downloadBtn.addEventListener('click', () => {
-        downloadBtn.textContent = 'NexxTrade...';
-        htmlToImage.toPng(roiPanel, { backgroundColor: '#0b0f14' })
-            .then(function (dataUrl) {
+        downloadBtn.textContent = 'Preparing...';
+        downloadBtn.disabled = true;
+
+        htmlToImage.toBlob(roiPanel, { backgroundColor: '#0b0f14' })
+            .then(function (blob) {
                 const link = document.createElement('a');
-                link.download = `NexxTrade_ROI_${document.getElementById('roi-pair').textContent.split(' ')[0]}.png`;
-                link.href = dataUrl;
+                link.download = `NexxTrade_ROI_${document.getElementById('roi-pair').textContent.replace('/', '-')}.png`;
+                link.href = URL.createObjectURL(blob);
                 link.click();
+                URL.revokeObjectURL(link.href); // Clean up the object URL
+
                 downloadBtn.textContent = 'Download';
+                downloadBtn.disabled = false;
             })
             .catch(function (error) {
-                console.error('oops, something went wrong!', error);
+                console.error('Download failed:', error);
                 downloadBtn.textContent = 'Error!';
-                 setTimeout(() => { downloadBtn.textContent = 'Download'; }, 2000);
+                setTimeout(() => { 
+                    downloadBtn.textContent = 'Download';
+                    downloadBtn.disabled = false;
+                }, 2000);
             });
     });
 
