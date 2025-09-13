@@ -187,12 +187,15 @@
       gap: .6rem;
     }
 
+    .brand strong { 
+        font-weight: 800; 
+    }
+
     .logo {
-      width: 28px;
-      height: 28px;
-      border-radius: 7px;
-      background: conic-gradient(from 30deg, #12b886, #2ad678, #8ef7bf);
-      box-shadow: 0 0 0 2px rgba(42,214,120,.15);
+      width: 44px;
+      height: auto;
+      border-radius: 8px;
+      display: block;
     }
 
     /* Login-specific styles */
@@ -247,12 +250,12 @@
 <body>
   <div id="login-screen" class="login-container">
     <div class="card p-6 w-full max-w-sm space-y-6 text-center">
-      <div class="flex flex-col items-center gap-2">
+      <div class="flex flex-col items-center gap-4">
         <a class="brand" href="/" aria-label="NexxTrade home">
-          <span class="logo" aria-hidden="true"></span>
+          <img src="./images/Nexxtrade (1).svg" alt="NexxTrade Logo" class="logo">
+          <strong class="text-2xl font-bold">NexxTrade</strong>
         </a>
-        <h1 class="text-2xl font-bold">Admin Login</h1>
-        <p class="text-muted text-sm">Enter your credentials to access the panel.</p>
+        <p class="text-muted !-mt-2">Admin Panel Login</p>
       </div>
       <form id="login-form" class="space-y-4">
         <div>
