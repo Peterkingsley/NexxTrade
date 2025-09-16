@@ -517,8 +517,7 @@ app.get('/api/users/stats', async (req, res) => {
 // =================================================================
 // --- START: NOWPayments API Routes ---
 // =================================================================
-// MODIFIED: This route is now safer and won't overwrite existing user subscriptions.
-// It also creates a record in the new 'payments' table for every payment attempt.
+// MODIFIED: This route now tracks every payment generation attempt in the users table.
 app.post('/api/payments/nowpayments/create', async (req, res) => {
     try {
         const { fullname, email, telegram, planName, priceUSD, pay_currency } = req.body;
@@ -536,15 +535,17 @@ app.post('/api/payments/nowpayments/create', async (req, res) => {
         
         const registrationDate = new Date().toISOString().split('T')[0];
 
-        // This query now ensures a user record exists but avoids resetting an active subscription.
-        // It only updates the order_id to link this specific transaction.
+        // This query now ensures a user record exists, avoids resetting an active subscription,
+        // and tracks the payment generation attempt.
         await pool.query(
-            `INSERT INTO users (full_name, email, telegram_handle, plan_name, subscription_status, registration_date, order_id)
-             VALUES ($1, $2, $3, $4, 'pending', $5, $6)
+            `INSERT INTO users (full_name, email, telegram_handle, plan_name, subscription_status, registration_date, order_id, payment_attempts, last_payment_attempt)
+             VALUES ($1, $2, $3, $4, 'pending', $5, $6, 1, NOW())
              ON CONFLICT (telegram_handle) DO UPDATE SET 
                 full_name = EXCLUDED.full_name, 
                 email = EXCLUDED.email, 
-                order_id = EXCLUDED.order_id`,
+                order_id = EXCLUDED.order_id,
+                payment_attempts = users.payment_attempts + 1,
+                last_payment_attempt = NOW()`,
             [fullname, email, telegram, planName, registrationDate, order_id]
         );
 
@@ -1053,3 +1054,4 @@ app.listen(port, async () => {
   console.log(`Server is running on http://localhost:${port}`);
   await setupWebhook();
 });
+
