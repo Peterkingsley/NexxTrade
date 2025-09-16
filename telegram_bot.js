@@ -132,7 +132,7 @@ const updateBotCommandsForChat = async (chatId, options) => {
         ];
         let dynamicCommands = [];
 
-        const excludedPrefixes = ['select_plan_', 'select_network_', 'check_payment_status_'];
+        const excludedPrefixes = ['select_plan_', 'select_network_', 'check_payment_status_', 'proceed_with_purchase_'];
 
         if (options && options.reply_markup && options.reply_markup.inline_keyboard) {
             options.reply_markup.inline_keyboard.flat().forEach(button => {
@@ -278,6 +278,45 @@ const createLinkMenu = (chatId, text, url) => {
     updateBotCommandsForChat(chatId, opts);
 };
 
+// --- NEW FUNCTION for the core purchase logic ---
+async function proceedWithPurchase(chatId, planId, telegramUser) {
+    try {
+        const response = await fetch(`${serverUrl}/api/pricing`);
+        const plans = await response.json();
+        const selectedPlan = plans.find(p => p.id === planId);
+
+        if (!selectedPlan) return bot.sendMessage(chatId, "Sorry, that plan is no longer available.");
+
+        const telegramHandle = telegramUser.username ? `@${telegramUser.username}` : `user_${telegramUser.id}`;
+
+        userRegistrationState[chatId] = {
+            planId: planId,
+            planName: selectedPlan.plan_name,
+            priceUSD: selectedPlan.price,
+            telegramHandle: telegramHandle,
+            telegramGroupId: selectedPlan.telegram_group_id,
+            stage: 'awaiting_payment_method'
+        };
+
+        const paymentMessage = `You have selected the *${selectedPlan.plan_name}* plan.\n\nPlease choose your payment method:`;
+        const paymentKeyboard = {
+            reply_markup: {
+                inline_keyboard: [
+                    [{ text: 'Pay with Crypto', callback_data: `select_payment_crypto` }],
+                    [{ text: 'Pay with Fiat', callback_data: `select_payment_fiat` }],
+                    [{ text: '⬅️ Back to Plans', callback_data: 'back_to_plans' }]
+                ]
+            }
+        };
+        bot.sendMessage(chatId, paymentMessage, { parse_mode: 'Markdown', ...paymentKeyboard });
+        updateBotCommandsForChat(chatId, paymentKeyboard);
+    } catch (error) {
+        console.error('Error in proceedWithPurchase:', error);
+        bot.sendMessage(chatId, "An error occurred while processing your selection. Please try again.");
+    }
+}
+
+
 // --- Main Callback Query Handler for Inline Buttons ---
 
 bot.on('callback_query', async (callbackQuery) => {
@@ -322,37 +361,50 @@ bot.on('callback_query', async (callbackQuery) => {
         // Stage 1: Plan Selection - Kicks off the payment flow
         if (data.startsWith('select_plan_')) {
             const planId = parseInt(data.split('_')[2], 10);
-            const response = await fetch(`${serverUrl}/api/pricing`);
-            const plans = await response.json();
-            const selectedPlan = plans.find(p => p.id === planId);
-
-            if (!selectedPlan) return bot.sendMessage(chatId, "Sorry, that plan is no longer available.");
-            
-            // Automatically get telegram handle
             const telegramHandle = telegramUser.username ? `@${telegramUser.username}` : `user_${telegramUser.id}`;
 
-            userRegistrationState[chatId] = {
-                planId: planId,
-                planName: selectedPlan.plan_name,
-                priceUSD: selectedPlan.price,
-                telegramHandle: telegramHandle,
-                telegramGroupId: selectedPlan.telegram_group_id, // Store the group ID for this plan
-                stage: 'awaiting_payment_method' // New stage
-            };
+            // --- NEW: Check for existing active subscription ---
+            try {
+                const statusResponse = await fetch(`${serverUrl}/api/users/status-by-telegram-handle/${telegramHandle.replace('@', '')}`);
+                
+                if (statusResponse.ok) {
+                    const subStatus = await statusResponse.json();
+                    const expirationDate = new Date(subStatus.subscription_expiration);
+                    const today = new Date();
 
-            const paymentMessage = `Congrats, you've selected the *${selectedPlan.plan_name}* plan.\n\nPlease choose your payment method:`;
-            const paymentKeyboard = {
-                reply_markup: {
-                    inline_keyboard: [
-                        [{ text: 'Pay with Crypto', callback_data: `select_payment_crypto` }],
-                        [{ text: 'Pay with Fiat', callback_data: `select_payment_fiat` }],
-                        [{ text: '⬅️ Back to Plans', callback_data: 'back_to_plans' }]
-                    ]
+                    // Check if the subscription is active and has not expired
+                    if (subStatus.subscription_status === 'active' && expirationDate > today) {
+                        const formattedExpiration = expirationDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+                        
+                        // Let the user know they're already subscribed and offer to extend/upgrade.
+                        const upgradeMessage = `You already have an active subscription that expires on ${formattedExpiration}.\n\nYou can purchase another package to extend your subscription time or upgrade your plan. Would you like to proceed?`;
+                        const upgradeKeyboard = {
+                            reply_markup: {
+                                inline_keyboard: [
+                                    [{ text: 'Yes, Continue with Purchase', callback_data: `proceed_with_purchase_${planId}` }],
+                                    [{ text: '⬅️ Back to Main Menu', callback_data: 'main_menu' }]
+                                ]
+                            }
+                        };
+                        
+                        await bot.sendMessage(chatId, upgradeMessage, upgradeKeyboard);
+                        return; // Stop the flow here and wait for user to decide.
+                    }
                 }
-            };
-            bot.sendMessage(chatId, paymentMessage, { parse_mode: 'Markdown', ...paymentKeyboard });
-            updateBotCommandsForChat(chatId, paymentKeyboard);
-            return; // Stop further processing for this callback
+                // If user status is not 'active', or the request fails (e.g., 404), proceed with the normal purchase flow.
+            } catch (err) {
+                console.error('Error checking user subscription status:', err);
+                // If there's an error during the check, don't block the user. Log it and proceed.
+            }
+            // --- END: Subscription Check ---
+            
+            return proceedWithPurchase(chatId, planId, telegramUser);
+        }
+
+        // --- NEW HANDLER --- for when an existing user confirms they want to purchase/upgrade.
+        if (data.startsWith('proceed_with_purchase_')) {
+            const planId = parseInt(data.split('_')[3], 10);
+            return proceedWithPurchase(chatId, planId, telegramUser);
         }
 
         // Stage 2: Payment Method Selection
@@ -662,3 +714,4 @@ module.exports = {
     bot,
     setupWebhook
 };
+
