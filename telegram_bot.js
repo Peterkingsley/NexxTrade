@@ -406,16 +406,27 @@ bot.on('callback_query', async (callbackQuery) => {
         if (data.startsWith('select_network_')) {
             const network = data.split('_')[2]; // e.g., usdtbsc
             const state = userRegistrationState[chatId];
-            if (!state || !state.telegramHandle) {
+            if (!state || !state.telegramHandle || !state.planId) {
                 return bot.sendMessage(chatId, "Something went wrong. Please start the registration over with /start.");
             }
             
-            bot.sendMessage(chatId, "Generating your unique crypto payment address... please wait.");
+            bot.sendMessage(chatId, "Verifying plan and generating your unique crypto payment address... please wait.");
+
+            // --- FETCH LATEST PRICE ---
+            // This ensures that any price changes made by an admin are reflected at the time of payment.
+            const planDetailsResponse = await fetch(`${serverUrl}/api/pricing/${state.planId}`);
+            if (!planDetailsResponse.ok) {
+                return bot.sendMessage(chatId, "Could not verify the plan details. Please try again or contact support.");
+            }
+            const latestPlanDetails = await planDetailsResponse.json();
+            // Update the state with the latest group ID, just in case it changed.
+            state.telegramGroupId = latestPlanDetails.telegram_group_id;
+            // --- END FETCH ---
             
             const tempName = `User ${state.telegramHandle}`;
             const tempEmail = `${state.telegramHandle.replace('@','')}_${Date.now()}@nexxtrade.com`;
 
-            // FIXED: Send the correct price (priceUSD) and plan name to the backend.
+            // Use the LATEST plan details for the payment request, not the ones stored in the state earlier.
             const response = await fetch(`${serverUrl}/api/payments/nowpayments/create`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -423,8 +434,8 @@ bot.on('callback_query', async (callbackQuery) => {
                     fullname: tempName,
                     email: tempEmail,
                     telegram: state.telegramHandle,
-                    planName: state.planName, // Use the actual plan name for the description
-                    priceUSD: state.priceUSD, // Use the correct price stored in the state
+                    planName: latestPlanDetails.plan_name, // Use latest name
+                    priceUSD: latestPlanDetails.price, // Use latest price
                     pay_currency: network
                 }),
             });
@@ -638,3 +649,4 @@ module.exports = {
     bot,
     setupWebhook
 };
+
