@@ -10,6 +10,9 @@ const path = require('path');
 const bcrypt = require('bcrypt'); // Import bcrypt for password hashing
 const crypto = require('crypto'); // Import crypto for generating unique tokens and webhook verification
 const app = express();
+// Use dynamic import for node-fetch
+const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
+
 // Load environment variables from .env file
 require('dotenv').config();
 const port = process.env.PORT || 3000;
@@ -19,7 +22,6 @@ const { bot } = require('./telegram_bot.js');
 
 // Middleware setup
 // IMPORTANT: We need the raw body for webhook verification, so we apply the JSON parser later, conditionally.
-// app.use(express.json({ limit: '10mb' })); // We will move this
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Use the CORS middleware to allow cross-origin requests
 app.use(cors());
@@ -34,16 +36,16 @@ const pool = new Pool({
 
 
 // =================================================================================
-// NEW: PAYMENT VERIFICATION LOGIC
+// NEW: NOWPAYMENTS VERIFICATION LOGIC
 // =================================================================================
 
 /**
  * This function is called after a payment is successfully verified.
  * It updates the user's status in the database and sends them their VIP group link via Telegram.
- * @param {string} uniquePaymentId - The unique ID for the user's payment record.
+ * @param {string} uniquePaymentId - The unique ID for the user's payment record (should match NowPayments order_id).
  */
 const finalizeSuccessfulPayment = async (uniquePaymentId) => {
-    console.log(`Finalizing payment for ID: ${uniquePaymentId}`);
+    console.log(`Finalizing payment for Order ID: ${uniquePaymentId}`);
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
@@ -58,13 +60,13 @@ const finalizeSuccessfulPayment = async (uniquePaymentId) => {
         const result = await client.query(updateUserQuery, [uniquePaymentId]);
 
         if (result.rows.length === 0) {
-            // This can happen if the payment was already processed or the ID is invalid.
-            console.log(`No pending user found for payment ID ${uniquePaymentId}, it might be already processed.`);
+            console.log(`No pending user found for Order ID ${uniquePaymentId}, it might be already processed.`);
             await client.query('ROLLBACK');
             return;
         }
 
         const { telegram_chat_id, plan } = result.rows[0];
+        console.log(`User with plan '${plan}' found. Proceeding to send Telegram invite.`);
 
         // Step 2: Get the Telegram Group ID for the user's subscribed plan
         const planQuery = 'SELECT telegram_group_id FROM pricing_plans WHERE plan_name = $1';
@@ -95,7 +97,6 @@ const finalizeSuccessfulPayment = async (uniquePaymentId) => {
     } catch (error) {
         await client.query('ROLLBACK');
         console.error('Error finalizing successful payment:', error.message);
-        // Optionally, send an error message to the user or an alert to an admin.
         if (error.telegram_chat_id) {
             bot.sendMessage(error.telegram_chat_id, "We confirmed your payment, but there was an issue granting you access. Please contact support.");
         }
@@ -105,11 +106,51 @@ const finalizeSuccessfulPayment = async (uniquePaymentId) => {
 };
 
 /**
- * This function periodically checks for pending payments that might have been missed by the webhook.
- * It queries your database for users with 'pending' status and tries to verify their transaction.
- * * !!! IMPORTANT !!!
- * You MUST implement the logic inside `verifyTransactionOnBlockchain` based on your specific
- * payment processor's API (e.g., checking a transaction hash on Etherscan, calling Coinbase API, etc.).
+ * Reconciles all past payments from NowPayments with the local database on server startup.
+ */
+const reconcilePastPayments = async () => {
+    console.log('Starting historical payment reconciliation with NowPayments...');
+    const apiKey = process.env.NOWPAYMENTS_API_KEY;
+
+    if (!apiKey) {
+        console.error('NowPayments API key is not configured. Skipping reconciliation.');
+        return;
+    }
+    
+    try {
+        const response = await fetch('https://api.nowpayments.io/v1/payment/?orderBy=created_at&limit=500', { // Fetches last 500 payments
+            method: 'GET',
+            headers: { 'x-api-key': apiKey }
+        });
+
+        if (!response.ok) {
+            throw new Error(`NowPayments API returned status: ${response.status}`);
+        }
+
+        const payments = await response.json();
+        const confirmedStatuses = ['finished', 'confirmed', 'sending'];
+        let processedCount = 0;
+
+        if (payments && payments.data) {
+             for (const payment of payments.data) {
+                if (confirmedStatuses.includes(payment.payment_status) && payment.order_id) {
+                    await finalizeSuccessfulPayment(payment.order_id);
+                    processedCount++;
+                }
+            }
+            console.log(`Historical payment reconciliation complete. Processed ${processedCount} confirmed payments.`);
+        } else {
+             console.log('No past payments found or empty response from NowPayments.');
+        }
+
+    } catch (error) {
+        console.error('Error during historical payment reconciliation:', error.message);
+    }
+};
+
+
+/**
+ * Periodically checks for pending payments that might have been missed by the webhook.
  */
 const checkAndUpdatePendingPayments = async () => {
     console.log('Running periodic check for pending payments...');
@@ -126,12 +167,12 @@ const checkAndUpdatePendingPayments = async () => {
         console.log(`Found ${pendingUsers.length} pending payment(s).`);
 
         for (const user of pendingUsers) {
-            // This is a placeholder function. You need to replace this with the
-            // actual API call to your payment provider to verify the transaction.
-            const isConfirmed = await verifyTransactionOnBlockchain(user.transaction_hash);
+            // The transaction_hash should store the NowPayments payment_id
+            const isConfirmed = await verifyNowPaymentsTransaction(user.transaction_hash);
 
             if (isConfirmed) {
                 console.log(`Transaction ${user.transaction_hash} confirmed by periodic check.`);
+                // The unique_payment_id is the order_id for NowPayments
                 await finalizeSuccessfulPayment(user.unique_payment_id);
             }
         }
@@ -143,58 +184,54 @@ const checkAndUpdatePendingPayments = async () => {
 };
 
 /**
- * !!! ACTION REQUIRED !!!
- * This is a placeholder for your actual transaction verification logic.
- * @param {string} transactionHash - The transaction hash/ID provided by the user.
+ * Verifies a single transaction's status with the NowPayments API.
+ * @param {string} paymentId - The payment ID from NowPayments (stored as transaction_hash).
  * @returns {Promise<boolean>} - True if the transaction is confirmed, false otherwise.
  */
-const verifyTransactionOnBlockchain = async (transactionHash) => {
-    //
-    // EXAMPLE: If you were using an Etherscan-like API, your logic might look like this:
-    //
-    // const apiKey = process.env.BLOCKCHAIN_API_KEY;
-    // const url = `https://api.etherscan.io/api?module=transaction&action=gettxreceiptstatus&txhash=${transactionHash}&apikey=${apiKey}`;
-    // try {
-    //   const response = await fetch(url);
-    //   const data = await response.json();
-    //   // Check if the status is '1' (success)
-    //   return data.status === '1' && data.result.status === '1';
-    // } catch (error) {
-    //   console.error('Error verifying transaction:', error);
-    //   return false;
-    // }
-    //
-    // For now, it returns false. You must implement this.
-    if (!transactionHash) return false;
-    console.log(`(Placeholder) Verifying transaction: ${transactionHash}... This needs to be implemented.`);
-    return false;
+const verifyNowPaymentsTransaction = async (paymentId) => {
+    if (!paymentId) return false;
+    
+    const apiKey = process.env.NOWPAYMENTS_API_KEY;
+    if (!apiKey) {
+        console.error('NowPayments API Key is missing.');
+        return false;
+    }
+
+    try {
+        const response = await fetch(`https://api.nowpayments.io/v1/payment/${paymentId}`, {
+             method: 'GET',
+             headers: { 'x-api-key': apiKey }
+        });
+        const data = await response.json();
+        const confirmedStatuses = ['finished', 'confirmed', 'sending'];
+        return confirmedStatuses.includes(data.payment_status);
+
+    } catch (error) {
+        console.error('Error verifying NowPayments transaction:', error.message);
+        return false;
+    }
 };
 
 
 // =================================================================================
-// NEW: WEBHOOK ENDPOINT FOR INSTANT PAYMENT NOTIFICATION
+// NOWPAYMENTS WEBHOOK (IPN) ENDPOINT
 // =================================================================================
-// This endpoint receives notifications from your payment gateway (e.g., Coinbase Commerce, Stripe).
 app.post('/api/payment-webhook', express.raw({ type: 'application/json' }), async (req, res) => {
     try {
-        console.log('Webhook received...');
-        // --- Webhook Verification ---
-        // This is crucial for security. It ensures the request came from your payment provider.
-        // This example uses Coinbase Commerce's signature header. Adapt for your provider.
-        const signature = req.headers['x-cc-webhook-signature'];
-        const webhookSecret = process.env.COINBASE_COMMERCE_WEBHOOK_SECRET;
+        console.log('NowPayments webhook received...');
+        
+        const signature = req.headers['x-nowpayments-sig'];
+        const ipnSecret = process.env.NOWPAYMENTS_IPN_SECRET_KEY;
 
-        if (!signature || !webhookSecret) {
-            console.warn('Webhook secret not configured or signature missing.');
-            return res.status(400).send('Webhook signature is missing.');
+        if (!ipnSecret) {
+            console.warn('NowPayments IPN secret not configured.');
+            return res.status(500).send('IPN secret not configured.');
         }
 
-        // Create a hash using the secret and the raw request body
-        const hmac = crypto.createHmac('sha256', webhookSecret);
-        hmac.update(req.body);
+        const hmac = crypto.createHmac('sha512', ipnSecret);
+        hmac.update(JSON.stringify(JSON.parse(req.body.toString()), Object.keys(JSON.parse(req.body.toString())).sort()));
         const digest = hmac.digest('hex');
 
-        // Compare our hash with the one from the header
         if (digest !== signature) {
             console.error('Invalid webhook signature.');
             return res.status(400).send('Invalid signature.');
@@ -202,26 +239,16 @@ app.post('/api/payment-webhook', express.raw({ type: 'application/json' }), asyn
         
         console.log('Webhook signature verified successfully.');
 
-        // --- Process the Event ---
         const event = JSON.parse(req.body.toString());
+        const confirmedStatuses = ['finished', 'confirmed', 'sending'];
 
-        // Example for Coinbase Commerce: Check if the charge is confirmed
-        if (event.event.type === 'charge:confirmed') {
-            const chargeData = event.event.data;
-            // You should pass your `unique_payment_id` in the metadata when creating the charge.
-            const uniquePaymentId = chargeData.metadata.custom; 
-            
-            if (uniquePaymentId) {
-                console.log(`Webhook: Confirmed charge for payment ID ${uniquePaymentId}`);
-                await finalizeSuccessfulPayment(uniquePaymentId);
-            } else {
-                 console.warn('Webhook received for confirmed charge but no unique_payment_id found in metadata.');
-            }
+        if (confirmedStatuses.includes(event.payment_status) && event.order_id) {
+            console.log(`Webhook: Confirmed charge for Order ID ${event.order_id}`);
+            await finalizeSuccessfulPayment(event.order_id);
         } else {
-            console.log(`Webhook received event type: ${event.event.type} - not processing.`);
+            console.log(`Webhook received non-confirmed status: ${event.payment_status}`);
         }
 
-        // Respond to the webhook provider that we received it successfully.
         res.status(200).send('Webhook received.');
 
     } catch (error) {
@@ -234,7 +261,7 @@ app.post('/api/payment-webhook', express.raw({ type: 'application/json' }), asyn
 // We use express.json() for all other routes that are not the webhook.
 app.use(express.json({ limit: '10mb' }));
 
-
+// ... (The rest of your API routes: /api/blogs, /api/pricing, etc. remain unchanged) ...
 // Serve static files from the 'public' directory
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -374,13 +401,17 @@ app.post('/api/register', async (req, res) => {
     }
 
     try {
-        // Check if user with the same email or telegram username already exists
-        const userCheck = await pool.query('SELECT * FROM users WHERE email = $1 OR telegram_username = $2', [email, telegramUsername]);
-        if (userCheck.rows.length > 0) {
-            return res.status(409).json({ success: false, message: 'User with this email or Telegram username already exists.' });
+        // Find existing user by email
+        const userCheck = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+        // A user can sign up for multiple plans. We check if they already have an active subscription for the *same plan*.
+        const existingPlan = userCheck.rows.find(u => u.plan === plan && u.payment_status === 'successful');
+        
+        if (existingPlan) {
+            return res.status(409).json({ success: false, message: `You already have an active subscription for the ${plan} plan.` });
         }
 
         const hashedPassword = await bcrypt.hash(password, 10);
+        // This ID will be used as the order_id for NowPayments
         const uniquePaymentId = `NXT-${crypto.randomBytes(8).toString('hex')}`;
         
         const query = `
@@ -397,7 +428,7 @@ app.post('/api/register', async (req, res) => {
             success: true, 
             message: 'Registration successful! Your payment is being confirmed.',
             userId: result.rows[0].id,
-            uniquePaymentId: uniquePaymentId
+            uniquePaymentId: uniquePaymentId // This is the order_id
         });
 
     } catch (error) {
@@ -406,7 +437,7 @@ app.post('/api/register', async (req, res) => {
     }
 });
 
-
+// ... (Your page-serving routes: /, /join, /admin, etc. remain unchanged) ...
 // Route for the homepage
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
@@ -456,9 +487,11 @@ app.get('/admin/roles', (req, res) => {
 
 app.listen(port, () => {
     console.log(`Server running on port ${port}`);
-    // Start the periodic check for pending payments 5 minutes after server start,
-    // and run it every 5 minutes thereafter.
-    setTimeout(() => {
-        setInterval(checkAndUpdatePendingPayments, 300000); // 300000 ms = 5 minutes
-    }, 300000);
+    
+    // ** ACTION: Run the historical payment check once on startup **
+    reconcilePastPayments();
+
+    // Start the periodic check for any pending payments every 10 minutes.
+    setInterval(checkAndUpdatePendingPayments, 600000); // 600000 ms = 10 minutes
 });
+
