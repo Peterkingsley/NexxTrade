@@ -517,12 +517,12 @@ app.get('/api/users/stats', async (req, res) => {
 // =================================================================
 // --- START: NOWPayments API Routes ---
 // =================================================================
-// FIXED: This route now accepts priceUSD directly and uses planName for descriptions and DB entries.
+// MODIFIED: This route is now safer and won't overwrite existing user subscriptions.
+// It also creates a record in the new 'payments' table for every payment attempt.
 app.post('/api/payments/nowpayments/create', async (req, res) => {
     try {
         const { fullname, email, telegram, planName, priceUSD, pay_currency } = req.body;
         
-        // The hardcoded price object is removed. We will use the price sent from the bot.
         const amountUSD = priceUSD;
 
         if (!amountUSD) {
@@ -535,11 +535,16 @@ app.post('/api/payments/nowpayments/create', async (req, res) => {
         const order_id = `nexxtrade-${telegram.replace('@', '')}-${Date.now()}`;
         
         const registrationDate = new Date().toISOString().split('T')[0];
-        // Use the actual planName when inserting/updating the user record
+
+        // This query now ensures a user record exists but avoids resetting an active subscription.
+        // It only updates the order_id to link this specific transaction.
         await pool.query(
             `INSERT INTO users (full_name, email, telegram_handle, plan_name, subscription_status, registration_date, order_id)
              VALUES ($1, $2, $3, $4, 'pending', $5, $6)
-             ON CONFLICT (telegram_handle) DO UPDATE SET full_name = $1, email = $2, plan_name = $4, subscription_status = 'pending', order_id = $6`,
+             ON CONFLICT (telegram_handle) DO UPDATE SET 
+                full_name = EXCLUDED.full_name, 
+                email = EXCLUDED.email, 
+                order_id = EXCLUDED.order_id`,
             [fullname, email, telegram, planName, registrationDate, order_id]
         );
 
@@ -550,21 +555,33 @@ app.post('/api/payments/nowpayments/create', async (req, res) => {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                price_amount: amountUSD, // Use the correct amount received from the bot
+                price_amount: amountUSD,
                 price_currency: 'usd',
                 pay_currency: pay_currency,
                 ipn_callback_url: `${process.env.APP_BASE_URL}/api/payments/nowpayments/webhook`,
                 order_id: order_id,
-                order_description: `NexxTrade ${planName} plan for ${telegram}` // Use planName for a better description
+                order_description: `NexxTrade ${planName} plan for ${telegram}`
             })
         });
 
         if (!nowPaymentsResponse.ok) {
             const errorText = await nowPaymentsResponse.text();
-            throw new Error(`NOWPayments API error: ${errorText}`);
+            console.error("NOWPayments API error:", errorText);
+            try {
+                const errorJson = JSON.parse(errorText);
+                // Forward the specific error message from NowPayments
+                return res.status(nowPaymentsResponse.status).json({ message: errorJson.message || 'NOWPayments API error' });
+            } catch {
+                 throw new Error(`NOWPayments API error: ${errorText}`);
+            }
         }
 
         const paymentData = await nowPaymentsResponse.json();
+        
+        // ADDED: Record this payment attempt in our new 'payments' table.
+        // This is crucial for tracking all transactions, successful or not.
+        await upsertPaymentFromNP(paymentData);
+
         res.status(200).json(paymentData);
 
     } catch (err) {
@@ -573,6 +590,8 @@ app.post('/api/payments/nowpayments/create', async (req, res) => {
     }
 });
 
+// MODIFIED: This webhook now uses the shared upsertPaymentFromNP helper function.
+// This ensures that payment processing logic is consistent whether it comes from a live webhook or a history sync.
 app.post('/api/payments/nowpayments/webhook', async (req, res) => {
     const ipnData = req.body;
     const hmac = req.headers['x-nowpayments-sig'];
@@ -588,50 +607,9 @@ app.post('/api/payments/nowpayments/webhook', async (req, res) => {
             return res.status(401).send('Invalid HMAC signature');
         }
 
-        if (['finished', 'confirmed'].includes(ipnData.payment_status)) {
-            const { order_id } = ipnData;
-            
-            const userResult = await pool.query('SELECT * FROM users WHERE order_id = $1', [order_id]);
-            if (userResult.rows.length === 0) {
-                console.error(`User with order_id ${order_id} not found.`);
-                return res.status(404).send('User not found.');
-            }
-            
-            const user = userResult.rows[0];
-            
-            // --- MODIFIED: Subscription Extension Logic ---
-            // This allows users to buy multiple packages and have their subscription time extended.
-            const today = new Date();
-            let baseDate = today;
-
-            // If the user has an active subscription with an expiration date in the future,
-            // use that future date as the starting point for the new subscription period.
-            if (user.subscription_status === 'active' && user.subscription_expiration) {
-                const currentExpiration = new Date(user.subscription_expiration);
-                if (currentExpiration > today) {
-                    baseDate = currentExpiration;
-                }
-            }
-
-            let newExpirationDate = new Date(baseDate);
-            const planName = user.plan_name.toLowerCase();
-
-            // Add the duration of the newly purchased plan
-            if (planName.includes('monthly')) {
-                newExpirationDate.setMonth(newExpirationDate.getMonth() + 1);
-            } else if (planName.includes('quarterly')) {
-                newExpirationDate.setMonth(newExpirationDate.getMonth() + 3);
-            } else if (planName.includes('bi-annually')) {
-                newExpirationDate.setMonth(newExpirationDate.getMonth() + 6);
-            }
-
-            await pool.query(
-                `UPDATE users SET subscription_status = 'active', subscription_expiration = $1 WHERE order_id = $2`,
-                [newExpirationDate.toISOString().split('T')[0], order_id]
-            );
-
-            console.log(`Subscription for ${user.telegram_handle} activated/extended. Expires: ${newExpirationDate.toISOString().split('T')[0]}`);
-        }
+        // Instead of repeating logic, we call our new shared helper function.
+        // It handles updating the 'payments' table and activating/extending the subscription if the payment is complete.
+        await upsertPaymentFromNP(ipnData);
         
         res.status(200).send('IPN received.');
 
@@ -659,6 +637,227 @@ app.get('/api/payments/nowpayments/status/:payment_id', async (req, res) => {
         res.status(500).send('Server Error');
     }
 });
+
+// === START: NowPayments reconciliation helpers & sync endpoint ===
+
+/**
+ * Helper: try to extract plan name and telegram from order_description
+ * order_description example: "NexxTrade Pro plan for @username"
+ */
+function parseOrderDescription(order_description = '') {
+  const result = { planName: null, telegram: null };
+  if (!order_description) return result;
+  // try pattern "NexxTrade <Plan> plan for <telegram>"
+  const m = order_description.match(/NexxTrade\s+(.+?)\s+plan\s+for\s+(@?\w[\w\-_.]*)/i);
+  if (m) {
+    result.planName = m[1];
+    result.telegram = m[2].startsWith('@') ? m[2] : `@${m[2]}`;
+    return result;
+  }
+  // fallback: look for an @handle
+  const at = order_description.match(/(@[A-Za-z0-9_]+)/);
+  if (at) result.telegram = at[1];
+  // guess plan name as first word
+  const p = order_description.match(/(Basic|Pro|Elite|Monthly|Quarterly|Bi-?annual|Annual)/i);
+  if (p) result.planName = p[1];
+  return result;
+}
+
+/**
+ * Upsert a payment record returned from NowPayments into payments table.
+ * p is the raw payment object from NowPayments GET list or GET payment.
+ */
+async function upsertPaymentFromNP(p) {
+  try {
+    const nowpayments_payment_id = p.id || p.payment_id || p.paymentId || null;
+    const order_id = p.order_id || p.orderId || null;
+    const price_amount = p.price_amount || p.priceAmount || null;
+    const price_currency = p.price_currency || p.price_currency || p.priceCurrency || 'usd';
+    const pay_amount = p.pay_amount || p.pay_amount || p.payAmount || null;
+    const pay_currency = p.pay_currency || p.pay_currency || p.payCurrency || null;
+    const payment_status = p.payment_status || p.status || p.paymentStatus || null;
+    const order_description = p.order_description || p.orderDescription || '';
+
+    // attempt to parse plan/telegram from description
+    const parsed = parseOrderDescription(order_description);
+
+    const insertQuery = `
+      INSERT INTO payments
+        (nowpayments_payment_id, order_id, telegram_handle, plan_name,
+         price_amount, price_currency, pay_amount, pay_currency,
+         payment_status, ipn_payload, created_at, updated_at)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NOW(),NOW())
+      ON CONFLICT (nowpayments_payment_id) DO UPDATE
+        SET order_id = COALESCE(EXCLUDED.order_id, payments.order_id),
+            telegram_handle = COALESCE(EXCLUDED.telegram_handle, payments.telegram_handle),
+            plan_name = COALESCE(EXCLUDED.plan_name, payments.plan_name),
+            price_amount = COALESCE(EXCLUDED.price_amount, payments.price_amount),
+            pay_amount = COALESCE(EXCLUDED.pay_amount, payments.pay_amount),
+            pay_currency = COALESCE(EXCLUDED.pay_currency, payments.pay_currency),
+            payment_status = EXCLUDED.payment_status,
+            ipn_payload = EXCLUDED.ipn_payload,
+            updated_at = NOW()
+      RETURNING *;
+    `;
+
+    const values = [
+      String(nowpayments_payment_id),
+      order_id,
+      parsed.telegram || null,
+      parsed.planName || null,
+      price_amount,
+      price_currency,
+      pay_amount,
+      pay_currency,
+      payment_status,
+      JSON.stringify(p)
+    ];
+
+    const { rows } = await pool.query(insertQuery, values);
+    const saved = rows[0];
+
+    // If this payment is confirmed/finished — process subscription
+    if (['confirmed', 'finished'].includes((payment_status || '').toLowerCase())) {
+      await processConfirmedPayment(saved);
+    }
+    return saved;
+  } catch (err) {
+    console.error('upsertPaymentFromNP error', err);
+    throw err;
+  }
+}
+
+/**
+ * Process payments that are confirmed/finished:
+ * - find a user by order_id OR telegram_handle extracted from the payment.
+ * - extend / create subscription in users (or subscriptions table).
+ * This re-uses the same extension logic as your webhook.
+ */
+async function processConfirmedPayment(paymentRow) {
+  try {
+    // 1) Try to find a user by order_id
+    let user = null;
+    if (paymentRow.order_id) {
+      const uRes = await pool.query('SELECT * FROM users WHERE order_id = $1', [paymentRow.order_id]);
+      if (uRes.rows.length) user = uRes.rows[0];
+    }
+
+    // 2) fallback: try by telegram_handle in payments row
+    if (!user && paymentRow.telegram_handle) {
+      const uRes = await pool.query('SELECT * FROM users WHERE telegram_handle = $1', [paymentRow.telegram_handle]);
+      if (uRes.rows.length) user = uRes.rows[0];
+    }
+
+    // If still not found, log and stop (we still keep paymentRow)
+    if (!user) {
+      console.warn(`Confirmed payment ${paymentRow.nowpayments_payment_id} has no linked user (order_id=${paymentRow.order_id}).`);
+      return;
+    }
+
+    // Compute subscription extension: reuse your webhook approach
+    const today = new Date();
+    let baseDate = today;
+    if (user.subscription_status === 'active' && user.subscription_expiration) {
+      const currExp = new Date(user.subscription_expiration);
+      if (currExp > today) baseDate = currExp;
+    }
+
+    // planName from paymentRow.plan_name or user.plan_name or fallback to parsing order_description
+    let planName = paymentRow.plan_name || user.plan_name || '';
+    planName = (planName || '').toString();
+
+    let newExpiration = new Date(baseDate);
+    const lower = planName.toLowerCase();
+
+    if (lower.includes('monthly') || lower.includes('month')) {
+      newExpiration.setMonth(newExpiration.getMonth() + 1);
+    } else if (lower.includes('quarter') || lower.includes('quarterly')) {
+      newExpiration.setMonth(newExpiration.getMonth() + 3);
+    } else if (lower.includes('bi') && lower.includes('ann')) {
+      newExpiration.setMonth(newExpiration.getMonth() + 6);
+    } else if (lower.includes('annual') || lower.includes('year')) {
+      newExpiration.setFullYear(newExpiration.getFullYear() + 1);
+    } else {
+      // fallback: add 30 days
+      newExpiration.setDate(newExpiration.getDate() + 30);
+    }
+
+    // Update user's subscription status and expiration
+    await pool.query(
+      `UPDATE users SET subscription_status = 'active', subscription_expiration = $1 WHERE id = $2`,
+      [newExpiration.toISOString().split('T')[0], user.id]
+    );
+
+    // Optionally, create a subscriptions entry:
+    await pool.query(
+      `INSERT INTO subscriptions (user_id, plan_name, start_date, expiration_date, status)
+       VALUES ($1,$2,$3,$4,'active') ON CONFLICT (id) DO NOTHING`,
+      [user.id, planName || user.plan_name || 'unknown', new Date().toISOString().split('T')[0], newExpiration.toISOString().split('T')[0]]
+    );
+
+    console.log(`Activated/extended subscription for ${user.telegram_handle}. Expires ${newExpiration.toISOString().split('T')[0]}`);
+  } catch (err) {
+    console.error('processConfirmedPayment error', err);
+    throw err;
+  }
+}
+
+/**
+ * POST /api/payments/nowpayments/sync-history
+ * body: { dateFrom: 'YYYY-MM-DD', dateTo: 'YYYY-MM-DD' } (dateFrom optional)
+ * This endpoint pages through NowPayments list API and upserts every payment.
+ * IMPORTANT: This should be a protected route in a real application (e.g., require admin auth).
+ */
+app.post('/api/payments/nowpayments/sync-history', async (req, res) => {
+  try {
+    let { dateFrom, dateTo } = req.body || {};
+    const limit = 100;
+    let page = 0;
+    let totalProcessed = 0;
+
+    // defaults
+    if (!dateTo) {
+      dateTo = new Date().toISOString().split('T')[0];
+    }
+    if (!dateFrom) {
+      dateFrom = '2020-01-01'; // or choose a sane start date
+    }
+
+    while (true) {
+      const url = `https://api.nowpayments.io/v1/payment/?limit=${limit}&page=${page}&dateFrom=${encodeURIComponent(dateFrom)}&dateTo=${encodeURIComponent(dateTo)}&sortBy=created_at&orderBy=asc`;
+      const r = await fetch(url, { headers: { 'x-api-key': process.env.NOWPAYMENTS_API_KEY } });
+      if (!r.ok) {
+        const text = await r.text();
+        console.error('NowPayments list error', r.status, text);
+        return res.status(500).json({ message: 'NowPayments API error', details: text });
+      }
+      
+      const list = await r.json();
+      const payments = list.data || [];
+      if (!payments || payments.length === 0) break;
+
+      for (const p of payments) {
+        await upsertPaymentFromNP(p);
+        totalProcessed++;
+      }
+
+      // if fewer than limit returned, we've reached the end
+      if (payments.length < limit) break;
+      page++;
+      // safety: don't loop forever
+      if (page > 1000) {
+        console.warn("Sync history safety break triggered after 1000 pages.");
+        break;
+      }
+    }
+
+    res.json({ message: 'Sync complete', processed: totalProcessed, dateFrom, dateTo });
+  } catch (err) {
+    console.error('sync-history error', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+// === END: NowPayments reconciliation helpers & sync endpoint ===
 
 // =================================================================
 // --- END: NOWPayments API Routes ---
