@@ -499,31 +499,24 @@ _(This precise amount includes network fees to ensure the full plan price is cov
                 }
 
                 const statusData = await statusResponse.json();
-                let statusMessage = `Current status: *${statusData.payment_status}*
-(VIP Channel will be unlocked as soon as your payment is confirmed)
-
-Make sure you’ve sent the required amount to the address provided`;
-
                 const state = userRegistrationState[chatId];
-
+                
                 if (['finished', 'confirmed'].includes(statusData.payment_status)) {
-                    statusMessage = "✅ Payment confirmed! I am finalizing your account now.";
-                    if (state && state.paymentCheckInterval) {
-                        clearInterval(state.paymentCheckInterval);
-                        bot.sendMessage(chatId, "Let's get your details to finalize your account.");
-                        state.stage = 'awaiting_name_after_payment';
-                        bot.sendMessage(chatId, "What is your full name?");
-                    }
-                } else if (['failed', 'expired'].includes(statusData.payment_status)) {
-                    statusMessage = `❌ Payment has ${statusData.payment_status}. Please try the registration again.`;
+                    await handleSuccessfulPayment(chatId);
+                } else if (['failed', 'expired', 'refunded'].includes(statusData.payment_status)) {
                     if (state && state.paymentCheckInterval) {
                         clearInterval(state.paymentCheckInterval);
                         delete userRegistrationState[chatId];
                     }
-                     updateBotCommandsForChat(chatId, mainMenuOptions);
-                }
+                    await bot.sendMessage(chatId, `❌ Payment has ${statusData.payment_status}. Please try the registration again.`);
+                    updateBotCommandsForChat(chatId, mainMenuOptions);
+                } else {
+                     let statusMessage = `Current status: *${statusData.payment_status}*
+(VIP Channel will be unlocked as soon as your payment is confirmed)
 
-                bot.sendMessage(chatId, statusMessage, { parse_mode: 'Markdown' });
+Make sure you’ve sent the required amount to the address provided`;
+                    await bot.sendMessage(chatId, statusMessage, { parse_mode: 'Markdown' });
+                }
 
             } catch(err) {
                 console.error(`Error manually checking payment status for ${paymentId}:`, err);
@@ -547,6 +540,23 @@ Make sure you’ve sent the required amount to the address provided`;
 });
 
 // --- Payment Status Polling ---
+async function handleSuccessfulPayment(chatId) {
+    const state = userRegistrationState[chatId];
+    if (!state || state.stage === 'finalizing_subscription') return; // Prevent double execution
+
+    if (state.paymentCheckInterval) {
+        clearInterval(state.paymentCheckInterval);
+        delete state.paymentCheckInterval;
+    }
+
+    // MODIFIED: Send a clear success message before asking for details.
+    await bot.sendMessage(chatId, "✅ Payment successful! Your payment has been confirmed.");
+    await bot.sendMessage(chatId, "Now, let's get a few details to finalize your account setup.");
+
+    state.stage = 'awaiting_name_after_payment';
+    bot.sendMessage(chatId, "What is your full name?");
+}
+
 function pollPaymentStatus(chatId, paymentId) {
     const state = userRegistrationState[chatId];
     if (!state) return; // Stop if user restarted
@@ -559,13 +569,8 @@ function pollPaymentStatus(chatId, paymentId) {
             const statusData = await statusResponse.json();
             
             if (['finished', 'confirmed'].includes(statusData.payment_status)) {
-                clearInterval(state.paymentCheckInterval);
-                bot.sendMessage(chatId, "✅ Payment confirmed! Let's get your details to finalize your account.");
-
-                state.stage = 'awaiting_name_after_payment';
-                bot.sendMessage(chatId, "What is your full name?");
-                
-            } else if (['failed', 'expired'].includes(statusData.payment_status)) {
+                await handleSuccessfulPayment(chatId);
+            } else if (['failed', 'expired', 'refunded'].includes(statusData.payment_status)) {
                 clearInterval(state.paymentCheckInterval);
                 bot.sendMessage(chatId, `❌ Payment has ${statusData.payment_status}. Please try the registration again or contact support if you believe this is an error.`);
                 delete userRegistrationState[chatId];
@@ -627,9 +632,17 @@ bot.on('message', async (msg) => {
                     throw new Error("Telegram Group ID not found for this plan. Please check admin configuration.");
                 }
 
-                // Generate one-time invite link using the specific group ID for the plan
+                // MODIFIED: Generate one-time invite link and send it as a button.
                 const inviteLink = await bot.createChatInviteLink(state.telegramGroupId, { member_limit: 1 });
-                await bot.sendMessage(chatId, `All done! Here is your one-time invite link to the VIP channel. Please note it can only be used once:\n\n${inviteLink.invite_link}`);
+                const joinMessage = "All done! Here is your one-time invite link to the VIP channel. Please note it can only be used once.";
+                const joinOptions = {
+                    reply_markup: {
+                        inline_keyboard: [
+                            [{ text: 'Join Now', url: inviteLink.invite_link }]
+                        ]
+                    }
+                };
+                await bot.sendMessage(chatId, joinMessage, joinOptions);
 
                 delete userRegistrationState[chatId];
                 updateBotCommandsForChat(chatId, mainMenuOptions);
@@ -649,4 +662,3 @@ module.exports = {
     bot,
     setupWebhook
 };
-

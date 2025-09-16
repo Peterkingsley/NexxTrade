@@ -599,17 +599,38 @@ app.post('/api/payments/nowpayments/webhook', async (req, res) => {
             
             const user = userResult.rows[0];
             
-            let expirationDate = new Date();
-            if (user.plan_name.toLowerCase().includes('monthly')) expirationDate.setMonth(expirationDate.getMonth() + 1);
-            else if (user.plan_name.toLowerCase().includes('quarterly')) expirationDate.setMonth(expirationDate.getMonth() + 3);
-            else if (user.plan_name.toLowerCase().includes('bi-annually')) expirationDate.setMonth(expirationDate.getMonth() + 6);
+            // --- MODIFIED: Subscription Extension Logic ---
+            // This allows users to buy multiple packages and have their subscription time extended.
+            const today = new Date();
+            let baseDate = today;
+
+            // If the user has an active subscription with an expiration date in the future,
+            // use that future date as the starting point for the new subscription period.
+            if (user.subscription_status === 'active' && user.subscription_expiration) {
+                const currentExpiration = new Date(user.subscription_expiration);
+                if (currentExpiration > today) {
+                    baseDate = currentExpiration;
+                }
+            }
+
+            let newExpirationDate = new Date(baseDate);
+            const planName = user.plan_name.toLowerCase();
+
+            // Add the duration of the newly purchased plan
+            if (planName.includes('monthly')) {
+                newExpirationDate.setMonth(newExpirationDate.getMonth() + 1);
+            } else if (planName.includes('quarterly')) {
+                newExpirationDate.setMonth(newExpirationDate.getMonth() + 3);
+            } else if (planName.includes('bi-annually')) {
+                newExpirationDate.setMonth(newExpirationDate.getMonth() + 6);
+            }
 
             await pool.query(
                 `UPDATE users SET subscription_status = 'active', subscription_expiration = $1 WHERE order_id = $2`,
-                [expirationDate.toISOString().split('T')[0], order_id]
+                [newExpirationDate.toISOString().split('T')[0], order_id]
             );
 
-            console.log(`Subscription for ${user.email} activated. Expires: ${expirationDate.toISOString().split('T')[0]}`);
+            console.log(`Subscription for ${user.telegram_handle} activated/extended. Expires: ${newExpirationDate.toISOString().split('T')[0]}`);
         }
         
         res.status(200).send('IPN received.');
