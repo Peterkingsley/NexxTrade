@@ -517,127 +517,6 @@ app.get('/api/users/stats', async (req, res) => {
 // =================================================================
 // --- START: NOWPayments API Routes ---
 // =================================================================
-// MODIFIED: This route now tracks every payment generation attempt in the users table.
-app.post('/api/payments/nowpayments/create', async (req, res) => {
-    try {
-        const { fullname, email, telegram, planName, priceUSD, pay_currency } = req.body;
-        
-        const amountUSD = priceUSD;
-
-        if (!amountUSD) {
-            return res.status(400).json({ message: 'Invalid plan price provided.' });
-        }
-         if (!pay_currency) {
-            return res.status(400).json({ message: 'Crypto network not specified.' });
-        }
-        
-        const order_id = `nexxtrade-${telegram.replace('@', '')}-${Date.now()}`;
-        
-        const registrationDate = new Date().toISOString().split('T')[0];
-
-        // This query now ensures a user record exists, avoids resetting an active subscription,
-        // and tracks the payment generation attempt.
-        await pool.query(
-            `INSERT INTO users (full_name, email, telegram_handle, plan_name, subscription_status, registration_date, order_id, payment_attempts, last_payment_attempt)
-             VALUES ($1, $2, $3, $4, 'pending', $5, $6, 1, NOW())
-             ON CONFLICT (telegram_handle) DO UPDATE SET 
-                full_name = EXCLUDED.full_name, 
-                email = EXCLUDED.email, 
-                order_id = EXCLUDED.order_id,
-                payment_attempts = users.payment_attempts + 1,
-                last_payment_attempt = NOW()`,
-            [fullname, email, telegram, planName, registrationDate, order_id]
-        );
-
-        const nowPaymentsResponse = await fetch('https://api.nowpayments.io/v1/payment', {
-            method: 'POST',
-            headers: {
-                'x-api-key': process.env.NOWPAYMENTS_API_KEY,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                price_amount: amountUSD,
-                price_currency: 'usd',
-                pay_currency: pay_currency,
-                ipn_callback_url: `${process.env.APP_BASE_URL}/api/payments/nowpayments/webhook`,
-                order_id: order_id,
-                order_description: `NexxTrade ${planName} plan for ${telegram}`
-            })
-        });
-
-        if (!nowPaymentsResponse.ok) {
-            const errorText = await nowPaymentsResponse.text();
-            console.error("NOWPayments API error:", errorText);
-            try {
-                const errorJson = JSON.parse(errorText);
-                // Forward the specific error message from NowPayments
-                return res.status(nowPaymentsResponse.status).json({ message: errorJson.message || 'NOWPayments API error' });
-            } catch {
-                 throw new Error(`NOWPayments API error: ${errorText}`);
-            }
-        }
-
-        const paymentData = await nowPaymentsResponse.json();
-        
-        // ADDED: Record this payment attempt in our new 'payments' table.
-        // This is crucial for tracking all transactions, successful or not.
-        await upsertPaymentFromNP(paymentData);
-
-        res.status(200).json(paymentData);
-
-    } catch (err) {
-        console.error('Error creating NOWPayments payment:', err);
-        res.status(500).json({ message: 'Server Error during payment creation.' });
-    }
-});
-
-// MODIFIED: This webhook now uses the shared upsertPaymentFromNP helper function.
-// This ensures that payment processing logic is consistent whether it comes from a live webhook or a history sync.
-app.post('/api/payments/nowpayments/webhook', async (req, res) => {
-    const ipnData = req.body;
-    const hmac = req.headers['x-nowpayments-sig'];
-
-    try {
-        const sortedData = JSON.stringify(ipnData, Object.keys(ipnData).sort());
-        const calculatedHmac = crypto.createHmac('sha512', process.env.NOWPAYMENTS_IPN_SECRET)
-            .update(Buffer.from(sortedData, 'utf-8'))
-            .digest('hex');
-
-        if (hmac !== calculatedHmac) {
-            console.warn('Invalid HMAC signature received.');
-            return res.status(401).send('Invalid HMAC signature');
-        }
-
-        // Instead of repeating logic, we call our new shared helper function.
-        // It handles updating the 'payments' table and activating/extending the subscription if the payment is complete.
-        await upsertPaymentFromNP(ipnData);
-        
-        res.status(200).send('IPN received.');
-
-    } catch (err) {
-        console.error('Error processing NOWPayments webhook:', err);
-        res.status(500).send('Server Error');
-    }
-});
-
-app.get('/api/payments/nowpayments/status/:payment_id', async (req, res) => {
-    try {
-        const { payment_id } = req.params;
-        const response = await fetch(`https://api.nowpayments.io/v1/payment/${payment_id}`, {
-            headers: { 'x-api-key': process.env.NOWPAYMENTS_API_KEY }
-        });
-
-        if (!response.ok) {
-            throw new Error('Failed to fetch payment status from NOWPayments.');
-        }
-
-        const data = await response.json();
-        res.json(data);
-    } catch (err) {
-        console.error('Error fetching payment status:', err.message);
-        res.status(500).send('Server Error');
-    }
-});
 
 // === START: NowPayments reconciliation helpers & sync endpoint ===
 
@@ -754,7 +633,15 @@ async function processConfirmedPayment(paymentRow) {
       console.warn(`Confirmed payment ${paymentRow.nowpayments_payment_id} has no linked user (order_id=${paymentRow.order_id}).`);
       return;
     }
+    
+    // NEW: Use the plan name from the specific payment record for accurate extension
+    const planNameForExtension = (paymentRow.plan_name || user.plan_name || '').toString().toLowerCase();
 
+    if (!planNameForExtension) {
+        console.warn(`Could not determine plan name for payment ${paymentRow.nowpayments_payment_id}. Skipping subscription update.`);
+        return;
+    }
+    
     // Compute subscription extension: reuse your webhook approach
     const today = new Date();
     let baseDate = today;
@@ -762,41 +649,36 @@ async function processConfirmedPayment(paymentRow) {
       const currExp = new Date(user.subscription_expiration);
       if (currExp > today) baseDate = currExp;
     }
-
-    // planName from paymentRow.plan_name or user.plan_name or fallback to parsing order_description
-    let planName = paymentRow.plan_name || user.plan_name || '';
-    planName = (planName || '').toString();
-
+    
     let newExpiration = new Date(baseDate);
-    const lower = planName.toLowerCase();
 
-    if (lower.includes('monthly') || lower.includes('month')) {
+    if (planNameForExtension.includes('monthly') || planNameForExtension.includes('month')) {
       newExpiration.setMonth(newExpiration.getMonth() + 1);
-    } else if (lower.includes('quarter') || lower.includes('quarterly')) {
+    } else if (planNameForExtension.includes('quarter') || planNameForExtension.includes('quarterly')) {
       newExpiration.setMonth(newExpiration.getMonth() + 3);
-    } else if (lower.includes('bi') && lower.includes('ann')) {
+    } else if (planNameForExtension.includes('bi') && planNameForExtension.includes('ann')) {
       newExpiration.setMonth(newExpiration.getMonth() + 6);
-    } else if (lower.includes('annual') || lower.includes('year')) {
+    } else if (planNameForExtension.includes('annual') || planNameForExtension.includes('year')) {
       newExpiration.setFullYear(newExpiration.getFullYear() + 1);
     } else {
       // fallback: add 30 days
       newExpiration.setDate(newExpiration.getDate() + 30);
     }
 
-    // Update user's subscription status and expiration
+    // Update user's subscription status, expiration, and current plan name
     await pool.query(
-      `UPDATE users SET subscription_status = 'active', subscription_expiration = $1 WHERE id = $2`,
-      [newExpiration.toISOString().split('T')[0], user.id]
+      `UPDATE users SET subscription_status = 'active', subscription_expiration = $1, plan_name = $2 WHERE id = $3`,
+      [newExpiration.toISOString().split('T')[0], (paymentRow.plan_name || user.plan_name), user.id]
     );
 
     // Optionally, create a subscriptions entry:
     await pool.query(
       `INSERT INTO subscriptions (user_id, plan_name, start_date, expiration_date, status)
-       VALUES ($1,$2,$3,$4,'active') ON CONFLICT (id) DO NOTHING`,
-      [user.id, planName || user.plan_name || 'unknown', new Date().toISOString().split('T')[0], newExpiration.toISOString().split('T')[0]]
+       VALUES ($1,$2,$3,$4,'active')`,
+      [user.id, (paymentRow.plan_name || user.plan_name || 'unknown'), new Date().toISOString().split('T')[0], newExpiration.toISOString().split('T')[0]]
     );
 
-    console.log(`Activated/extended subscription for ${user.telegram_handle}. Expires ${newExpiration.toISOString().split('T')[0]}`);
+    console.log(`Activated/extended subscription for ${user.telegram_handle}. Plan: ${paymentRow.plan_name}. Expires ${newExpiration.toISOString().split('T')[0]}`);
   } catch (err) {
     console.error('processConfirmedPayment error', err);
     throw err;
@@ -807,7 +689,6 @@ async function processConfirmedPayment(paymentRow) {
  * POST /api/payments/nowpayments/sync-history
  * body: { dateFrom: 'YYYY-MM-DD', dateTo: 'YYYY-MM-DD' } (dateFrom optional)
  * This endpoint pages through NowPayments list API and upserts every payment.
- * IMPORTANT: This should be a protected route in a real application (e.g., require admin auth).
  */
 app.post('/api/payments/nowpayments/sync-history', async (req, res) => {
   try {
@@ -825,16 +706,16 @@ app.post('/api/payments/nowpayments/sync-history', async (req, res) => {
     }
 
     while (true) {
-      const url = `https://api.nowpayments.io/v1/payment/?limit=${limit}&page=${page}&dateFrom=${encodeURIComponent(dateFrom)}&dateTo=${encodeURIComponent(dateTo)}&sortBy=created_at&orderBy=asc`;
+      const url = `https://api.nowpayments.io/v1/payment/?limit=${limit}&page=${page}&dateFrom=${encodeURIComponent(dateFrom)}&dateTo=${encodeURIComponent(dateTo)}`;
       const r = await fetch(url, { headers: { 'x-api-key': process.env.NOWPAYMENTS_API_KEY } });
       if (!r.ok) {
         const text = await r.text();
         console.error('NowPayments list error', r.status, text);
         return res.status(500).json({ message: 'NowPayments API error', details: text });
       }
-      
       const list = await r.json();
-      const payments = list.data || [];
+      // API may return an array or {items: []} depending on doc; normalize:
+      const payments = Array.isArray(list) ? list : (list.data || list.payments || []);
       if (!payments || payments.length === 0) break;
 
       for (const p of payments) {
@@ -846,10 +727,7 @@ app.post('/api/payments/nowpayments/sync-history', async (req, res) => {
       if (payments.length < limit) break;
       page++;
       // safety: don't loop forever
-      if (page > 1000) {
-        console.warn("Sync history safety break triggered after 1000 pages.");
-        break;
-      }
+      if (page > 1000) break;
     }
 
     res.json({ message: 'Sync complete', processed: totalProcessed, dateFrom, dateTo });
@@ -859,6 +737,119 @@ app.post('/api/payments/nowpayments/sync-history', async (req, res) => {
   }
 });
 // === END: NowPayments reconciliation helpers & sync endpoint ===
+
+
+app.post('/api/payments/nowpayments/create', async (req, res) => {
+    try {
+        const { fullname, email, telegram, planName, priceUSD, pay_currency } = req.body;
+        
+        if (!priceUSD) {
+            return res.status(400).json({ message: 'Invalid plan price provided.' });
+        }
+         if (!pay_currency) {
+            return res.status(400).json({ message: 'Crypto network not specified.' });
+        }
+        
+        const order_id = `nexxtrade-${telegram.replace('@', '')}-${Date.now()}`;
+        const registrationDate = new Date().toISOString().split('T')[0];
+
+        // MODIFIED: This query now correctly handles new vs. existing users for payment attempts.
+        // For new users, it inserts them with the plan they are trying to buy.
+        // For existing users, it ONLY updates the payment attempt counters and the latest order_id,
+        // it does NOT overwrite their current plan_name.
+        await pool.query(
+            `INSERT INTO users (full_name, email, telegram_handle, plan_name, subscription_status, registration_date, order_id, payment_attempts, last_payment_attempt)
+             VALUES ($1, $2, $3, $4, 'pending', $5, $6, 1, NOW())
+             ON CONFLICT (telegram_handle) DO UPDATE SET 
+                order_id = EXCLUDED.order_id,
+                payment_attempts = users.payment_attempts + 1,
+                last_payment_attempt = NOW()`,
+            [fullname, email, telegram, planName, registrationDate, order_id]
+        );
+
+        const nowPaymentsResponse = await fetch('https://api.nowpayments.io/v1/payment', {
+            method: 'POST',
+            headers: {
+                'x-api-key': process.env.NOWPAYMENTS_API_KEY,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                price_amount: priceUSD,
+                price_currency: 'usd',
+                pay_currency: pay_currency,
+                ipn_callback_url: `${process.env.APP_BASE_URL}/api/payments/nowpayments/webhook`,
+                order_id: order_id,
+                order_description: `NexxTrade ${planName} plan for ${telegram}`
+            })
+        });
+
+        if (!nowPaymentsResponse.ok) {
+            const errorText = await nowPaymentsResponse.text();
+            console.error('NOWPayments API Error:', errorText)
+            return res.status(500).json({ message: `Payment processor error: ${errorText}`});
+        }
+
+        const paymentData = await nowPaymentsResponse.json();
+        
+        // NEW: After creating a payment with NOWPayments, also create a record in our own 'payments' table.
+        // This ensures every single attempt is logged with its specific plan details.
+        await upsertPaymentFromNP(paymentData);
+
+        res.status(200).json(paymentData);
+
+    } catch (err) {
+        console.error('Error creating NOWPayments payment:', err);
+        res.status(500).json({ message: 'Server Error during payment creation.' });
+    }
+});
+
+app.post('/api/payments/nowpayments/webhook', async (req, res) => {
+    const ipnData = req.body;
+    const hmac = req.headers['x-nowpayments-sig'];
+
+    try {
+        // First, verify the webhook signature
+        const sortedData = JSON.stringify(ipnData, Object.keys(ipnData).sort());
+        const calculatedHmac = crypto.createHmac('sha512', process.env.NOWPAYMENTS_IPN_SECRET)
+            .update(Buffer.from(sortedData, 'utf-8'))
+            .digest('hex');
+
+        if (hmac !== calculatedHmac) {
+            console.warn('Invalid HMAC signature received.');
+            return res.status(401).send('Invalid HMAC signature');
+        }
+
+        // Second, update our 'payments' table with the final payload from the webhook
+        await upsertPaymentFromNP(ipnData);
+        // The upsertPaymentFromNP function will automatically call processConfirmedPayment 
+        // if the status is 'confirmed' or 'finished'.
+
+        res.status(200).send('IPN received.');
+
+    } catch (err) {
+        console.error('Error processing NOWPayments webhook:', err);
+        res.status(500).send('Server Error');
+    }
+});
+
+app.get('/api/payments/nowpayments/status/:payment_id', async (req, res) => {
+    try {
+        const { payment_id } = req.params;
+        const response = await fetch(`https://api.nowpayments.io/v1/payment/${payment_id}`, {
+            headers: { 'x-api-key': process.env.NOWPAYMENTS_API_KEY }
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to fetch payment status from NOWPayments.');
+        }
+
+        const data = await response.json();
+        res.json(data);
+    } catch (err) {
+        console.error('Error fetching payment status:', err.message);
+        res.status(500).send('Server Error');
+    }
+});
 
 // =================================================================
 // --- END: NOWPayments API Routes ---
@@ -1001,53 +992,41 @@ app.post(`/bot${telegramToken}`, (req, res) => {
 
 
 // --- UPDATED: Routes for Clean URLs ---
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-
-app.get('/join', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'registration.html'));
-});
-
-app.get('/performance', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'performance.html'));
-});
-
-app.get('/blog', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'blog.html'));
-});
-
-// Admin Routes
-app.get('/admin/login', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'admin.html'));
-});
-
-app.get('/admin', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'admin.html'));
-});
-
-app.get('/admin/dashboard', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'admin_dashboard.html'));
-});
-
-app.get('/admin/blogs', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'admin_blogs.html'));
-});
-
-app.get('/admin/performance', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'admin_performance.html'));
-});
-
-app.get('/admin/pricing', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'admin_pricing.html'));
-});
-
-app.get('/admin/roles', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'admin_roles.html'));
-});
-
-// Serve static files from the 'public' directory
 app.use(express.static(path.join(__dirname, 'public')));
+
+app.get('/*', (req, res) => {
+    // This will catch all routes and redirect to the correct html file.
+    const route = req.path.split('/')[1] || '';
+    switch(route) {
+        case 'join':
+            res.sendFile(path.join(__dirname, 'public', 'registration.html'));
+            break;
+        case 'performance':
+            res.sendFile(path.join(__dirname, 'public', 'performance.html'));
+            break;
+        case 'blog':
+            res.sendFile(path.join(__dirname, 'public', 'blog.html'));
+            break;
+        case 'admin':
+            // covers /admin, /admin/login, /admin/dashboard, etc.
+            const adminRoute = req.path.split('/')[2] || 'login';
+             const adminFiles = {
+                'login': 'admin.html',
+                'dashboard': 'admin_dashboard.html',
+                'blogs': 'admin_blogs.html',
+                'performance': 'admin_performance.html',
+                'pricing': 'admin_pricing.html',
+                'roles': 'admin_roles.html'
+            };
+            const adminFile = adminFiles[adminRoute] || 'admin.html';
+            res.sendFile(path.join(__dirname, 'public', adminFile));
+            break;
+        default:
+            res.sendFile(path.join(__dirname, 'public', 'index.html'));
+            break;
+    }
+});
+
 
 // Start the server
 app.listen(port, async () => {
