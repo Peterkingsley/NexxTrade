@@ -60,6 +60,10 @@ const mainMenuOptions = {
 };
 
 const introMessage = `
+Hi NexxTrader. I'm your dedicated AI assistant. 
+
+My job is to help you navigate our services and onboard you in just a few clicks
+
 Trade like the Banks.
  Make $100-$500 Daily with Our Ultra-Precise Signals!
   👉 Daily 2-3 Futures Signal
@@ -72,36 +76,21 @@ Trade like the Banks.
   👉 Trading Psychology Insights & more
 
 Please choose from the options below to get started
+
+
 `;
 
 // --- Bot Command Handlers ---
 
-// --- MODIFIED START ---
-// The /start command now presents a single button to begin the onboarding.
 bot.onText(/\/start/, (msg) => {
     const chatId = msg.chat.id;
-    
     // Clear any previous registration state for this user
     if (userRegistrationState[chatId]) {
         delete userRegistrationState[chatId];
     }
-    
-    const welcomeMessage = `Hi NexxTrader! Welcome. I'm your dedicated AI assistant.
-
-Click the button below to save our support contact. This is important so our team can assist you if you have any questions.`;
-
-    const options = {
-        reply_markup: {
-            inline_keyboard: [
-                [{ text: '✅ Add Support & View Menu', callback_data: 'show_contact_and_menu' }]
-            ]
-        }
-    };
-
-    bot.sendMessage(chatId, welcomeMessage, options);
+    bot.sendMessage(chatId, introMessage, mainMenuOptions);
+    updateBotCommandsForChat(chatId, mainMenuOptions);
 });
-// --- MODIFIED END ---
-
 
 bot.onText(/\/getsignals/, (msg) => {
     const chatId = msg.chat.id;
@@ -344,23 +333,6 @@ bot.on('callback_query', async (callbackQuery) => {
 
         bot.answerCallbackQuery(callbackQuery.id); // Acknowledge the button press
 
-        // --- MODIFIED START ---
-        // New handler for the "Add Support & View Menu" button from the /start command.
-        if (data === 'show_contact_and_menu') {
-            // IMPORTANT: Replace the placeholder with the actual phone number of your support Telegram account.
-            const supportPhoneNumber = '+1234567890'; // <-- REPLACE THIS
-            const supportFirstName = 'NexxTrade Support';
-            
-            // Send the contact card first
-            await bot.sendContact(chatId, supportPhoneNumber, supportFirstName);
-            
-            // Then, send the main menu
-            await bot.sendMessage(chatId, introMessage, mainMenuOptions);
-            await updateBotCommandsForChat(chatId, mainMenuOptions);
-            return;
-        }
-        // --- MODIFIED END ---
-
         // --- Main Menu Navigation ---
         if (data === 'pricing' || data === 'join_vip' || data === 'back_to_plans' || data === 'get_signals_now') {
             // Check if we are coming back to plans, if so, clear state.
@@ -379,8 +351,7 @@ bot.on('callback_query', async (callbackQuery) => {
              if (userRegistrationState[chatId]) {
                 delete userRegistrationState[chatId];
             }
-            // MODIFIED: Simplified to prevent re-sending the contact card.
-            bot.sendMessage(chatId, "Here is the main menu:" + introMessage, mainMenuOptions);
+            bot.sendMessage(chatId, introMessage, mainMenuOptions);
             updateBotCommandsForChat(chatId, mainMenuOptions);
             return;
         }
