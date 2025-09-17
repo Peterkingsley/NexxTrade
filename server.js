@@ -654,11 +654,12 @@ async function processConfirmedPayment(paymentRow) {
     
     let newExpiration = new Date(baseDate);
 
+    // MODIFIED: Added a check for "6 month" plans to handle the Elite plan.
     if (planNameForExtension.includes('monthly') || planNameForExtension.includes('month')) {
       newExpiration.setMonth(newExpiration.getMonth() + 1);
     } else if (planNameForExtension.includes('quarter') || planNameForExtension.includes('quarterly')) {
       newExpiration.setMonth(newExpiration.getMonth() + 3);
-    } else if (planNameForExtension.includes('bi') && planNameForExtension.includes('ann')) {
+    } else if (planNameForExtension.includes('bi') && planNameForExtension.includes('ann') || planNameForExtension.includes('6 month')) {
       newExpiration.setMonth(newExpiration.getMonth() + 6);
     } else if (planNameForExtension.includes('annual') || planNameForExtension.includes('year')) {
       newExpiration.setFullYear(newExpiration.getFullYear() + 1);
@@ -1062,4 +1063,3 @@ app.listen(port, async () => {
   console.log(`Server is running on http://localhost:${port}`);
   await setupWebhook();
 });
-
