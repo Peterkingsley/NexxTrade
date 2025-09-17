@@ -77,7 +77,7 @@ Please choose from the options below to get started
 // --- Bot Command Handlers ---
 
 // --- MODIFIED START ---
-// The /start command now includes the new onboarding flow to save the support contact.
+// The /start command now presents a single button to begin the onboarding.
 bot.onText(/\/start/, (msg) => {
     const chatId = msg.chat.id;
     
@@ -86,35 +86,19 @@ bot.onText(/\/start/, (msg) => {
         delete userRegistrationState[chatId];
     }
     
-    // 1. Define the new welcome message and contact information
-    const welcomePrompt = `Hi NexxTrader! Welcome. I'm your dedicated AI assistant.
+    const welcomeMessage = `Hi NexxTrader! Welcome. I'm your dedicated AI assistant.
 
-To make sure you have a direct line to our human support team for any questions, let's get you set up first.
+Click the button below to save our support contact. This is important so our team can assist you if you have any questions.`;
 
-Please tap below to save our official **NexxTrade Support** contact. This ensures our messages always get to you and you can reach us easily.`;
-    
-    // IMPORTANT: Replace the placeholder with the actual phone number of your support Telegram account.
-    // The user will see the name "NexxTrade Support".
-    const supportPhoneNumber = '+1234567890'; // <-- REPLACE THIS
-    const supportFirstName = 'NexxTrade Support';
+    const options = {
+        reply_markup: {
+            inline_keyboard: [
+                [{ text: '✅ Add Support & View Menu', callback_data: 'show_contact_and_menu' }]
+            ]
+        }
+    };
 
-    // 2. Send the welcome prompt
-    bot.sendMessage(chatId, welcomePrompt, { parse_mode: 'Markdown' })
-        .then(() => {
-            // 3. Send the contact card for the user to save
-            return bot.sendContact(chatId, supportPhoneNumber, supportFirstName);
-        })
-        .then(() => {
-            // 4. After sending the contact, send the main menu prompt and the menu
-            const followUpMessage = "Perfect! Now that's sorted, here's how I can help you:" + introMessage;
-            bot.sendMessage(chatId, followUpMessage, mainMenuOptions);
-            updateBotCommandsForChat(chatId, mainMenuOptions);
-        })
-        .catch(error => {
-            console.error(`Failed during /start sequence for chat ${chatId}:`, error);
-            // Fallback in case of an error (e.g., bot can't send contact)
-            bot.sendMessage(chatId, introMessage, mainMenuOptions);
-        });
+    bot.sendMessage(chatId, welcomeMessage, options);
 });
 // --- MODIFIED END ---
 
@@ -360,6 +344,23 @@ bot.on('callback_query', async (callbackQuery) => {
 
         bot.answerCallbackQuery(callbackQuery.id); // Acknowledge the button press
 
+        // --- MODIFIED START ---
+        // New handler for the "Add Support & View Menu" button from the /start command.
+        if (data === 'show_contact_and_menu') {
+            // IMPORTANT: Replace the placeholder with the actual phone number of your support Telegram account.
+            const supportPhoneNumber = '+1234567890'; // <-- REPLACE THIS
+            const supportFirstName = 'NexxTrade Support';
+            
+            // Send the contact card first
+            await bot.sendContact(chatId, supportPhoneNumber, supportFirstName);
+            
+            // Then, send the main menu
+            await bot.sendMessage(chatId, introMessage, mainMenuOptions);
+            await updateBotCommandsForChat(chatId, mainMenuOptions);
+            return;
+        }
+        // --- MODIFIED END ---
+
         // --- Main Menu Navigation ---
         if (data === 'pricing' || data === 'join_vip' || data === 'back_to_plans' || data === 'get_signals_now') {
             // Check if we are coming back to plans, if so, clear state.
@@ -378,12 +379,9 @@ bot.on('callback_query', async (callbackQuery) => {
              if (userRegistrationState[chatId]) {
                 delete userRegistrationState[chatId];
             }
-            // --- MODIFIED START ---
-            // Simplified the main_menu callback to just show the intro message and menu again.
-            // The contact prompt is now only on the initial /start command.
+            // MODIFIED: Simplified to prevent re-sending the contact card.
             bot.sendMessage(chatId, "Here is the main menu:" + introMessage, mainMenuOptions);
             updateBotCommandsForChat(chatId, mainMenuOptions);
-            // --- MODIFIED END ---
             return;
         }
 
