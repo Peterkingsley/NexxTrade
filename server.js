@@ -623,9 +623,11 @@ async function processConfirmedPayment(paymentRow) {
     }
 
     // 2) fallback: try by telegram_handle in payments row
-    if (!user && paymentRow.telegram_handle) {
-      const uRes = await pool.query('SELECT * FROM users WHERE telegram_handle = $1', [paymentRow.telegram_handle]);
-      if (uRes.rows.length) user = uRes.rows[0];
+    if (!user && paymentRow.telegram_handle && paymentRow.plan_name) {
+      const uRes = await pool.query('SELECT * FROM users WHERE telegram_handle = $1 AND plan_name = $2', [paymentRow.telegram_handle, paymentRow.plan_name]);
+      if (uRes.rows.length > 0) {
+          user = uRes.rows[0];
+      }
     }
 
     // If still not found, log and stop (we still keep paymentRow)
@@ -713,10 +715,21 @@ app.post('/api/payments/nowpayments/sync-history', async (req, res) => {
         console.error('NowPayments list error', r.status, text);
         return res.status(500).json({ message: 'NowPayments API error', details: text });
       }
+      
       const list = await r.json();
-      // API may return an array or {items: []} depending on doc; normalize:
-      const payments = Array.isArray(list) ? list : (list.data || list.payments || []);
-      if (!payments || payments.length === 0) break;
+      // More robust handling of different NOWPayments API response structures.
+      let payments = [];
+      if (Array.isArray(list)) {
+        payments = list;
+      } else if (list && list.data) {
+        payments = list.data;
+      } else if (list && list.payments) {
+        payments = list.payments;
+      } else if (list && list.items) { // Added for extra safety
+        payments = list.items;
+      }
+      
+      if (payments.length === 0) break;
 
       for (const p of payments) {
         await upsertPaymentFromNP(p);
@@ -753,21 +766,22 @@ app.post('/api/payments/nowpayments/create', async (req, res) => {
         const order_id = `nexxtrade-${telegram.replace('@', '')}-${Date.now()}`;
         const registrationDate = new Date().toISOString().split('T')[0];
 
-        // MODIFIED: This query now correctly handles new vs. existing users for payment attempts.
-        // For new users, it inserts them with the plan they are trying to buy.
-        // For existing users, it ONLY updates the payment attempt counters and the latest order_id,
-        // it does NOT overwrite their current plan_name.
+        // This will create a new user record for each unique plan,
+        // or update the existing record if they attempt to pay for the same plan again.
         await pool.query(
             `INSERT INTO users (full_name, email, telegram_handle, plan_name, subscription_status, registration_date, order_id, payment_attempts, last_payment_attempt)
              VALUES ($1, $2, $3, $4, 'pending', $5, $6, 1, NOW())
-             ON CONFLICT (telegram_handle) DO UPDATE SET 
+             ON CONFLICT (telegram_handle, plan_name) DO UPDATE SET
+                full_name = EXCLUDED.full_name,
+                email = EXCLUDED.email,
                 order_id = EXCLUDED.order_id,
+                subscription_status = 'pending',
                 payment_attempts = users.payment_attempts + 1,
                 last_payment_attempt = NOW()`,
             [fullname, email, telegram, planName, registrationDate, order_id]
         );
 
-        const nowPaymentsResponse = await fetch('https://api.nowpayments.io/v1/payment', {
+        const nowPaymentsResponse = await fetch('[https://api.nowpayments.io/v1/payment](https://api.nowpayments.io/v1/payment)', {
             method: 'POST',
             headers: {
                 'x-api-key': process.env.NOWPAYMENTS_API_KEY,
@@ -918,14 +932,29 @@ app.post('/api/subscriptions/cleanup', async (req, res) => {
 app.get('/api/users/status-by-telegram-handle/:telegram_handle', async (req, res) => {
     try {
         const { telegram_handle } = req.params;
-        const { rows } = await pool.query(
-            'SELECT subscription_status, subscription_expiration FROM users WHERE telegram_handle = $1',
+
+        // First, check if the user has ANY active subscription.
+        const activeSubQuery = await pool.query(
+            "SELECT subscription_status, subscription_expiration, plan_name FROM users WHERE telegram_handle = $1 AND subscription_status = 'active' ORDER BY subscription_expiration DESC LIMIT 1",
             [`@${telegram_handle}`]
         );
-        if (rows.length === 0) {
+        
+        // If an active subscription exists, return that one.
+        if (activeSubQuery.rows.length > 0) {
+            return res.json(activeSubQuery.rows[0]);
+        }
+        
+        // If no active subscription, find the most recent record for this user (newest attempt).
+        const latestAttemptQuery = await pool.query(
+            'SELECT subscription_status, subscription_expiration, plan_name FROM users WHERE telegram_handle = $1 ORDER BY id DESC LIMIT 1',
+            [`@${telegram_handle}`]
+        );
+        
+        if (latestAttemptQuery.rows.length === 0) {
             return res.status(404).json({ message: 'User not found.' });
         }
-        res.json(rows[0]);
+        
+        res.json(latestAttemptQuery.rows[0]);
     } catch (err) {
         console.error('Error finding user status by Telegram handle:', err);
         res.status(500).json({ message: 'Server Error' });
