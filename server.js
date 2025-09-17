@@ -717,15 +717,15 @@ app.post('/api/payments/nowpayments/sync-history', async (req, res) => {
       }
       
       const list = await r.json();
-      // More robust handling of different NOWPayments API response structures.
+      // FIX: More robust handling of different NOWPayments API response structures.
       let payments = [];
       if (Array.isArray(list)) {
         payments = list;
-      } else if (list && list.data) {
+      } else if (list && Array.isArray(list.data)) {
         payments = list.data;
-      } else if (list && list.payments) {
+      } else if (list && Array.isArray(list.payments)) {
         payments = list.payments;
-      } else if (list && list.items) { // Added for extra safety
+      } else if (list && Array.isArray(list.items)) { 
         payments = list.items;
       }
       
@@ -781,7 +781,7 @@ app.post('/api/payments/nowpayments/create', async (req, res) => {
             [fullname, email, telegram, planName, registrationDate, order_id]
         );
 
-        const nowPaymentsResponse = await fetch('[https://api.nowpayments.io/v1/payment](https://api.nowpayments.io/v1/payment)', {
+        const nowPaymentsResponse = await fetch('https://api.nowpayments.io/v1/payment', {
             method: 'POST',
             headers: {
                 'x-api-key': process.env.NOWPAYMENTS_API_KEY,
