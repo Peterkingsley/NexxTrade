@@ -60,10 +60,6 @@ const mainMenuOptions = {
 };
 
 const introMessage = `
-Hi NexxTrader. I'm your dedicated AI assistant. 
-
-My job is to help you navigate our services and onboard you in just a few clicks
-
 Trade like the Banks.
  Make $100-$500 Daily with Our Ultra-Precise Signals!
   👉 Daily 2-3 Futures Signal
@@ -76,21 +72,52 @@ Trade like the Banks.
   👉 Trading Psychology Insights & more
 
 Please choose from the options below to get started
-
-
 `;
 
 // --- Bot Command Handlers ---
 
+// --- MODIFIED START ---
+// The /start command now includes the new onboarding flow to save the support contact.
 bot.onText(/\/start/, (msg) => {
     const chatId = msg.chat.id;
+    
     // Clear any previous registration state for this user
     if (userRegistrationState[chatId]) {
         delete userRegistrationState[chatId];
     }
-    bot.sendMessage(chatId, introMessage, mainMenuOptions);
-    updateBotCommandsForChat(chatId, mainMenuOptions);
+    
+    // 1. Define the new welcome message and contact information
+    const welcomePrompt = `Hi NexxTrader! Welcome. I'm your dedicated AI assistant.
+
+To make sure you have a direct line to our human support team for any questions, let's get you set up first.
+
+Please tap below to save our official **NexxTrade Support** contact. This ensures our messages always get to you and you can reach us easily.`;
+    
+    // IMPORTANT: Replace the placeholder with the actual phone number of your support Telegram account.
+    // The user will see the name "NexxTrade Support".
+    const supportPhoneNumber = '+1234567890'; // <-- REPLACE THIS
+    const supportFirstName = 'NexxTrade Support';
+
+    // 2. Send the welcome prompt
+    bot.sendMessage(chatId, welcomePrompt, { parse_mode: 'Markdown' })
+        .then(() => {
+            // 3. Send the contact card for the user to save
+            return bot.sendContact(chatId, supportPhoneNumber, supportFirstName);
+        })
+        .then(() => {
+            // 4. After sending the contact, send the main menu prompt and the menu
+            const followUpMessage = "Perfect! Now that's sorted, here's how I can help you:" + introMessage;
+            bot.sendMessage(chatId, followUpMessage, mainMenuOptions);
+            updateBotCommandsForChat(chatId, mainMenuOptions);
+        })
+        .catch(error => {
+            console.error(`Failed during /start sequence for chat ${chatId}:`, error);
+            // Fallback in case of an error (e.g., bot can't send contact)
+            bot.sendMessage(chatId, introMessage, mainMenuOptions);
+        });
 });
+// --- MODIFIED END ---
+
 
 bot.onText(/\/getsignals/, (msg) => {
     const chatId = msg.chat.id;
@@ -351,8 +378,12 @@ bot.on('callback_query', async (callbackQuery) => {
              if (userRegistrationState[chatId]) {
                 delete userRegistrationState[chatId];
             }
-            bot.sendMessage(chatId, introMessage, mainMenuOptions);
+            // --- MODIFIED START ---
+            // Simplified the main_menu callback to just show the intro message and menu again.
+            // The contact prompt is now only on the initial /start command.
+            bot.sendMessage(chatId, "Here is the main menu:" + introMessage, mainMenuOptions);
             updateBotCommandsForChat(chatId, mainMenuOptions);
+            // --- MODIFIED END ---
             return;
         }
 
