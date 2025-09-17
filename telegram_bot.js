@@ -492,10 +492,15 @@ bot.on('callback_query', async (callbackQuery) => {
                 }),
             });
             
+            // MODIFIED: Improved error handling to give the user a specific reason for failure.
             if (!response.ok) {
-                 const errorData = await response.json();
-                 console.error("NOWPayments API Error:", errorData);
-                 throw new Error('Failed to create crypto payment.');
+                const errorData = await response.json().catch(() => ({ message: "An unexpected server error occurred." }));
+                console.error("Failed to create crypto payment:", errorData);
+                const errorMessage = `⚠️ Sorry, there was a problem generating your payment address.\n\n_Reason: ${errorData.message || 'Please try again later.'}_\n\nPlease try again or select a different payment option.`;
+                await bot.sendMessage(chatId, errorMessage, { parse_mode: 'Markdown' });
+                // Return user to the main menu so they are not stuck.
+                await bot.sendMessage(chatId, "You can try again from the main menu:", mainMenuOptions);
+                return;
             }
 
             const paymentData = await response.json();
@@ -714,4 +719,3 @@ module.exports = {
     bot,
     setupWebhook
 };
-
