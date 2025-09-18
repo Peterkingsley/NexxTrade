@@ -186,6 +186,10 @@
           <label for="telegram" class="block text-sm font-medium mb-1 text-muted">Telegram Username (@handle)</label>
           <input type="text" id="telegram" name="telegram" placeholder="@yourhandle" class="input-field" required>
         </div>
+        <div>
+          <label for="whatsapp_number" class="block text-sm font-medium mb-1 text-muted">WhatsApp Number</label>
+          <input type="tel" id="whatsapp_number" name="whatsapp_number" placeholder="+1234567890" class="input-field" required>
+        </div>
       </div>
       
       <div class="flex flex-col gap-4">
@@ -311,7 +315,7 @@
     checkoutForm.addEventListener('submit', async (event) => {
         event.preventDefault();
         
-        const requiredFields = ['fullname', 'email', 'telegram'];
+        const requiredFields = ['fullname', 'email', 'telegram', 'whatsapp_number'];
         for (const fieldId of requiredFields) {
             const field = document.getElementById(fieldId);
             if (!field.value) {

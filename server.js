@@ -520,9 +520,9 @@ app.get('/api/users/stats', async (req, res) => {
 
 app.post('/api/payments/fiat/create', async (req, res) => {
     try {
-        const { fullname, email, telegram, planName, priceUSD } = req.body;
+        const { fullname, email, telegram, whatsapp_number, planName, priceUSD } = req.body;
 
-        if (!fullname || !email || !telegram || !planName || !priceUSD) {
+        if (!fullname || !email || !telegram || !whatsapp_number || !planName || !priceUSD) {
             return res.status(400).json({ message: 'Missing required fields for payment.' });
         }
         
@@ -532,15 +532,16 @@ app.post('/api/payments/fiat/create', async (req, res) => {
         // Create a user record with a pending status.
         // The actual subscription activation would happen via a webhook from the payment provider.
         await pool.query(
-            `INSERT INTO users (full_name, email, telegram_handle, plan_name, subscription_status, registration_date, order_id, last_payment_attempt)
-             VALUES ($1, $2, $3, $4, 'pending_fiat', $5, $6, NOW())
+            `INSERT INTO users (full_name, email, telegram_handle, whatsapp_number, plan_name, subscription_status, registration_date, order_id, last_payment_attempt)
+             VALUES ($1, $2, $3, $4, $5, 'pending_fiat', $6, $7, NOW())
              ON CONFLICT (telegram_handle, plan_name) DO UPDATE SET
                 full_name = EXCLUDED.full_name,
                 email = EXCLUDED.email,
+                whatsapp_number = EXCLUDED.whatsapp_number,
                 order_id = EXCLUDED.order_id,
                 subscription_status = 'pending_fiat',
                 last_payment_attempt = NOW()`,
-            [fullname, email, telegram, planName, registrationDate, order_id]
+            [fullname, email, telegram, whatsapp_number, planName, registrationDate, order_id]
         );
         
         // In a real application, you would now call your payment provider's API
@@ -923,15 +924,15 @@ app.get('/api/payments/nowpayments/status/:payment_id', async (req, res) => {
 
 // NEW: Endpoint to update user details after payment
 app.put('/api/users/update-details', async (req, res) => {
-    const { telegram_handle, full_name, email } = req.body;
-    if (!telegram_handle || !full_name || !email) {
+    const { telegram_handle, full_name, email, whatsapp_number } = req.body;
+    if (!telegram_handle || !full_name || !email || !whatsapp_number) {
         return res.status(400).json({ message: 'Missing required user details.' });
     }
     try {
-        // Find user by telegram_handle and update their name and email.
+        // Find user by telegram_handle and update their name, email and whatsapp number.
         const { rows } = await pool.query(
-            "UPDATE users SET full_name = $1, email = $2 WHERE telegram_handle = $3 RETURNING *",
-            [full_name, email, telegram_handle]
+            "UPDATE users SET full_name = $1, email = $2, whatsapp_number = $3 WHERE telegram_handle = $4 RETURNING *",
+            [full_name, email, whatsapp_number, telegram_handle]
         );
         if (rows.length === 0) {
             return res.status(404).json({ message: 'User not found.' });
@@ -1114,3 +1115,4 @@ app.listen(port, async () => {
   console.log(`Server is running on http://localhost:${port}`);
   await setupWebhook();
 });
+

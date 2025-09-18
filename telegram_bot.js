@@ -667,6 +667,12 @@ bot.on('message', async (msg) => {
                 return;
             }
             state.email = text;
+            state.stage = 'awaiting_whatsapp_after_payment';
+            bot.sendMessage(chatId, `Great! And finally, please enter your WhatsApp number (including country code).`);
+            break;
+            
+        case 'awaiting_whatsapp_after_payment':
+            state.whatsapp_number = text;
             state.stage = 'finalizing_subscription';
             bot.sendMessage(chatId, `Got it. Finalizing your subscription and generating your invite link...`);
             
@@ -677,7 +683,8 @@ bot.on('message', async (msg) => {
                     body: JSON.stringify({
                         telegram_handle: state.telegramHandle,
                         full_name: state.fullName,
-                        email: state.email
+                        email: state.email,
+                        whatsapp_number: state.whatsapp_number
                     })
                 });
 
