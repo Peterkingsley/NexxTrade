@@ -515,6 +515,57 @@ app.get('/api/users/stats', async (req, res) => {
 
 
 // =================================================================
+// --- START: Fiat Payment API Routes (Placeholder) ---
+// =================================================================
+
+app.post('/api/payments/fiat/create', async (req, res) => {
+    try {
+        const { fullname, email, telegram, planName, priceUSD } = req.body;
+
+        if (!fullname || !email || !telegram || !planName || !priceUSD) {
+            return res.status(400).json({ message: 'Missing required fields for payment.' });
+        }
+        
+        const order_id = `nexxtrade-fiat-${telegram.replace('@', '')}-${Date.now()}`;
+        const registrationDate = new Date().toISOString().split('T')[0];
+
+        // Create a user record with a pending status.
+        // The actual subscription activation would happen via a webhook from the payment provider.
+        await pool.query(
+            `INSERT INTO users (full_name, email, telegram_handle, plan_name, subscription_status, registration_date, order_id, last_payment_attempt)
+             VALUES ($1, $2, $3, $4, 'pending_fiat', $5, $6, NOW())
+             ON CONFLICT (telegram_handle, plan_name) DO UPDATE SET
+                full_name = EXCLUDED.full_name,
+                email = EXCLUDED.email,
+                order_id = EXCLUDED.order_id,
+                subscription_status = 'pending_fiat',
+                last_payment_attempt = NOW()`,
+            [fullname, email, telegram, planName, registrationDate, order_id]
+        );
+        
+        // In a real application, you would now call your payment provider's API
+        // to get a real payment link. For this example, we'll return a placeholder.
+        // This simulates redirecting the user to a payment gateway like OPay, Stripe, etc.
+        const dummyPaymentGatewayUrl = `https://your-payment-provider.com/checkout?order_id=${order_id}&amount=${priceUSD}`;
+
+        res.status(200).json({ 
+            message: 'Payment initiated successfully. Redirecting...',
+            redirectUrl: dummyPaymentGatewayUrl 
+        });
+
+    } catch (err) {
+        console.error('Error creating Fiat payment:', err);
+        res.status(500).json({ message: 'Server Error during payment initiation.' });
+    }
+});
+
+
+// =================================================================
+// --- END: Fiat Payment API Routes ---
+// =================================================================
+
+
+// =================================================================
 // --- START: NOWPayments API Routes ---
 // =================================================================
 
