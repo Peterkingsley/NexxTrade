@@ -28,370 +28,200 @@
 
     .card {
       background: var(--bg-2);
-      border: 1px solid var(--line);
       border-radius: var(--radius);
+      border: 1px solid var(--line);
       box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: var(--bg);
+      border-radius: 8px;
+      font-weight: 600;
+      transition: background .2s;
+    }
+
+    .btn-primary:hover {
+      background: #25bd6a;
+    }
+
+    .form-input {
+      background: var(--bg);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      color: var(--text);
     }
     
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: .6rem;
-      padding: .9rem 1.4rem;
-      border-radius: 999px;
-      border: 1px solid transparent;
-      cursor: pointer;
-      transition: .2s ease;
-      white-space: nowrap;
-      font-weight: 600;
+    .form-input:focus {
+        border-color: var(--accent);
+        outline: none;
     }
-    .btn-primary { color: #04140a; background: var(--accent); }
-    .btn-primary:hover { filter: brightness(1.1); transform: translateY(-1px); }
-    .btn-primary:disabled { background: #1b2330; color: var(--muted); cursor: not-allowed; }
-    .btn-ghost { background: transparent; border-color: var(--line); color: var(--text); }
-    .btn-ghost:hover { background: #0f151d; }
 
-    .input-field {
-      width: 100%;
-      padding: 12px 16px;
-      border-radius: 12px;
-      background: #0d1219;
-      border: 1px solid var(--line);
-      color: var(--text);
-      transition: border-color 0.2s ease;
-    }
-    .input-field:focus { outline: none; border-color: var(--accent); }
-
-    .plan-button, .network-button, .payment-option {
-      padding: 12px;
-      border: 1px solid var(--line);
-      border-radius: var(--radius);
-      cursor: pointer;
-      transition: all 0.2s ease;
-      background: var(--bg-2);
-      text-align: center;
-    }
-    .plan-button:hover, .network-button:hover, .payment-option:hover { border-color: var(--muted); background: #151a23; }
-    .plan-button.active, .network-button.active {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 2px rgba(42, 214, 120, 0.2);
-      background: rgba(42, 214, 120, 0.08);
-    }
-    .message-box {
-        padding: 1rem;
+    #qrcode {
+        border: 4px solid var(--line);
         border-radius: var(--radius);
-        font-weight: 500;
-        margin-bottom: 1.5rem;
-    }
-    .message-box.error {
-        background-color: rgba(255, 93, 93, 0.1);
-        color: var(--danger);
-        border: 1px solid rgba(255, 93, 93, 0.2);
+        padding: 10px;
+        background: white;
     }
   </style>
 </head>
-<body class="flex items-center justify-center min-h-screen p-4 md:p-8">
+<body class="flex items-center justify-center min-h-screen p-4">
+  <div class="w-full max-w-md">
 
-  <div class="w-full max-w-lg">
+    <div id="form-container" class="card">
+        <div class="p-8">
+            <img src="/images/Nexxtrade.svg" class="h-8 mx-auto mb-6" alt="NexxTrade">
+            <h1 class="text-2xl font-bold text-center mb-1">Join VIP Access</h1>
+            <p class="text-center text-sm text-muted mb-6">Create an account to continue</p>
+            
+            <div id="error-container" class="bg-red-500/10 text-danger text-sm p-3 rounded-lg mb-4" style="display:none;"></div>
+            
+            <form id="payment-form">
+                <div class="space-y-4">
+                    <input type="text" id="fullname" name="fullname" placeholder="Full Name" class="form-input w-full p-3" required>
+                    <input type="email" id="email" name="email" placeholder="Email Address" class="form-input w-full p-3" required>
+                    <div class="relative">
+                        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-muted">@</span>
+                        <input type="text" id="telegram" name="telegram" placeholder="Telegram Username" class="form-input w-full p-3 pl-8" required>
+                    </div>
+                    <input type="tel" id="whatsapp" name="whatsapp" placeholder="WhatsApp Number (e.g. +123...)" class="form-input w-full p-3" required>
+                    <select id="plan" name="plan" class="form-input w-full p-3" required></select>
+                    <select id="pay_currency" name="pay_currency" class="form-input w-full p-3" required>
+                        <option value="usdttrc20">USDT (TRC-20)</option>
+                        <option value="usdtbsc">USDT (BEP-20)</option>
+                    </select>
+                </div>
+                <button type="submit" id="submit-btn" class="btn-primary w-full p-3 mt-6">Proceed to Payment</button>
+            </form>
+        </div>
+    </div>
     
-    <!-- View 1: Method Selection (Visible by default) -->
-    <div id="method-selection-container" class="card p-6 md:p-8 space-y-6">
-        <div class="text-center">
-            <h1 class="text-3xl font-bold">Checkout</h1>
-            <p class="text-muted mt-2">Select your preferred payment method.</p>
+    <div id="payment-container" class="card text-center" style="display:none;">
+        <div class="p-8">
+            <h2 class="text-xl font-bold mb-2">Complete Your Payment</h2>
+            <p class="text-sm text-muted mb-4">Send exactly <strong id="payment-amount" class="text-accent"></strong> to the address below.</p>
+            <div class="flex justify-center my-4">
+                <div id="qrcode"></div>
+            </div>
+            <div class="bg-bg p-3 rounded-lg break-words">
+                <p id="payment-address" class="font-mono text-sm"></p>
+            </div>
+            <p class="text-xs text-muted mt-6 animate-pulse">Waiting for blockchain confirmation...</p>
         </div>
-        <div class="space-y-4">
-            <div id="fiat-option-btn" class="payment-option text-left space-y-1">
-                <span class="font-semibold text-lg">Pay with Fiat</span>
-                <p class="text-sm text-muted">Card, Bank Transfer via secure gateway.</p>
+    </div>
+    
+    <div id="success-container" class="card text-center" style="display:none;">
+        <div class="p-8">
+             <div class="w-16 h-16 bg-accent/10 rounded-full flex items-center justify-center mx-auto">
+                <svg class="lucide lucide-check text-accent" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
             </div>
-            <div id="crypto-option-btn" class="payment-option text-left space-y-1">
-                <span class="font-semibold text-lg">Pay with Crypto</span>
-                <p class="text-sm text-muted">Pay with USDT on TRC-20 or BEP-20.</p>
-            </div>
+            <h2 class="text-xl font-bold mt-4">Payment Successful!</h2>
+            <p class="text-sm text-muted mt-2 mb-6">Your access has been granted. Click the button below to join the VIP channel immediately.</p>
+            <div id="join-link-container"></div>
         </div>
-        <a href="/" class="block text-center text-sm text-muted hover:underline pt-2">Back to Homepage</a>
     </div>
-
-    <!-- View 2: Fiat Form (Hidden by default) -->
-    <div id="fiat-container" class="card p-6 md:p-8 space-y-6 hidden">
-        <div class="text-center">
-            <h1 class="text-3xl font-bold">Fiat Checkout</h1>
-            <p class="text-muted mt-2">Complete your purchase to get instant access.</p>
-        </div>
-        <div id="fiat-message-box"></div>
-        <form id="fiat-checkout-form" class="space-y-6">
-            <div class="space-y-4">
-                <h3 class="font-semibold text-lg">1. Select Your Plan</h3>
-                <div id="fiat-plan-selection" class="grid grid-cols-1 sm:grid-cols-3 gap-4"></div>
-            </div>
-            <div class="space-y-4">
-                <h3 class="font-semibold text-lg">2. Your Details</h3>
-                <div>
-                    <label for="fiat-fullname" class="block text-sm font-medium mb-1 text-muted">Full Name</label>
-                    <input type="text" id="fiat-fullname" placeholder="John Doe" class="input-field" required>
-                </div>
-                <div>
-                    <label for="fiat-email" class="block text-sm font-medium mb-1 text-muted">Email Address</label>
-                    <input type="email" id="fiat-email" placeholder="you@example.com" class="input-field" required>
-                </div>
-                <div>
-                    <label for="fiat-telegram" class="block text-sm font-medium mb-1 text-muted">Telegram Username</label>
-                    <input type="text" id="fiat-telegram" placeholder="@yourhandle" class="input-field" required>
-                </div>
-                 <div>
-                    <label for="fiat-whatsapp" class="block text-sm font-medium mb-1 text-muted">WhatsApp Number</label>
-                    <input type="tel" id="fiat-whatsapp" placeholder="+1234567890" class="input-field" required>
-                </div>
-            </div>
-            <div class="flex flex-col gap-4">
-                <button type="submit" id="fiat-pay-button" class="btn btn-primary mt-4">Proceed to Payment</button>
-                <button type="button" class="back-to-selection-btn text-center text-sm text-muted hover:underline">Back to Payment Selection</button>
-            </div>
-        </form>
-    </div>
-
-    <!-- View 3: Crypto Form (Hidden by default) -->
-    <div id="crypto-container" class="card p-6 md:p-8 space-y-6 hidden">
-        <div class="text-center">
-            <h1 class="text-3xl font-bold">Crypto Checkout</h1>
-            <p class="text-muted mt-2">Complete your purchase to get instant access.</p>
-        </div>
-        <div id="crypto-message-box"></div>
-        <form id="crypto-checkout-form" class="space-y-6">
-            <div class="space-y-4">
-                <h3 class="font-semibold text-lg">1. Select Your Plan</h3>
-                <div id="crypto-plan-selection" class="grid grid-cols-1 sm:grid-cols-3 gap-4"></div>
-            </div>
-            <div class="space-y-4">
-                <h3 class="font-semibold text-lg">2. Your Details</h3>
-                <div>
-                    <label for="crypto-fullname" class="block text-sm font-medium mb-1 text-muted">Full Name</label>
-                    <input type="text" id="crypto-fullname" placeholder="John Doe" class="input-field" required>
-                </div>
-                <div>
-                    <label for="crypto-email" class="block text-sm font-medium mb-1 text-muted">Email Address</label>
-                    <input type="email" id="crypto-email" placeholder="you@example.com" class="input-field" required>
-                </div>
-                <div>
-                    <label for="crypto-telegram" class="block text-sm font-medium mb-1 text-muted">Telegram Username</label>
-                    <input type="text" id="crypto-telegram" placeholder="@yourhandle" class="input-field" required>
-                </div>
-                <div>
-                    <label for="crypto-whatsapp" class="block text-sm font-medium mb-1 text-muted">WhatsApp Number</label>
-                    <input type="tel" id="crypto-whatsapp" placeholder="+1234567890" class="input-field" required>
-                </div>
-            </div>
-            <div class="space-y-4">
-                <h3 class="font-semibold text-lg">3. Select Payment Network</h3>
-                <div id="network-selection-buttons" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <button type="button" data-network="usdttrc20" class="network-button">USDT (TRC-20)</button>
-                    <button type="button" data-network="usdtbsc" class="network-button">USDT (BEP-20)</button>
-                </div>
-            </div>
-            <div class="flex flex-col gap-4">
-                <button type="submit" id="crypto-pay-button" class="btn btn-primary mt-4">Proceed to Payment</button>
-                 <button type="button" class="back-to-selection-btn text-center text-sm text-muted hover:underline">Back to Payment Selection</button>
-            </div>
-        </form>
-    </div>
-
-    <!-- View 4: Payment Display (Hidden by default) -->
-    <div id="payment-container" class="card w-full max-w-lg p-6 md:p-8 space-y-6 hidden text-center">
-        <!-- ... (same as before) ... -->
-    </div>
-
-    <!-- View 5: Success Display (Hidden by default) -->
-    <div id="success-container" class="card w-full max-w-lg p-6 md:p-8 space-y-6 hidden text-center">
-        <!-- ... (same as before) ... -->
-    </div>
-
   </div>
-
+  
   <script>
     document.addEventListener('DOMContentLoaded', () => {
-        // --- Main Containers ---
-        const methodSelectionContainer = document.getElementById('method-selection-container');
-        const fiatContainer = document.getElementById('fiat-container');
-        const cryptoContainer = document.getElementById('crypto-container');
+        const formContainer = document.getElementById('form-container');
         const paymentContainer = document.getElementById('payment-container');
         const successContainer = document.getElementById('success-container');
-        const allContainers = [methodSelectionContainer, fiatContainer, cryptoContainer, paymentContainer, successContainer];
+        const errorContainer = document.getElementById('error-container');
+        const form = document.getElementById('payment-form');
+        const submitBtn = document.getElementById('submit-btn');
+        const planSelect = document.getElementById('plan');
 
-        // --- Buttons ---
-        const fiatOptionBtn = document.getElementById('fiat-option-btn');
-        const cryptoOptionBtn = document.getElementById('crypto-option-btn');
-        const backToSelectionBtns = document.querySelectorAll('.back-to-selection-btn');
+        let plansData = [];
+        let paymentCheckInterval;
         
-        // --- Forms & Data ---
-        const fiatCheckoutForm = document.getElementById('fiat-checkout-form');
-        const cryptoCheckoutForm = document.getElementById('crypto-checkout-form');
+        const switchView = (activeView) => {
+            [formContainer, paymentContainer, successContainer].forEach(v => v.style.display = 'none');
+            activeView.style.display = 'block';
+        };
         
-        const plans = {};
-        let selectedPlanKey = null;
-        let selectedNetwork = null;
-        let paymentCheckInterval = null;
+        const displayError = (message) => {
+            errorContainer.textContent = message;
+            errorContainer.style.display = 'block';
+        };
 
-        // --- UI Helper ---
-        function switchView(visibleContainer) {
-            allContainers.forEach(c => c.classList.add('hidden'));
-            visibleContainer.classList.remove('hidden');
-        }
-
-        function showMessage(containerId, message) {
-            const container = document.getElementById(containerId);
-            container.innerHTML = `<div class="message-box error">${message}</div>`;
-        }
-
-        // --- Plan Population ---
         async function fetchAndPopulatePlans() {
             try {
                 const response = await fetch('/api/pricing');
-                const plansData = await response.json();
-                
-                const fiatPlanContainer = document.getElementById('fiat-plan-selection');
-                const cryptoPlanContainer = document.getElementById('crypto-plan-selection');
-                fiatPlanContainer.innerHTML = '';
-                cryptoPlanContainer.innerHTML = '';
-                
-                plansData.forEach((plan, index) => {
-                    const planKey = plan.plan_name.toLowerCase().split(' ')[0];
-                    plans[planKey] = { name: plan.plan_name, priceUSD: plan.price };
-                    
-                    const buttonHTML = `<button type="button" data-plan="${planKey}" class="plan-button"><div class="font-semibold">${plan.plan_name}</div><div class="text-muted text-sm">$${plan.price}</div></button>`;
-                    fiatPlanContainer.innerHTML += buttonHTML;
-                    cryptoPlanContainer.innerHTML += buttonHTML;
-
-                    if (index === 0) { selectedPlanKey = planKey; }
+                if (!response.ok) throw new Error('Could not load pricing plans.');
+                plansData = await response.json();
+                planSelect.innerHTML = '<option value="">Select a Plan</option>';
+                plansData.forEach(p => {
+                    planSelect.innerHTML += `<option value="${p.plan_name}"> ${p.plan_name} - $${p.price} ${p.term}</option>`;
                 });
-
-                document.querySelectorAll('.plan-button').forEach(btn => {
-                    btn.addEventListener('click', (e) => {
-                        selectedPlanKey = e.currentTarget.dataset.plan;
-                        // De-select all buttons, then activate the clicked one
-                        document.querySelectorAll('.plan-button').forEach(b => b.classList.remove('active'));
-                        document.querySelectorAll(`.plan-button[data-plan="${selectedPlanKey}"]`).forEach(b => b.classList.add('active'));
-                    });
-                });
-                
-                // Activate the default plan
-                document.querySelectorAll(`.plan-button[data-plan="${selectedPlanKey}"]`).forEach(b => b.classList.add('active'));
-
-            } catch (error) {
-                console.error('Error fetching plans:', error);
-                showMessage('fiat-message-box', 'Could not load pricing plans.');
-                showMessage('crypto-message-box', 'Could not load pricing plans.');
-            }
+            } catch (error) { displayError(error.message); }
         }
 
-        // --- Event Listeners ---
-        fiatOptionBtn.addEventListener('click', () => switchView(fiatContainer));
-        cryptoOptionBtn.addEventListener('click', () => switchView(cryptoContainer));
-        backToSelectionBtns.forEach(btn => btn.addEventListener('click', () => switchView(methodSelectionContainer)));
-
-        // --- FIAT Payment Logic ---
-        fiatCheckoutForm.addEventListener('submit', async (e) => {
+        form.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const payButton = document.getElementById('fiat-pay-button');
-            payButton.disabled = true;
-            payButton.textContent = 'Processing...';
+            errorContainer.style.display = 'none';
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Processing...';
 
-            const data = {
-                fullname: document.getElementById('fiat-fullname').value,
-                email: document.getElementById('fiat-email').value,
-                telegram: document.getElementById('fiat-telegram').value,
-                whatsapp_number: document.getElementById('fiat-whatsapp').value,
-                planName: plans[selectedPlanKey].name,
-                priceUSD: plans[selectedPlanKey].priceUSD,
-            };
-
-            try {
-                const response = await fetch('/api/payments/fiat/create', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data),
-                });
-                const result = await response.json();
-                if (response.ok && result.redirectUrl) {
-                    window.location.href = result.redirectUrl;
-                } else {
-                    throw new Error(result.message || 'Failed to initiate payment.');
-                }
-            } catch (error) {
-                showMessage('fiat-message-box', error.message);
-                payButton.disabled = false;
-                payButton.textContent = 'Proceed to Payment';
-            }
-        });
-
-        // --- CRYPTO Payment Logic ---
-        document.getElementById('network-selection-buttons').querySelectorAll('.network-button').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                document.getElementById('network-selection-buttons').querySelector('.active')?.classList.remove('active');
-                e.currentTarget.classList.add('active');
-                selectedNetwork = e.currentTarget.dataset.network;
-            });
-        });
-
-        cryptoCheckoutForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            if (!selectedPlanKey || !selectedNetwork) {
-                showMessage('crypto-message-box', 'Please select a plan and a payment network.');
+            const formData = new FormData(form);
+            const selectedPlanName = formData.get('plan');
+            const selectedPlan = plansData.find(p => p.plan_name === selectedPlanName);
+            
+            if (!selectedPlan) {
+                displayError("Please select a valid plan.");
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Proceed to Payment';
                 return;
             }
-            const payButton = document.getElementById('crypto-pay-button');
-            payButton.disabled = true;
-            payButton.innerHTML = 'Processing...';
-
-            const data = {
-                fullname: document.getElementById('crypto-fullname').value,
-                email: document.getElementById('crypto-email').value,
-                telegram: document.getElementById('crypto-telegram').value,
-                whatsapp_number: document.getElementById('crypto-whatsapp').value, // Add this line
-                planName: plans[selectedPlanKey].name,
-                priceUSD: plans[selectedPlanKey].priceUSD,
-                pay_currency: selectedNetwork,
+            
+            const payload = {
+                fullname: formData.get('fullname'),
+                email: formData.get('email'),
+                telegram: '@' + formData.get('telegram'),
+                whatsapp_number: formData.get('whatsapp'),
+                planName: selectedPlan.plan_name,
+                priceUSD: selectedPlan.price,
+                pay_currency: formData.get('pay_currency'),
             };
 
             try {
                 const response = await fetch('/api/payments/create-from-web', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data),
+                    body: JSON.stringify(payload),
                 });
-                if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.message || 'Failed to create payment.');
+                
+                // --- NEW LOGIC START ---
+                // Handle the case where the user already has this active subscription
+                if (response.status === 409) {
+                    const errorData = await response.json();
+                    displayError(errorData.message);
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Proceed to Payment';
+                    return; // Stop the function here
                 }
-                const paymentData = await response.json();
-                displayCryptoPaymentInfo(paymentData);
-                startPolling(paymentData.order_id);
+                // --- NEW LOGIC END ---
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ message: 'An unknown error occurred.' }));
+                    throw new Error(errorData.message);
+                }
+                
+                const data = await response.json();
+                displayPaymentView(data);
+                startPolling(data.order_id);
+
             } catch (error) {
-                showMessage('crypto-message-box', error.message);
-                payButton.disabled = false;
-                payButton.innerHTML = 'Proceed to Payment';
+                displayError(error.message);
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Proceed to Payment';
             }
         });
 
-        function displayCryptoPaymentInfo(data) {
-            // Re-populate the payment and success containers before showing
-            paymentContainer.innerHTML = `
-                <h2 class="text-2xl font-bold">Complete Your Payment</h2>
-                <p class="text-muted">Send the exact amount to the address below. Your access will be granted automatically upon confirmation.</p>
-                <div class="flex justify-center" id="qrcode"></div>
-                <div><p class="text-muted text-sm">Amount</p><p id="payment-amount" class="font-mono text-lg font-bold"></p></div>
-                <div><p class="text-muted text-sm">Address</p><p id="payment-address" class="font-mono text-sm break-all bg-gray-900 p-2 rounded-lg"></p></div>
-                <div class="flex items-center justify-center gap-3 pt-4">
-                    <svg class="animate-spin h-5 w-5 text-accent" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                    <span class="text-accent font-semibold">Waiting for payment confirmation...</span>
-                </div>`;
-
-            successContainer.innerHTML = `
-                <div class="w-16 h-16 bg-accent/10 border-2 border-accent/20 rounded-full mx-auto flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent"><path d="M20 6 9 17l-5-12"/></svg></div>
-                <h2 class="text-2xl font-bold">Payment Confirmed!</h2>
-                <p class="text-muted">Your access has been granted. Use the button below to join the exclusive Telegram channel.</p>
-                <a id="join-link" href="#" target="_blank" class="btn btn-primary w-full">Click Here to Join VIP</a>`;
+        function displayPaymentView(data) {
+            document.getElementById('qrcode').innerHTML = '';
+            document.getElementById('join-link-container').innerHTML = `<a href="#" id="join-link" class="btn-primary p-3 inline-block w-full">Click Here to Join VIP</a>`;
             
             switchView(paymentContainer);
             document.getElementById('payment-amount').textContent = `${data.pay_amount} ${data.pay_currency.toUpperCase()}`;

@@ -612,6 +612,19 @@ app.post('/api/payments/create-from-web', async (req, res) => {
             return res.status(400).json({ message: 'Missing required fields for payment.' });
         }
         
+        // --- NEW LOGIC START ---
+        // Check for an existing active subscription
+        const existingSubQuery = await pool.query(
+          `SELECT * FROM users WHERE telegram_handle = $1 AND plan_name = $2 AND subscription_status = 'active'`,
+          [telegram, planName]
+        );
+
+        if (existingSubQuery.rows.length > 0) {
+          // If an active subscription is found, send a conflict error
+          return res.status(409).json({ message: `You already have an active subscription for the ${planName} plan. If you wish to upgrade, please contact support.` });
+        }
+        // --- NEW LOGIC END ---
+
         const order_id = `nexxtrade-web-${telegram.replace('@', '')}-${Date.now()}`;
         
         // Step 1: Create a pending user record, marking the source as 'web'.
@@ -665,6 +678,19 @@ app.post('/api/payments/create-from-bot', async (req, res) => {
             return res.status(404).json({ message: 'Plan not found.' });
         }
         const plan = planResult.rows[0];
+
+        // --- NEW LOGIC START ---
+        // Check for an existing active subscription
+        const existingSubQuery = await pool.query(
+            `SELECT * FROM users WHERE telegram_handle = $1 AND plan_name = $2 AND subscription_status = 'active'`,
+            [telegram_handle, plan.plan_name]
+        );
+
+        if (existingSubQuery.rows.length > 0) {
+            // If an active subscription is found, send a conflict error
+            return res.status(409).json({ message: `You already have an active subscription for the ${plan.plan_name} plan. Would you like to upgrade?` });
+        }
+        // --- NEW LOGIC END ---
 
         const order_id = `nexxtrade-bot-${telegram_handle.replace('@', '')}-${Date.now()}`;
         
@@ -951,4 +977,3 @@ app.listen(port, async () => {
   console.log(`Server is running on http://localhost:${port}`);
   await setupWebhook();
 });
-

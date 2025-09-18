@@ -223,6 +223,25 @@ bot.on('message', async (msg) => {
                         whatsapp_number: state.whatsapp
                     }),
                 });
+                
+                // --- NEW LOGIC START ---
+                // Handle the case where the user already has an active subscription for this plan.
+                if (response.status === 409) { // 409 Conflict status
+                    const errorData = await response.json();
+                    // Inform the user they already have the plan and offer next steps.
+                    bot.sendMessage(chatId, `⚠️ ${errorData.message}`, {
+                         reply_markup: {
+                            inline_keyboard: [
+                                [{ text: 'Choose a Different Plan', callback_data: 'pricing' }],
+                                [{ text: 'Contact Support', callback_data: 'support_contact' }]
+                            ]
+                        }
+                    });
+                    // Clear the state since this transaction is cancelled.
+                    delete userRegistrationState[chatId];
+                    return; // Stop further execution
+                }
+                // --- NEW LOGIC END ---
 
                 if (!response.ok) {
                     const errorData = await response.json().catch(() => ({ message: "An unexpected server error occurred." }));
