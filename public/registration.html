@@ -1,260 +1,308 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>NexxTrade - Take your next trade with us</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
-  <script src="https://cdn.rawgit.com/davidshimjs/qrcodejs/gh-pages/qrcode.min.js"></script>
-  <style>
-    :root {
-      --bg: #0b0f14;
-      --bg-2: #0f141b;
-      --text: #e9edf3;
-      --muted: #a8b3c7;
-      --accent: #2ad678;
-      --danger: #ff5d5d;
-      --line: #1b2330;
-      --shadow: 0 8px 24px rgba(0,0,0,.35);
-      --radius: 16px;
-    }
-
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, "Helvetica Neue", Arial, sans-serif;
-    }
-
-    .card {
-      background: var(--bg-2);
-      border-radius: var(--radius);
-      border: 1px solid var(--line);
-      box-shadow: var(--shadow);
-      overflow: hidden;
-    }
-
-    .btn-primary {
-      background: var(--accent);
-      color: var(--bg);
-      border-radius: 8px;
-      font-weight: 600;
-      transition: background .2s;
-    }
-
-    .btn-primary:hover {
-      background: #25bd6a;
-    }
-
-    .form-input {
-      background: var(--bg);
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      color: var(--text);
-    }
-    
-    .form-input:focus {
-        border-color: var(--accent);
-        outline: none;
-    }
-
-    #qrcode {
-        border: 4px solid var(--line);
-        border-radius: var(--radius);
-        padding: 10px;
-        background: white;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Join NexxTrade VIP</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body {
+            background-color: #0c0c0c;
+            color: #f0f0f0;
+            font-family: 'Inter', sans-serif;
+        }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        .glowing-border {
+            box-shadow: 0 0 15px rgba(0, 194, 255, 0.5), 0 0 30px rgba(0, 194, 255, 0.3);
+        }
+        .form-container {
+            background: rgba(18, 18, 18, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #00c2ff;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 2s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
 </head>
-<body class="flex items-center justify-center min-h-screen p-4">
-  <div class="w-full max-w-md">
-
-    <div id="form-container" class="card">
-        <div class="p-8">
-            <img src="/images/Nexxtrade.svg" class="h-8 mx-auto mb-6" alt="NexxTrade">
-            <h1 class="text-2xl font-bold text-center mb-1">Join VIP Access</h1>
-            <p class="text-center text-sm text-muted mb-6">Create an account to continue</p>
+<body class="antialiased">
+    <div class="min-h-screen flex items-center justify-center p-4">
+        <div id="main-container" class="w-full max-w-lg mx-auto">
             
-            <div id="error-container" class="bg-red-500/10 text-danger text-sm p-3 rounded-lg mb-4" style="display:none;"></div>
-            
-            <form id="payment-form">
-                <div class="space-y-4">
-                    <input type="text" id="fullname" name="fullname" placeholder="Full Name" class="form-input w-full p-3" required>
-                    <input type="email" id="email" name="email" placeholder="Email Address" class="form-input w-full p-3" required>
-                    <div class="relative">
-                        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-muted">@</span>
-                        <input type="text" id="telegram" name="telegram" placeholder="Telegram Username" class="form-input w-full p-3 pl-8" required>
-                    </div>
-                    <input type="tel" id="whatsapp" name="whatsapp" placeholder="WhatsApp Number (e.g. +123...)" class="form-input w-full p-3" required>
-                    <select id="plan" name="plan" class="form-input w-full p-3" required></select>
-                    <select id="pay_currency" name="pay_currency" class="form-input w-full p-3" required>
-                        <option value="usdttrc20">USDT (TRC-20)</option>
-                        <option value="usdtbsc">USDT (BEP-20)</option>
-                    </select>
+            <div id="registration-form-container" class="form-container rounded-xl p-8 shadow-lg glowing-border">
+                <div class="text-center mb-8">
+                    <img src="/images/Nexxtrade.svg" alt="NexxTrade Logo" class="mx-auto h-12 mb-4">
+                    <h1 class="text-3xl font-bold text-white">Join VIP</h1>
+                    <p class="text-gray-400 mt-2">Complete your registration to get instant access.</p>
                 </div>
-                <button type="submit" id="submit-btn" class="btn-primary w-full p-3 mt-6">Proceed to Payment</button>
-            </form>
+
+                <form id="registration-form">
+                    <div class="space-y-6">
+                        <div>
+                            <label for="fullname" class="block text-sm font-medium text-gray-300">Full Name</label>
+                            <input type="text" id="fullname" name="fullname" required class="mt-1 block w-full bg-gray-800 border border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-cyan-500 focus:border-cyan-500">
+                        </div>
+                        <div>
+                            <label for="email" class="block text-sm font-medium text-gray-300">Email Address</label>
+                            <input type="email" id="email" name="email" required class="mt-1 block w-full bg-gray-800 border border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-cyan-500 focus:border-cyan-500">
+                        </div>
+                        <div>
+                            <label for="telegram" class="block text-sm font-medium text-gray-300">Telegram Username</label>
+                            <div class="relative">
+                                <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">@</span>
+                                <input type="text" id="telegram" name="telegram" required class="pl-7 mt-1 block w-full bg-gray-800 border border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-cyan-500 focus:border-cyan-500">
+                            </div>
+                        </div>
+                        <div>
+                            <label for="whatsapp" class="block text-sm font-medium text-gray-300">WhatsApp Number</label>
+                            <input type="tel" id="whatsapp" name="whatsapp" required class="mt-1 block w-full bg-gray-800 border border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-cyan-500 focus:border-cyan-500" placeholder="+1234567890">
+                        </div>
+                        <div>
+                            <label for="plan" class="block text-sm font-medium text-gray-300">Select Your Plan</label>
+                            <select id="plan" name="plan" required class="mt-1 block w-full bg-gray-800 border border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-cyan-500 focus:border-cyan-500">
+                                </select>
+                        </div>
+                        
+                        <div>
+                            <label for="payment_method" class="block text-sm font-medium text-gray-300">Payment Method</label>
+                            <select id="payment_method" name="payment_method" required class="mt-1 block w-full bg-gray-800 border border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-cyan-500 focus:border-cyan-500">
+                                <option value="crypto">Crypto</option>
+                                <option value="fiat">Fiat (Card, Bank Transfer)</option>
+                            </select>
+                        </div>
+                        
+                        <div id="crypto-fields">
+                             <label for="pay_currency" class="block text-sm font-medium text-gray-300">Payment Network</label>
+                             <select id="pay_currency" name="pay_currency" class="mt-1 block w-full bg-gray-800 border border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-cyan-500 focus:border-cyan-500">
+                                <option value="usdttrc20">USDT (TRC-20)</option>
+                                <option value="usdtbsc">USDT (BEP-20)</option>
+                            </select>
+                        </div>
+
+                    </div>
+                    <div class="mt-8">
+                        <button type="submit" id="submit-button" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-cyan-600 hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 focus:ring-offset-gray-900">
+                            Proceed to Payment
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <div id="payment-details-container" class="hidden form-container rounded-xl p-8 shadow-lg glowing-border text-center">
+                <h2 class="text-2xl font-bold mb-4">Complete Your Payment</h2>
+                <p id="payment-instructions" class="mb-4 text-gray-300"></p>
+                <div class="flex justify-center my-4">
+                    <img id="qr-code" src="" alt="QR Code">
+                </div>
+                <div class="bg-gray-800 p-3 rounded-lg break-words mb-4">
+                    <span class="text-sm text-gray-400">Address:</span>
+                    <p id="payment-address" class="font-mono text-cyan-400"></p>
+                </div>
+                <button id="copy-address-btn" class="mb-6 w-full bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
+                    <i class="fas fa-copy mr-2"></i>Copy Address
+                </button>
+                <div class="flex items-center justify-center space-x-3">
+                    <div class="loader"></div>
+                    <p class="text-gray-400">Awaiting payment confirmation...</p>
+                </div>
+                <p id="error-message" class="text-red-500 mt-4"></p>
+            </div>
         </div>
     </div>
-    
-    <div id="payment-container" class="card text-center" style="display:none;">
-        <div class="p-8">
-            <h2 class="text-xl font-bold mb-2">Complete Your Payment</h2>
-            <p class="text-sm text-muted mb-4">Send exactly <strong id="payment-amount" class="text-accent"></strong> to the address below.</p>
-            <div class="flex justify-center my-4">
-                <div id="qrcode"></div>
-            </div>
-            <div class="bg-bg p-3 rounded-lg break-words">
-                <p id="payment-address" class="font-mono text-sm"></p>
-            </div>
-            <p class="text-xs text-muted mt-6 animate-pulse">Waiting for blockchain confirmation...</p>
-        </div>
-    </div>
-    
-    <div id="success-container" class="card text-center" style="display:none;">
-        <div class="p-8">
-             <div class="w-16 h-16 bg-accent/10 rounded-full flex items-center justify-center mx-auto">
-                <svg class="lucide lucide-check text-accent" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
-            </div>
-            <h2 class="text-xl font-bold mt-4">Payment Successful!</h2>
-            <p class="text-sm text-muted mt-2 mb-6">Your access has been granted. Click the button below to join the VIP channel immediately.</p>
-            <div id="join-link-container"></div>
-        </div>
-    </div>
-  </div>
-  
-  <script>
-    document.addEventListener('DOMContentLoaded', () => {
-        const formContainer = document.getElementById('form-container');
-        const paymentContainer = document.getElementById('payment-container');
-        const successContainer = document.getElementById('success-container');
-        const errorContainer = document.getElementById('error-container');
-        const form = document.getElementById('payment-form');
-        const submitBtn = document.getElementById('submit-btn');
+
+    <script>
+        const registrationFormContainer = document.getElementById('registration-form-container');
+        const paymentDetailsContainer = document.getElementById('payment-details-container');
+        const registrationForm = document.getElementById('registration-form');
         const planSelect = document.getElementById('plan');
+        const errorMessageElem = document.getElementById('error-message');
+        const paymentMethodSelect = document.getElementById('payment_method');
+        const cryptoFields = document.getElementById('crypto-fields');
+        const submitButton = document.getElementById('submit-button');
 
         let plansData = [];
-        let paymentCheckInterval;
-        
-        const switchView = (activeView) => {
-            [formContainer, paymentContainer, successContainer].forEach(v => v.style.display = 'none');
-            activeView.style.display = 'block';
-        };
-        
-        const displayError = (message) => {
-            errorContainer.textContent = message;
-            errorContainer.style.display = 'block';
-        };
+        let pollingInterval;
 
-        async function fetchAndPopulatePlans() {
+        // Fetch pricing plans and populate the select dropdown
+        async function fetchPlans() {
             try {
                 const response = await fetch('/api/pricing');
-                if (!response.ok) throw new Error('Could not load pricing plans.');
+                if (!response.ok) throw new Error('Failed to fetch plans');
                 plansData = await response.json();
-                planSelect.innerHTML = '<option value="">Select a Plan</option>';
-                plansData.forEach(p => {
-                    planSelect.innerHTML += `<option value="${p.plan_name}"> ${p.plan_name} - $${p.price} ${p.term}</option>`;
+                
+                planSelect.innerHTML = '<option value="">--Please choose an option--</option>'; // Clear existing
+                plansData.forEach(plan => {
+                    const option = document.createElement('option');
+                    option.value = plan.plan_name;
+                    option.textContent = `${plan.plan_name} - $${plan.price} ${plan.term}`;
+                    planSelect.appendChild(option);
                 });
-            } catch (error) { displayError(error.message); }
+
+            } catch (error) {
+                console.error('Error fetching plans:', error);
+                alert('Could not load pricing plans. Please refresh the page.');
+            }
         }
+        
+        // NEW: Handle payment method change
+        paymentMethodSelect.addEventListener('change', (e) => {
+            if (e.target.value === 'crypto') {
+                cryptoFields.style.display = 'block';
+                submitButton.textContent = 'Proceed to Payment';
+            } else {
+                cryptoFields.style.display = 'none';
+                submitButton.textContent = 'Proceed to Fiat Checkout';
+            }
+        });
 
-        form.addEventListener('submit', async (e) => {
+        // Handle form submission
+        registrationForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            errorContainer.style.display = 'none';
-            submitBtn.disabled = true;
-            submitBtn.textContent = 'Processing...';
+            errorMessageElem.textContent = '';
+            submitButton.disabled = true;
+            submitButton.textContent = 'Processing...';
 
-            const formData = new FormData(form);
+            const formData = new FormData(registrationForm);
             const selectedPlanName = formData.get('plan');
             const selectedPlan = plansData.find(p => p.plan_name === selectedPlanName);
             
-            if (!selectedPlan) {
-                displayError("Please select a valid plan.");
-                submitBtn.disabled = false;
-                submitBtn.textContent = 'Proceed to Payment';
-                return;
-            }
-            
-            const payload = {
+            const paymentMethod = formData.get('payment_method');
+
+            const commonDetails = {
                 fullname: formData.get('fullname'),
                 email: formData.get('email'),
                 telegram: '@' + formData.get('telegram'),
                 whatsapp_number: formData.get('whatsapp'),
                 planName: selectedPlan.plan_name,
                 priceUSD: selectedPlan.price,
-                pay_currency: formData.get('pay_currency'),
             };
 
+            if (paymentMethod === 'crypto') {
+                await handleCryptoPayment(commonDetails, formData.get('pay_currency'));
+            } else {
+                await handleFiatPayment(commonDetails);
+            }
+        });
+        
+        async function handleCryptoPayment(details, pay_currency) {
             try {
                 const response = await fetch('/api/payments/create-from-web', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload),
+                    body: JSON.stringify({ ...details, pay_currency }),
                 });
                 
-                // --- NEW LOGIC START ---
-                // Handle the case where the user already has this active subscription
                 if (response.status === 409) {
                     const errorData = await response.json();
-                    displayError(errorData.message);
-                    submitBtn.disabled = false;
-                    submitBtn.textContent = 'Proceed to Payment';
-                    return; // Stop the function here
+                    alert(errorData.message);
+                    resetSubmitButton();
+                    return;
                 }
-                // --- NEW LOGIC END ---
 
                 if (!response.ok) {
-                    const errorData = await response.json().catch(() => ({ message: 'An unknown error occurred.' }));
-                    throw new Error(errorData.message);
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Failed to create payment.');
                 }
                 
                 const data = await response.json();
-                displayPaymentView(data);
+                displayPaymentDetails(data);
                 startPolling(data.order_id);
 
             } catch (error) {
-                displayError(error.message);
-                submitBtn.disabled = false;
-                submitBtn.textContent = 'Proceed to Payment';
+                console.error('Crypto payment error:', error);
+                alert(error.message);
+                resetSubmitButton();
             }
-        });
+        }
 
-        function displayPaymentView(data) {
-            document.getElementById('qrcode').innerHTML = '';
-            document.getElementById('join-link-container').innerHTML = `<a href="#" id="join-link" class="btn-primary p-3 inline-block w-full">Click Here to Join VIP</a>`;
-            
-            switchView(paymentContainer);
-            document.getElementById('payment-amount').textContent = `${data.pay_amount} ${data.pay_currency.toUpperCase()}`;
+        async function handleFiatPayment(details) {
+            try {
+                 const response = await fetch('/api/payments/fiat/create', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(details),
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Failed to initiate Fiat payment.');
+                }
+
+                const data = await response.json();
+                // Redirect user to the payment provider's page
+                window.location.href = data.redirectUrl;
+
+            } catch(error) {
+                console.error('Fiat payment error:', error);
+                alert(error.message);
+                resetSubmitButton();
+            }
+        }
+
+        function resetSubmitButton() {
+             submitButton.disabled = false;
+             submitButton.textContent = paymentMethodSelect.value === 'crypto' ? 'Proceed to Payment' : 'Proceed to Fiat Checkout';
+        }
+
+        function displayPaymentDetails(data) {
+            registrationFormContainer.classList.add('hidden');
+            paymentDetailsContainer.classList.remove('hidden');
+
+            const networkMap = { 'usdttrc20': 'USDT (TRC-20)', 'usdtbsc': 'USDT (BEP-20)' };
+            const formattedCurrency = networkMap[data.pay_currency.toLowerCase()] || data.pay_currency.toUpperCase();
+
+            document.getElementById('payment-instructions').textContent = `Please send exactly ${data.pay_amount} ${formattedCurrency} to the address below.`;
             document.getElementById('payment-address').textContent = data.pay_address;
-            
-            new QRCode(document.getElementById('qrcode'), {
-                text: data.pay_address, width: 180, height: 180,
-                colorDark: '#e9edf3', colorLight: '#0f141b'
-            });
+            document.getElementById('qr-code').src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${data.pay_address}`;
+
+            const copyBtn = document.getElementById('copy-address-btn');
+            copyBtn.onclick = () => {
+                navigator.clipboard.writeText(data.pay_address).then(() => {
+                    copyBtn.textContent = 'Copied!';
+                    setTimeout(() => { copyBtn.innerHTML = '<i class="fas fa-copy mr-2"></i>Copy Address'; }, 2000);
+                });
+            };
         }
 
         function startPolling(orderId) {
-            if (paymentCheckInterval) clearInterval(paymentCheckInterval);
-            paymentCheckInterval = setInterval(async () => {
+            pollingInterval = setInterval(async () => {
                 try {
                     const response = await fetch(`/api/payments/status/${orderId}`);
-                    const data = await response.json();
-                    if (data.status === 'paid' && data.invite_link) {
-                        clearInterval(paymentCheckInterval);
-                        displaySuccess(data.invite_link);
+                    if (!response.ok) {
+                        clearInterval(pollingInterval);
+                        errorMessageElem.textContent = 'Error checking status. Please refresh and try again.';
+                        return;
                     }
-                } catch (error) { console.error('Polling error:', error); }
+
+                    const data = await response.json();
+
+                    if (data.status === 'paid' && data.invite_link) {
+                        clearInterval(pollingInterval);
+                        // Redirect to the invite link on success
+                        window.location.href = data.invite_link; 
+                    }
+                    
+                } catch (error) {
+                    console.error('Polling error:', error);
+                    clearInterval(pollingInterval);
+                    errorMessageElem.textContent = 'Could not verify payment. Please contact support.';
+                }
             }, 5000);
         }
 
-        function displaySuccess(inviteLink) {
-            switchView(successContainer);
-            document.getElementById('join-link').href = inviteLink;
-        }
-
-        // --- Initialization ---
-        fetchAndPopulatePlans();
-    });
-  </script>
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchPlans();
+        });
+    </script>
 </body>
 </html>
