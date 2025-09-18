@@ -113,7 +113,7 @@ bot.onText(/\/faq/, (msg) => {
 
 bot.onText(/\/support/, (msg) => {
     const chatId = msg.chat.id;
-    bot.sendMessage(chatId, 'The support feature is coming soon!');
+    bot.sendMessage(chatId, 'For support, please contact our admin directly.');
 });
 
 
@@ -189,8 +189,116 @@ const createLinkMenu = (chatId, text, url) => {
     bot.sendMessage(chatId, text, opts);
 };
 
-// --- Main Callback Query Handler for Inline Buttons ---
 
+// --- Main Message Handler for collecting user input ---
+bot.on('message', async (msg) => {
+    const chatId = msg.chat.id;
+    const state = userRegistrationState[chatId];
+
+    // Ignore commands (handled by onText) and messages from users not in a registration flow.
+    if (!msg.text || msg.text.startsWith('/') || !state || !state.stage) {
+        return;
+    }
+
+    try {
+        switch (state.stage) {
+            case 'awaiting_whatsapp':
+                if (!/^\+?\d{10,}$/.test(msg.text)) {
+                    bot.sendMessage(chatId, "That doesn't look right. Please enter a valid WhatsApp number, including the country code (e.g., +1234567890).");
+                    return;
+                }
+                
+                state.whatsapp = msg.text;
+                state.stage = 'awaiting_payment';
+                bot.sendMessage(chatId, "Thank you! Generating your unique payment address... please wait.");
+
+                const response = await fetch(`${serverUrl}/api/payments/create-from-bot`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        telegram_handle: state.telegramHandle,
+                        chat_id: chatId,
+                        plan_id: state.planId,
+                        pay_currency: state.network,
+                        whatsapp_number: state.whatsapp
+                    }),
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ message: "An unexpected server error occurred." }));
+                    throw new Error(errorData.message || 'Please try again later.');
+                }
+
+                const paymentData = await response.json();
+                state.orderId = paymentData.order_id;
+                
+                const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${paymentData.pay_address}&size=200x200`;
+                const networkMap = { 'usdttrc20': 'USDT(TRC20)', 'usdtbsc': 'USDT(BEP20)' };
+                const formattedCurrency = networkMap[paymentData.pay_currency.toLowerCase()] || paymentData.pay_currency.toUpperCase();
+
+                const addressMessage = `Please send exactly *${paymentData.pay_amount} ${formattedCurrency}* to this address:\n\n` + `\`${paymentData.pay_address}\``;
+                const monitoringMessage = `👆 Tap the address to copy. We are now monitoring the blockchain for your payment. You will be notified automatically.\n\nOnce paid, click the button below.`;
+                
+                const checkStatusKeyboard = {
+                    reply_markup: {
+                        inline_keyboard: [[{ text: 'I Have Paid, Check Status', callback_data: `check_payment_status_${state.orderId}` }]]
+                    }
+                };
+                
+                await bot.sendPhoto(chatId, qrCodeUrl, { caption: addressMessage, parse_mode: 'Markdown' });
+                await bot.sendMessage(chatId, monitoringMessage, checkStatusKeyboard);
+                break;
+
+            case 'awaiting_full_name':
+                state.fullName = msg.text;
+                state.stage = 'awaiting_email';
+                bot.sendMessage(chatId, `Great, ${state.fullName}! Now, please enter your email address.`);
+                break;
+
+            case 'awaiting_email':
+                if (!/\S+@\S+\.\S+/.test(msg.text)) {
+                    bot.sendMessage(chatId, "That doesn't look like a valid email. Please try again.");
+                    return;
+                }
+                state.email = msg.text;
+                state.stage = 'finalizing';
+                bot.sendMessage(chatId, "Perfect! Finalizing your registration and generating your secure invite link...");
+
+                const finalResponse = await fetch(`${serverUrl}/api/users/finalize-registration`, {
+                     method: 'POST',
+                     headers: { 'Content-Type': 'application/json' },
+                     body: JSON.stringify({
+                         orderId: state.orderId,
+                         fullName: state.fullName,
+                         email: state.email
+                     })
+                });
+
+                if (!finalResponse.ok) {
+                    throw new Error("Failed to finalize registration on the server.");
+                }
+
+                const finalData = await finalResponse.json();
+                
+                const successMessage = `Thank you! Your registration is complete. Click below to join the VIP channel immediately.`;
+                const joinKeyboard = {
+                    reply_markup: {
+                        inline_keyboard: [[{ text: 'Join Now', url: finalData.invite_link }]]
+                    }
+                };
+                await bot.sendMessage(chatId, successMessage, joinKeyboard);
+                delete userRegistrationState[chatId];
+                break;
+        }
+    } catch (err) {
+        console.error("Error in message handler:", err);
+        bot.sendMessage(chatId, `An unexpected error occurred: ${err.message}. Please contact support or try /start again.`);
+        delete userRegistrationState[chatId];
+    }
+});
+
+
+// --- Main Callback Query Handler for Inline Buttons ---
 bot.on('callback_query', async (callbackQuery) => {
     try {
         const msg = callbackQuery.message;
@@ -198,45 +306,26 @@ bot.on('callback_query', async (callbackQuery) => {
             console.error("Callback query received without a valid message/chat ID.", callbackQuery);
             return bot.answerCallbackQuery(callbackQuery.id, { text: "Error processing request." });
         }
-
         const chatId = msg.chat.id;
         const data = callbackQuery.data;
         const telegramUser = callbackQuery.from;
-
         bot.answerCallbackQuery(callbackQuery.id);
 
-        // --- Main Menu Navigation ---
         if (data === 'pricing' || data === 'join_vip' || data === 'back_to_plans' || data === 'get_signals_now') {
-            if(data === 'back_to_plans' && userRegistrationState[chatId]) {
-                 delete userRegistrationState[chatId];
-            }
+            if(data === 'back_to_plans' && userRegistrationState[chatId]) delete userRegistrationState[chatId];
             return showSubscriptionPlans(chatId, 'Choose your plan to continue');
         }
-        if (data === 'recent_signals') {
-            return createLinkMenu(chatId, 'Click the button below to see our recent signals and full performance history.', `${serverUrl}/performance`);
-        }
-        if (data === 'signal_stats') {
-            return handleSignalStats(chatId);
-        }
+        if (data === 'recent_signals') return createLinkMenu(chatId, 'Click the button below to see our recent signals and full performance history.', `${serverUrl}/performance`);
+        if (data === 'signal_stats') return handleSignalStats(chatId);
         if (data === 'main_menu') {
-             if (userRegistrationState[chatId]) {
-                delete userRegistrationState[chatId];
-            }
-            bot.sendMessage(chatId, introMessage, mainMenuOptions);
-            return;
+            if (userRegistrationState[chatId]) delete userRegistrationState[chatId];
+            return bot.sendMessage(chatId, introMessage, mainMenuOptions);
         }
 
-        // --- Registration and Payment Flow ---
         if (data.startsWith('select_plan_')) {
             const planId = parseInt(data.split('_')[2], 10);
             const telegramHandle = telegramUser.username ? `@${telegramUser.username}` : `user_${telegramUser.id}`;
-            
-            userRegistrationState[chatId] = {
-                planId: planId,
-                telegramHandle: telegramHandle
-            };
-
-            const paymentMessage = `You have selected a plan. Please choose your payment method:`;
+            userRegistrationState[chatId] = { planId, telegramHandle, stage: 'awaiting_payment_method' };
             const paymentKeyboard = {
                 reply_markup: {
                     inline_keyboard: [
@@ -246,30 +335,24 @@ bot.on('callback_query', async (callbackQuery) => {
                     ]
                 }
             };
-            bot.sendMessage(chatId, paymentMessage, paymentKeyboard);
-            return;
+            return bot.sendMessage(chatId, `You have selected a plan. Please choose your payment method:`, paymentKeyboard);
         }
 
         if (data === 'select_payment_fiat') {
             const state = userRegistrationState[chatId];
             if (!state) return bot.sendMessage(chatId, "Please select a plan first.");
-            
-            const fiatMessage = `To complete your payment with Fiat, please use the button below to visit our secure checkout page on our website.`;
             const fiatKeyboard = {
                 inline_keyboard: [
                     [{ text: 'Proceed to Fiat Checkout', url: `${serverUrl}/join?telegram=${state.telegramHandle.replace('@','')}` }],
                     [{ text: '⬅️ Back', callback_data: `select_plan_${state.planId}` }]
                 ]
             };
-            bot.sendMessage(chatId, fiatMessage, { reply_markup: fiatKeyboard });
-            return;
+            return bot.sendMessage(chatId, `To complete your payment with Fiat, please use the button below to visit our secure checkout page.`, { reply_markup: fiatKeyboard });
         }
 
         if (data === 'select_payment_crypto') {
             const state = userRegistrationState[chatId];
             if (!state) return bot.sendMessage(chatId, "Please select a plan first.");
-
-            const cryptoNetworkMessage = `Please select the crypto network for your USDT payment:`;
             const cryptoNetworkKeyboard = {
                  reply_markup: {
                     inline_keyboard: [
@@ -279,102 +362,37 @@ bot.on('callback_query', async (callbackQuery) => {
                     ]
                 }
             };
-            bot.sendMessage(chatId, cryptoNetworkMessage, cryptoNetworkKeyboard);
-            return;
+            return bot.sendMessage(chatId, `Please select the crypto network for your USDT payment:`, cryptoNetworkKeyboard);
         }
         
-        // =================================================================
-        // --- START: MODIFIED LOGIC TO CALL THE BACKEND ---
-        // =================================================================
         if (data.startsWith('select_network_')) {
-            const network = data.split('_')[2]; // e.g., usdtbsc
+            const network = data.split('_')[2];
             const state = userRegistrationState[chatId];
+            if (!state) return bot.sendMessage(chatId, "Your session seems to have expired. Please start again with /start.");
 
-            if (!state || !state.telegramHandle || !state.planId) {
-                return bot.sendMessage(chatId, "Something went wrong. Please start the registration over with /start.");
-            }
-            
-            bot.sendMessage(chatId, "Generating your unique payment address... please wait.");
-
-            try {
-                // Instead of calling NOWPayments directly, call our new server endpoint.
-                const response = await fetch(`${serverUrl}/api/payments/create-from-bot`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        telegram_handle: state.telegramHandle,
-                        chat_id: chatId,
-                        plan_id: state.planId,
-                        pay_currency: network
-                    }),
-                });
-
-                if (!response.ok) {
-                    const errorData = await response.json().catch(() => ({ message: "An unexpected server error occurred." }));
-                    console.error("Failed to create crypto payment via backend:", errorData);
-                    const errorMessage = `⚠️ Sorry, there was a problem generating your payment address.\n\n_Reason: ${errorData.message || 'Please try again later.'}_`;
-                    await bot.sendMessage(chatId, errorMessage, { parse_mode: 'Markdown' });
-                    return;
-                }
-
-                const paymentData = await response.json();
-                
-                // Store the order_id from our server for status checks
-                state.orderId = paymentData.order_id;
-
-                const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${paymentData.pay_address}&size=200x200`;
-                const networkMap = { 'usdttrc20': 'USDT(TRC20)', 'usdtbsc': 'USDT(BEP20)' };
-                const formattedCurrency = networkMap[paymentData.pay_currency.toLowerCase()] || paymentData.pay_currency.toUpperCase();
-
-                const addressMessage = `Please send exactly *${paymentData.pay_amount} ${formattedCurrency}* to the address below.\n\n*Address:*\n\`${paymentData.pay_address}\``;
-                const monitoringMessage = `👆 Tap & copy the address to pay.\n\nWe are now monitoring the blockchain for your payment. You will be notified automatically and receive your invite link as soon as it's confirmed (usually within 2-5 minutes).`;
-                
-                const checkStatusKeyboard = {
-                    reply_markup: {
-                        inline_keyboard: [
-                            [{ text: 'Check Payment Status', callback_data: `check_payment_status_${state.orderId}` }]
-                        ]
-                    }
-                };
-
-                await bot.sendPhoto(chatId, qrCodeUrl, { caption: addressMessage, parse_mode: 'Markdown' });
-                await bot.sendMessage(chatId, monitoringMessage, checkStatusKeyboard);
-
-            } catch (err) {
-                console.error("Error in bot's select_network handler:", err);
-                await bot.sendMessage(chatId, "A critical error occurred. Please try again or contact support.");
-            }
-            return;
+            state.network = network;
+            state.stage = 'awaiting_whatsapp';
+            return bot.sendMessage(chatId, "Please enter your WhatsApp number (including country code) to proceed.");
         }
-        // =================================================================
-        // --- END: MODIFIED LOGIC ---
-        // =================================================================
 
         if (data.startsWith('check_payment_status_')) {
             const orderId = data.split('_')[3];
             bot.sendMessage(chatId, "Checking payment status on our server, please wait...");
-
-            try {
-                // This endpoint now checks our own database, which is updated by the webhook.
-                const statusResponse = await fetch(`${serverUrl}/api/payments/status/${orderId}`);
-                if (!statusResponse.ok) throw new Error("Could not reach our server.");
-
-                const statusData = await statusResponse.json();
-                
-                if (statusData.status === 'paid') {
-                    // Although the webhook should handle this, this is a good fallback.
-                    await bot.sendMessage(chatId, `✅ Payment confirmed! Your invite link is: ${statusData.invite_link}`);
-                    delete userRegistrationState[chatId];
+            const statusResponse = await fetch(`${serverUrl}/api/payments/status/${orderId}`);
+            if (!statusResponse.ok) throw new Error("Could not reach our server.");
+            const statusData = await statusResponse.json();
+            
+            if (statusData.status === 'paid') {
+                const state = userRegistrationState[chatId];
+                if (state) {
+                    state.stage = 'awaiting_full_name';
+                    return await bot.sendMessage(chatId, `✅ Payment confirmed! To complete your registration, please provide your full name.`);
                 } else {
-                    let statusMessage = `Current status: *${statusData.status}*. Please wait for blockchain confirmation. You will be notified automatically.`;
-                    await bot.sendMessage(chatId, statusMessage, { parse_mode: 'Markdown' });
+                    return await bot.sendMessage(chatId, `✅ Payment confirmed! Your session expired. Please contact support with your transaction ID to get your link.`);
                 }
-
-            } catch(err) {
-                console.error(`Error manually checking payment status for order ${orderId}:`, err);
-                bot.sendMessage(chatId, "Sorry, I couldn't check the status right now. You will be notified automatically when payment is complete.");
+            } else {
+                return await bot.sendMessage(chatId, `Current status: *${statusData.status}*. Please wait for blockchain confirmation and try again.`, { parse_mode: 'Markdown' });
             }
-            return;
         }
 
     } catch (error) {
@@ -385,12 +403,6 @@ bot.on('callback_query', async (callbackQuery) => {
     }
 });
 
-// The server's webhook now handles all logic for successful payment,
-// including sending the final invite link to the user.
-// This bot no longer needs polling or conversational message handlers for post-payment details,
-// as that is handled by the server's single source of truth.
-
-// Export the bot instance and the setup function for server.js
 module.exports = {
     bot,
     setupWebhook

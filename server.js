@@ -579,15 +579,15 @@ app.post('/api/payments/fiat/create', async (req, res) => {
 async function createPendingUser(details) {
     const {
         fullname, email, telegram, planName, 
-        order_id, chatId = null, source = 'web' 
+        order_id, chatId = null, source = 'web', whatsapp_number = null
     } = details;
     
     const registrationDate = new Date().toISOString().split('T')[0];
 
     // Create or update user record with a 'pending' status.
     await pool.query(
-        `INSERT INTO users (full_name, email, telegram_handle, plan_name, subscription_status, registration_date, order_id, payment_attempts, last_payment_attempt, telegram_chat_id, registration_source)
-         VALUES ($1, $2, $3, $4, 'pending', $5, $6, 1, NOW(), $7, $8)
+        `INSERT INTO users (full_name, email, telegram_handle, plan_name, subscription_status, registration_date, order_id, payment_attempts, last_payment_attempt, telegram_chat_id, registration_source, whatsapp_number)
+         VALUES ($1, $2, $3, $4, 'pending', $5, $6, 1, NOW(), $7, $8, $9)
          ON CONFLICT (telegram_handle, plan_name) DO UPDATE SET
             full_name = EXCLUDED.full_name,
             email = EXCLUDED.email,
@@ -596,9 +596,10 @@ async function createPendingUser(details) {
             payment_attempts = users.payment_attempts + 1,
             last_payment_attempt = NOW(),
             telegram_chat_id = EXCLUDED.telegram_chat_id,
-            registration_source = EXCLUDED.registration_source
+            registration_source = EXCLUDED.registration_source,
+            whatsapp_number = EXCLUDED.whatsapp_number
         `,
-        [fullname, email, telegram, planName, registrationDate, order_id, chatId, source]
+        [fullname, email, telegram, planName, registrationDate, order_id, chatId, source, whatsapp_number]
     );
 }
 
@@ -653,8 +654,8 @@ app.post('/api/payments/create-from-web', async (req, res) => {
 // === Flow 2: User starts payment from the Telegram Bot ===
 app.post('/api/payments/create-from-bot', async (req, res) => {
     try {
-        const { telegram_handle, chat_id, plan_id, pay_currency } = req.body;
-        if (!telegram_handle || !chat_id || !plan_id || !pay_currency) {
+        const { telegram_handle, chat_id, plan_id, pay_currency, whatsapp_number } = req.body;
+        if (!telegram_handle || !chat_id || !plan_id || !pay_currency || !whatsapp_number) {
             return res.status(400).json({ message: 'Missing required fields from bot.' });
         }
 
@@ -679,7 +680,8 @@ app.post('/api/payments/create-from-bot', async (req, res) => {
             planName: plan.plan_name, 
             order_id, 
             chatId: chat_id, 
-            source: 'bot' 
+            source: 'bot',
+            whatsapp_number: whatsapp_number
         });
         
         // Step 2: Create the invoice with NOWPayments.
@@ -761,9 +763,10 @@ app.post('/api/payments/nowpayments/webhook', async (req, res) => {
                 // === DELIVERY LOGIC ===
                 // Check the user's registration source to determine how to deliver the invite link.
                 if (user.registration_source === 'bot' && user.telegram_chat_id) {
-                    // Flow 2 Delivery: User is waiting in Telegram.
-                    const inviteLink = await bot.createChatInviteLink(plan.telegram_group_id, { member_limit: 1 });
-                    await bot.sendMessage(user.telegram_chat_id, `✅ Payment confirmed! Here is your one-time invite link to the VIP channel: ${inviteLink.invite_link}`);
+                    // With the new flow, we no longer send the invite link directly from the webhook.
+                    // The bot will now poll for status, ask for user details, and then call a new endpoint to get the link.
+                    // We can optionally send a confirmation message here to prompt the user.
+                    await bot.sendMessage(user.telegram_chat_id, `✅ Payment confirmed! Please return to our chat to complete your registration.`);
                 
                 } else {
                     // Flow 1 Delivery: User is waiting on the website.
@@ -804,7 +807,12 @@ app.get('/api/payments/status/:order_id', async (req, res) => {
             });
             // Clear the token after it has been retrieved to make it one-time use.
             await pool.query(`UPDATE users SET telegram_invite_token = NULL WHERE order_id = $1`, [order_id]);
-        } else {
+        } else if (user.subscription_status === 'active') {
+             // For bot users, the status will be active but the token won't be set yet.
+             // We return 'paid' so the bot can proceed with collecting info.
+            res.json({ status: 'paid' });
+        }
+        else {
             // Otherwise, just return the current status from the DB (e.g., 'pending')
             res.json({ status: user.subscription_status || 'pending' });
         }
@@ -817,6 +825,47 @@ app.get('/api/payments/status/:order_id', async (req, res) => {
 // =================================================================
 // --- END: UNIFIED PAYMENT FLOW ---
 // =================================================================
+
+
+// NEW ENDPOINT: Finalize registration after payment and data collection
+app.post('/api/users/finalize-registration', async (req, res) => {
+    const { orderId, fullName, email } = req.body;
+
+    if (!orderId || !fullName || !email) {
+        return res.status(400).json({ message: 'Missing orderId, fullName, or email.' });
+    }
+
+    try {
+        // Step 1: Update the user's details in the database
+        const updateUserQuery = await pool.query(
+            `UPDATE users SET full_name = $1, email = $2 WHERE order_id = $3 RETURNING *`,
+            [fullName, email, orderId]
+        );
+
+        if (updateUserQuery.rows.length === 0) {
+            return res.status(404).json({ message: 'User for this order not found.' });
+        }
+
+        const user = updateUserQuery.rows[0];
+
+        // Step 2: Get the plan details to find the correct Telegram group
+        const planResult = await pool.query('SELECT telegram_group_id FROM pricingplans WHERE plan_name = $1', [user.plan_name]);
+        if (planResult.rows.length === 0 || !planResult.rows[0].telegram_group_id) {
+            throw new Error('Telegram group ID not found for this plan.');
+        }
+        const telegramGroupId = planResult.rows[0].telegram_group_id;
+
+        // Step 3: Generate the one-time invite link
+        const inviteLink = await bot.createChatInviteLink(telegramGroupId, { member_limit: 1 });
+
+        // Step 4: Send the link back to the bot
+        res.status(200).json({ invite_link: inviteLink.invite_link });
+
+    } catch (err) {
+        console.error('Error finalizing registration:', err);
+        res.status(500).json({ message: 'Server Error during finalization.' });
+    }
+});
 
 
 // NEW ENDPOINT: Verify Telegram user and redeem token
