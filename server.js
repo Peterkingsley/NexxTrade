@@ -606,7 +606,7 @@ async function createPendingUser(details) {
 // === Flow 1: User starts payment from the Website ===
 app.post('/api/payments/create-from-web', async (req, res) => {
     try {
-        const { fullname, email, telegram, planName, priceUSD, pay_currency } = req.body;
+        const { fullname, email, telegram, planName, priceUSD, pay_currency, whatsapp_number } = req.body;
         
         if (!priceUSD || !pay_currency || !fullname || !email || !telegram) {
             return res.status(400).json({ message: 'Missing required fields for payment.' });
@@ -615,7 +615,7 @@ app.post('/api/payments/create-from-web', async (req, res) => {
         const order_id = `nexxtrade-web-${telegram.replace('@', '')}-${Date.now()}`;
         
         // Step 1: Create a pending user record, marking the source as 'web'.
-        await createPendingUser({ fullname, email, telegram, planName, order_id, source: 'web' });
+        await createPendingUser({ fullname, email, telegram, planName, order_id, source: 'web', whatsapp_number });
 
         // Step 2: Create the invoice with NOWPayments.
         const nowPaymentsResponse = await fetch('https://api.nowpayments.io/v1/payment', {

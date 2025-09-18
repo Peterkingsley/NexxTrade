@@ -178,6 +178,10 @@
                     <label for="crypto-telegram" class="block text-sm font-medium mb-1 text-muted">Telegram Username</label>
                     <input type="text" id="crypto-telegram" placeholder="@yourhandle" class="input-field" required>
                 </div>
+                <div>
+                    <label for="crypto-whatsapp" class="block text-sm font-medium mb-1 text-muted">WhatsApp Number</label>
+                    <input type="tel" id="crypto-whatsapp" placeholder="+1234567890" class="input-field" required>
+                </div>
             </div>
             <div class="space-y-4">
                 <h3 class="font-semibold text-lg">3. Select Payment Network</h3>
@@ -344,6 +348,7 @@
                 fullname: document.getElementById('crypto-fullname').value,
                 email: document.getElementById('crypto-email').value,
                 telegram: document.getElementById('crypto-telegram').value,
+                whatsapp_number: document.getElementById('crypto-whatsapp').value, // Add this line
                 planName: plans[selectedPlanKey].name,
                 priceUSD: plans[selectedPlanKey].priceUSD,
                 pay_currency: selectedNetwork,
@@ -423,4 +428,3 @@
   </script>
 </body>
 </html>
-
