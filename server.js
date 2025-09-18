@@ -608,7 +608,7 @@ app.post('/api/payments/create-from-web', async (req, res) => {
     try {
         const { fullname, email, telegram, planName, priceUSD, pay_currency, whatsapp_number } = req.body;
         
-        if (!priceUSD || !pay_currency || !fullname || !email || !telegram) {
+        if (!priceUSD || !pay_currency || !fullname || !email || !telegram || !whatsapp_number) {
             return res.status(400).json({ message: 'Missing required fields for payment.' });
         }
         
@@ -951,3 +951,4 @@ app.listen(port, async () => {
   console.log(`Server is running on http://localhost:${port}`);
   await setupWebhook();
 });
+
