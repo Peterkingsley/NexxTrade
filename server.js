@@ -473,34 +473,16 @@ app.delete('/api/pnlproofs/:id', async (req, res) => {
 });
 
 
-// === START: USER AND DASHBOARD API ROUTES ===
-
-// MODIFIED: Handles fetching all users or filtering by status ('active' or 'pending')
+// MODIFIED: API routes for the users table to handle the new subscription fields
 app.get('/api/users', async (req, res) => {
   try {
-    const { status } = req.query; // Get status from query params (e.g., /api/users?status=active)
-    let query = 'SELECT * FROM users';
-    const params = [];
-
-    if (status === 'active') {
-      query += ' WHERE subscription_status = $1';
-      params.push('active');
-    } else if (status === 'pending') {
-      // Use LIKE to catch both 'pending' and 'pending_fiat'
-      query += ' WHERE subscription_status LIKE $1';
-      params.push('pending%');
-    }
-
-    query += ' ORDER BY registration_date DESC';
-
-    const { rows } = await pool.query(query, params);
+    const { rows } = await pool.query('SELECT * FROM users ORDER BY registration_date DESC');
     res.json(rows);
   } catch (err) {
-    console.error('Error fetching users:', err);
+    console.error(err);
     res.status(500).send('Server Error');
   }
 });
-
 
 app.get('/api/users/stats', async (req, res) => {
   try {
@@ -528,38 +510,6 @@ app.get('/api/users/stats', async (req, res) => {
     });
   } catch (err) {
     console.error(err);
-    res.status(500).send('Server Error');
-  }
-});
-
-
-// NEW: Comprehensive statistics endpoint for the admin dashboard
-app.get('/api/dashboard/stats', async (req, res) => {
-  try {
-    // Query for users per package
-    const packageQuery = "SELECT plan_name, COUNT(*) FROM users WHERE plan_name IS NOT NULL AND subscription_status = 'active' GROUP BY plan_name";
-    const { rows: packageRows } = await pool.query(packageQuery);
-
-    // Process package data into a more friendly object
-    const usersPerPackage = {};
-    packageRows.forEach(row => {
-      // Normalize plan name to be used as a key, e.g., 'Pro Elites' -> 'pro_elites'
-      const planKey = row.plan_name.toLowerCase().replace(/\s+/g, '_');
-      usersPerPackage[planKey] = parseInt(row.count, 10);
-    });
-
-    // Query for total registration attempts
-    const attemptsQuery = 'SELECT SUM(payment_attempts) AS total_attempts FROM users';
-    const { rows: attemptsRows } = await pool.query(attemptsQuery);
-    const totalAttempts = attemptsRows.length > 0 && attemptsRows[0].total_attempts ? parseInt(attemptsRows[0].total_attempts, 10) : 0;
-
-    // Send the combined stats
-    res.json({
-      usersPerPackage,
-      totalAttempts,
-    });
-  } catch (err) {
-    console.error('Error fetching dashboard stats:', err);
     res.status(500).send('Server Error');
   }
 });
