@@ -499,7 +499,8 @@
             // Initial data fetch
             fetchBasicStats();
             fetchDashboardStats();
-            fetchUsers(); // Fetches all users by default
+            // MODIFIED: Fetch all users initially to set the "Total Users" card correctly.
+            fetchUsers('all', true); 
 
             // Logout functionality
             document.getElementById('logout-btn').addEventListener('click', () => {
@@ -516,7 +517,8 @@
                     button.classList.add('active');
                     
                     const status = button.getAttribute('data-status');
-                    fetchUsers(status);
+                    // MODIFIED: Subsequent fetches for filtering will not update the total count card.
+                    fetchUsers(status, false);
                 });
             });
 
@@ -571,8 +573,8 @@
             }
         }
 
-        // MODIFIED: Fetches users, with optional filtering by status
-        async function fetchUsers(status = 'all') {
+        // MODIFIED: Fetches users, with optional filtering by status and a flag to update the total count.
+        async function fetchUsers(status = 'all', updateTotalCount = false) {
             const tableBody = document.getElementById('users-table-body');
             tableBody.innerHTML = '<tr><td colspan="8">Loading users...</td></tr>';
             
@@ -585,7 +587,12 @@
                 const response = await fetch(url);
                 const users = await response.json();
                 currentUsersData = users; // Store for modal access
-                document.getElementById('total-users').textContent = users.length;
+
+                // Only update the "Total Users" card if the flag is true (on initial load)
+                if (updateTotalCount) {
+                    document.getElementById('total-users').textContent = users.length;
+                }
+                
                 displayUsers(users);
             } catch (error) {
                 console.error('Error fetching users:', error);
@@ -649,3 +656,4 @@
     </script>
 </body>
 </html>
+
