@@ -3,522 +3,649 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NexxTrade Admin Panel - Dashboard</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
+    <title>Admin Dashboard - NexxTrade</title>
+    <!-- Favicon -->
+    <link rel="icon" href="/images/Nexxtrade (1).svg" type="image/svg+xml">
+    <!-- Google Fonts - Poppins -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* Custom CSS to match the original site's theme and styles */
         :root {
-            --bg: #0b0f14;
-            --bg-2: #0f141b;
-            --text: #e9edf3;
-            --muted: #a8b3c7;
-            --accent: #2ad678;
-            --accent-2: #f0c75e;
-            --danger: #ff5d5d;
-            --line: #1b2330;
-            --shadow: 0 8px 24px rgba(0,0,0,.35);
-            --radius: 16px;
-            --radius-lg: 20px;
+            --primary-color: #1a202c;
+            --secondary-color: #2d3748;
+            --accent-color: #4a5568;
+            --text-color: #e2e8f0;
+            --highlight-color: #38b2ac;
+            --card-bg: #2d3748;
+            --border-color: #4a5568;
+            --success-color: #48bb78;
+            --pending-color: #f6ad55;
+            --error-color: #f56565;
         }
 
-        /* Apply a consistent font and background */
         body {
-            background: var(--bg);
-            color: var(--text);
-            font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, "Helvetica Neue", Arial, sans-serif;
-            overflow-x: hidden;
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--primary-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
+            display: flex;
         }
 
-        /* Reusable card style */
-        .card {
-            background: var(--bg-2);
-            border: 1px solid var(--line);
-            border-radius: var(--radius);
-            box-shadow: var(--shadow);
+        .sidebar {
+            width: 250px;
+            background-color: var(--secondary-color);
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            left: 0;
+            padding: 20px 0;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid var(--border-color);
         }
 
-        /* Input field styling */
-        .input-field {
-            width: 100%;
-            padding: 12px 16px;
-            border-radius: 12px;
-            background: #0d1219;
-            border: 1px solid var(--line);
-            color: var(--text);
-            transition: border-color 0.2s ease;
-        }
-
-        .input-field:focus {
-            outline: none;
-            border-color: var(--accent);
-        }
-
-        /* Button styles */
-        .btn {
-            display: inline-flex;
+        .sidebar-header {
+            padding: 0 20px 20px 20px;
+            display: flex;
             align-items: center;
-            justify-content: center;
-            gap: .6rem;
-            padding: .9rem 1.4rem;
-            border-radius: 999px;
-            border: 1px solid transparent;
-            cursor: pointer;
-            transition: .2s ease;
-            white-space: nowrap;
-            font-weight: 600;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .sidebar-header img {
+            width: 50px;
+            height: 50px;
+            margin-right: 10px;
         }
 
-        .btn-primary {
-            background: var(--accent);
-            color: #04140a;
+        .sidebar-header h2 {
+            margin: 0;
+            font-size: 1.5em;
+            color: white;
         }
 
-        .btn-primary:hover {
-            filter: brightness(1.1);
-            transform: translateY(-1px);
+        .sidebar-nav {
+            list-style: none;
+            padding: 20px 0;
+            margin: 0;
+            flex-grow: 1;
         }
 
-        .btn-ghost {
-            background: transparent;
-            border-color: var(--line);
-            color: var(--text);
+        .sidebar-nav a {
+            display: flex;
+            align-items: center;
+            padding: 15px 20px;
+            color: var(--text-color);
+            text-decoration: none;
+            transition: background-color 0.3s, color 0.3s, border-left 0.3s;
+            border-left: 3px solid transparent;
         }
 
-        .btn-ghost:hover {
-            background: #0f151d;
+        .sidebar-nav a:hover,
+        .sidebar-nav a.active {
+            background-color: var(--accent-color);
+            color: white;
+            border-left-color: var(--highlight-color);
         }
 
-        /* Utility for spacing and layout */
-        .container {
+        .sidebar-nav a i {
+            margin-right: 15px;
+            width: 20px;
+            text-align: center;
+        }
+        
+        .sidebar-footer {
+            padding: 20px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .logout-btn {
+            display: flex;
+            align-items: center;
             width: 100%;
-            max-width: 1200px;
-            margin-inline: auto;
-            padding-inline: 20px;
-        }
-
-        /* Custom styles for admin panel tabs */
-        .tab-btn {
-            padding: 12px 20px;
-            border-bottom: 2px solid transparent;
-            color: var(--muted);
-            font-weight: 500;
+            padding: 15px 20px;
+            background: none;
+            border: none;
+            color: var(--text-color);
+            font-family: 'Poppins', sans-serif;
+            font-size: 1em;
             cursor: pointer;
-            transition: color 0.2s, border-color 0.2s;
+            text-align: left;
+            transition: background-color 0.3s, color 0.3s;
+        }
+        
+        .logout-btn:hover {
+            background-color: var(--error-color);
+            color: white;
         }
 
-        .tab-btn:hover {
-            color: var(--text);
+        .logout-btn i {
+            margin-right: 15px;
         }
 
-        .tab-btn.active {
-            color: var(--accent);
-            border-color: var(--accent);
+        .main-content {
+            margin-left: 250px;
+            width: calc(100% - 250px);
+            padding: 30px;
+            overflow-y: auto;
         }
 
-        /* Table styling for a more admin-like feel */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 2.2em;
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+        }
+        
+        .user-profile span {
+            margin-right: 15px;
+        }
+        
+        .user-profile i {
+            font-size: 1.5em;
+            color: var(--highlight-color);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background-color: var(--card-bg);
+            padding: 25px;
+            border-radius: 8px;
+            border-left: 5px solid var(--highlight-color);
+        }
+
+        .stat-card h3 {
+            margin-top: 0;
+            font-size: 1em;
+            color: var(--text-color);
+            opacity: 0.8;
+            text-transform: uppercase;
+        }
+
+        .stat-card .value {
+            font-size: 2.5em;
+            font-weight: 700;
+        }
+
+        .stat-card .details {
+            font-size: 0.9em;
+            opacity: 0.7;
+            margin-top: 5px;
+        }
+
+        .users-table-container {
+            background-color: var(--card-bg);
+            border-radius: 8px;
+            padding: 20px;
+        }
+        
+        .table-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .table-header h2 {
+            margin: 0;
+        }
+
+        .user-filters button {
+            background-color: var(--accent-color);
+            border: none;
+            color: var(--text-color);
+            padding: 8px 15px;
+            margin-left: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            font-family: 'Poppins', sans-serif;
+        }
+        
+        .user-filters button.active,
+        .user-filters button:hover {
+            background-color: var(--highlight-color);
+            color: white;
+        }
+
+
         table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 0.9rem;
         }
 
         th, td {
-            padding: 12px;
             text-align: left;
-            border-bottom: 1px solid var(--line);
+            padding: 15px 10px;
+            border-bottom: 1px solid var(--border-color);
         }
 
-        th {
-            color: var(--muted);
+        thead {
+            background-color: var(--accent-color);
+        }
+        
+        tbody tr {
+            transition: background-color 0.2s;
+            cursor: pointer;
+        }
+        
+        tbody tr:hover {
+            background-color: var(--accent-color);
+        }
+        
+        .status-badge {
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 0.8em;
             font-weight: 600;
-            background: #0d1219;
+            text-transform: capitalize;
+        }
+        
+        .status-badge.active {
+            background-color: var(--success-color);
+            color: #1a202c;
+        }
+        
+        .status-badge.pending {
+            background-color: var(--pending-color);
+            color: #1a202c;
         }
 
-        /* Message box styling */
-        .message-box {
-            padding: 16px;
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            font-weight: 500;
-            margin-top: 1rem;
-            margin-bottom: 1rem;
-        }
-
-        .message-box.success {
-            background-color: rgba(42, 214, 120, 0.1);
-            color: var(--accent);
-            border: 1px solid rgba(42, 214, 120, 0.2);
-        }
-
-        .message-box.error {
-            background-color: rgba(255, 93, 93, 0.1);
-            color: var(--danger);
-            border: 1px solid rgba(255, 93, 93, 0.2);
-        }
-
-        /* Styles for the brand logo from index.html */
-        .brand {
-            display: flex;
-            align-items: center;
-            gap: .6rem;
-        }
-
-        .logo {
-            width: 44px;
-            height: auto;
-            border-radius: 8px;
-            display: block;
-        }
-
-        /* Login-specific styles */
-        .login-container {
-            display: flex;
-            align-items: center;
+        /* User Details Modal Styles */
+        #userModalBackdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: none; /* Initially hidden */
             justify-content: center;
-            min-height: 100vh;
-            padding: 1rem;
+            align-items: center;
+            z-index: 1000;
         }
 
-        /* Responsive-specific styles for mobile */
-        @media (max-width: 768px) {
-            /* General mobile padding */
-            .container {
-                padding-inline: 16px;
-            }
-
-            /* Mobile-friendly header */
-            .admin-header {
-                flex-direction: column;
-                align-items: flex-start;
-            }
-
-            /* Responsive tab navigation */
-            .tab-nav {
-                flex-wrap: wrap;
-                justify-content: center;
-                border-bottom: none;
-                gap: 8px;
-            }
-            .tab-nav .tab-btn {
-                flex: 1 1 auto;
-                border-bottom: 2px solid transparent; /* Keep for active state */
-                border-radius: 999px;
-                padding: 8px 16px;
-            }
-            .tab-nav .tab-btn.active {
-                background-color: var(--line);
-            }
-
-            /* Mobile-friendly table overflow */
-            .card table {
-                display: block;
-                width: 100%;
-                white-space: nowrap;
-                overflow-x: auto;
-            }
+        #userModal {
+            background-color: var(--secondary-color);
+            padding: 30px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 600px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.4);
+            position: relative;
         }
+
+        #userModal h2 {
+            margin-top: 0;
+            color: var(--highlight-color);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .modal-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px 25px;
+        }
+
+        .modal-field {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .modal-field label {
+            font-size: 0.8em;
+            color: var(--text-color);
+            opacity: 0.7;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+        }
+
+        .modal-field span {
+            font-size: 1.1em;
+            font-weight: 500;
+        }
+
+        #closeModalBtn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: none;
+            border: none;
+            color: var(--text-color);
+            font-size: 1.8em;
+            cursor: pointer;
+            transition: color 0.3s;
+        }
+
+        #closeModalBtn:hover {
+            color: var(--error-color);
+        }
+
+
     </style>
 </head>
-<body class="p-4 md:p-8">
-    <div id="admin-panel" class="container space-y-8">
-        <div class="card p-4 md:p-6 flex justify-between items-center admin-header">
-            <div class="flex items-center gap-4">
-                <a class="brand" href="/" aria-label="NexxTrade home">
-                    <img src="/images/Nexxtrade (1).svg" alt="NexxTrade Logo" class="logo">
-                    <h1 class="text-xl md:text-2xl font-bold">NexxTrade Admin Panel</h1>
-                </a>
-            </div>
-            <a href="/admin" id="logout-btn" class="btn btn-ghost">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
-                Log Out
-            </a>
+<body>
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <img src="/images/Nexxtrade (1).svg" alt="NexxTrade Logo">
+            <h2>NexxTrade</h2>
         </div>
-
-        <div class="flex flex-wrap border-b border-line gap-2 tab-nav">
-            <a href="/admin/dashboard" class="tab-btn active">Dashboard</a>
-            <a href="/admin/blogs" class="tab-btn">Manage Blogs</a>
-            <a href="/admin/performance" class="tab-btn">Performance</a>
-            <a href="/admin/pricing" class="tab-btn">Update Pricing</a>
-            <a href="/admin/roles" class="tab-btn">Delegate Roles</a>
+        <ul class="sidebar-nav">
+            <li><a href="/admin/dashboard" class="active"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
+            <li><a href="/admin/performance"><i class="fas fa-chart-line"></i> Performance</a></li>
+            <li><a href="/admin/blogs"><i class="fas fa-newspaper"></i> Blogs</a></li>
+            <li><a href="/admin/pricing"><i class="fas fa-tags"></i> Pricing</a></li>
+            <li><a href="/admin/roles"><i class="fas fa-users-cog"></i> Roles</a></li>
+        </ul>
+        <div class="sidebar-footer">
+            <button class="logout-btn" id="logout-btn"><i class="fas fa-sign-out-alt"></i> Logout</button>
         </div>
+    </aside>
 
-        <div class="space-y-8">
-            <h2 class="text-2xl font-semibold">Dashboard Overview</h2>
+    <main class="main-content">
+        <header>
+            <h1>Dashboard Overview</h1>
+            <div class="user-profile">
+                <span id="admin-username">Admin</span>
+                <i class="fas fa-user-circle"></i>
+            </div>
+        </header>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div class="card p-6 flex flex-col items-center justify-center text-center space-y-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent-2">
-                        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-                    </svg>
-                    <div class="text-3xl font-bold" id="total-users-stat">...</div>
-                    <p class="text-muted">Total Users</p>
+        <section class="stats-grid">
+            <div class="stat-card">
+                <h3>Total Users</h3>
+                <div class="value" id="total-users">0</div>
+                <div class="details">All registered users</div>
+            </div>
+            <div class="stat-card">
+                <h3>Daily Signups</h3>
+                <div class="value" id="daily-signups">0</div>
+                <div class="details">New users today</div>
+            </div>
+            <div class="stat-card">
+                <h3>Weekly Signups</h3>
+                <div class="value" id="weekly-signups">0</div>
+                <div class="details">New users this week</div>
+            </div>
+             <!-- NEW: Total Attempts Card -->
+            <div class="stat-card">
+                <h3>Total Registration Attempts</h3>
+                <div class="value" id="total-attempts-count">0</div>
+                <div class="details">All payment attempts made</div>
+            </div>
+            <!-- NEW: Users per Package Card -->
+            <div class="stat-card">
+                <h3>Active Users Per Package</h3>
+                <div class="value" style="font-size: 1.8em;">
+                    <span id="basis-users-count">0</span> Basis |
+                    <span id="pro-users-count">0</span> Pro |
+                    <span id="elites-users-count">0</span> Elites
                 </div>
-                <div class="card p-6 flex flex-col items-center justify-center text-center space-y-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent-2">
-                        <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
-                        <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
-                    </svg>
-                    <div class="text-3xl font-bold" id="total-blogs-stat">...</div>
-                    <p class="text-muted">Total Blog Posts</p>
-                </div>
-                <div class="card p-6 flex flex-col items-center justify-center text-center space-y-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent">
-                        <polyline points="20 6 9 17 4 12"/>
-                    </svg>
-                    <div class="text-3xl font-bold" id="total-signals-stat">...</div>
-                    <p class="text-muted">Total Performance Signals</p>
-                </div>
-                <div class="card p-6 flex flex-col items-center justify-center text-center space-y-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent-2">
-                        <path d="M12 2v20M17 5H9.5a3.5 3.5 0 1 0 0 7h5a3.5 3.5 0 1 1 0 7H6"/>
-                    </svg>
-                    <div class="text-3xl font-bold" id="total-plans-stat">...</div>
-                    <p class="text-muted">Active Pricing Plans</p>
+                <div class="details">Breakdown of active subscriptions</div>
+            </div>
+        </section>
+
+        <section class="users-table-container">
+            <div class="table-header">
+                <h2>Registered Users</h2>
+                 <!-- NEW: User Filter Buttons -->
+                <div class="user-filters" id="user-filters">
+                    <button class="active" data-status="all">All</button>
+                    <button data-status="active">Active</button>
+                    <button data-status="pending">Pending</button>
                 </div>
             </div>
-            
-            <div class="card p-6">
-                <h3 class="text-xl font-semibold mb-4 flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent-2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
-                    User Registration Stats
-                </h3>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
-                    <div class="p-4 border border-line rounded-lg">
-                        <div class="text-2xl font-bold" id="users-today-stat">...</div>
-                        <p class="text-muted">Today</p>
-                    </div>
-                    <div class="p-4 border border-line rounded-lg">
-                        <div class="text-2xl font-bold" id="users-week-stat">...</div>
-                        <p class="text-muted">This Week</p>
-                    </div>
-                    <div class="p-4 border border-line rounded-lg">
-                        <div class="text-2xl font-bold" id="users-month-stat">...</div>
-                        <p class="text-muted">This Month</p>
-                    </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Full Name</th>
+                        <th>Email</th>
+                        <th>Telegram</th>
+                        <th>WhatsApp</th>
+                        <th>Plan</th>
+                        <th>Source</th>
+                        <th>Status</th>
+                        <th>Reg. Date</th>
+                    </tr>
+                </thead>
+                <tbody id="users-table-body">
+                    <!-- User rows will be injected here by JavaScript -->
+                </tbody>
+            </table>
+        </section>
+    </main>
+    
+    <!-- NEW: User Details Modal -->
+    <div id="userModalBackdrop">
+        <div id="userModal">
+            <button id="closeModalBtn">&times;</button>
+            <h2>User Profile Details</h2>
+            <div class="modal-grid">
+                <div class="modal-field">
+                    <label>Full Name</label>
+                    <span id="modal-user-name"></span>
                 </div>
-            </div>
-
-            <div class="card p-6">
-                <h3 class="text-xl font-semibold mb-4 flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                    All Registered Users
-                </h3>
-                <div class="overflow-x-auto">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Email</th>
-                                <th>Telegram Handle</th>
-                                <th>Registered On</th>
-                                <th>Subscription Expires</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody id="users-table">
-                            <tr><td colspan="5" class="text-muted text-center py-4">Loading user data...</td></tr>
-                        </tbody>
-                    </table>
+                <div class="modal-field">
+                    <label>Email Address</label>
+                    <span id="modal-user-email"></span>
                 </div>
-            </div>
-
-            <div class="card p-6">
-                <h3 class="text-xl font-semibold mb-4 flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent-2"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m2 15 5 2 8-5 5 2"/></svg>
-                    Recent Blog Posts
-                </h3>
-                <div class="overflow-x-auto">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Title</th>
-                                <th>Author</th>
-                                <th>Published Date</th>
-                                <th>Status</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="blogs-table">
-                            <tr><td colspan="5" class="text-muted text-center py-4">Loading blog posts...</td></tr>
-                        </tbody>
-                    </table>
+                <div class="modal-field">
+                    <label>Telegram Handle</label>
+                    <span id="modal-user-telegram"></span>
                 </div>
-                <div class="flex justify-end mt-4">
-                    <a href="/admin/blogs" class="btn btn-ghost text-sm">View All Blogs</a>
+                <div class="modal-field">
+                    <label>WhatsApp Number</label>
+                    <span id="modal-user-whatsapp"></span>
                 </div>
-            </div>
-
-            <div class="card p-6">
-                <h3 class="text-xl font-semibold mb-4 flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 1 0 0 7h5a3.5 3.5 0 1 1 0 7H6"/></svg>
-                    Recent Performance Signals
-                </h3>
-                <div class="overflow-x-auto">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Pair</th>
-                                <th>Entry</th>
-                                <th>Exit</th>
-                                <th>P/L %</th>
-                                <th>Leverage</th>
-                                <th>Result</th>
-                            </tr>
-                        </thead>
-                        <tbody id="signals-table">
-                            <tr><td colspan="7" class="text-muted text-center py-4">Loading signals...</td></tr>
-                        </tbody>
-                    </table>
+                 <div class="modal-field">
+                    <label>Subscription Plan</label>
+                    <span id="modal-user-plan"></span>
                 </div>
-                <div class="flex justify-end mt-4">
-                    <a href="/admin/performance" class="btn btn-ghost text-sm">View All Signals</a>
+                <div class="modal-field">
+                    <label>Registration Source</label>
+                    <span id="modal-user-source"></span>
+                </div>
+                 <div class="modal-field">
+                    <label>Registration Date</label>
+                    <span id="modal-user-regdate"></span>
+                </div>
+                 <div class="modal-field">
+                    <label>Expiration Date</label>
+                    <span id="modal-user-expdate"></span>
+                </div>
+                 <div class="modal-field">
+                    <label>Subscription Status</label>
+                    <span id="modal-user-status"></span>
                 </div>
             </div>
         </div>
     </div>
+
+
     <script>
-        // Check for authentication on page load
-        if (sessionStorage.getItem('isAdminLoggedIn') !== 'true') {
-            window.location.href = '/admin';
+        // Store users data globally to access it for the modal
+        let currentUsersData = [];
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            // Check for admin user session
+            const adminUser = JSON.parse(sessionStorage.getItem('adminUser'));
+            if (!adminUser) {
+                window.location.href = '/admin/login';
+            } else {
+                document.getElementById('admin-username').textContent = adminUser.username;
+            }
+
+            // Initial data fetch
+            fetchBasicStats();
+            fetchDashboardStats();
+            fetchUsers(); // Fetches all users by default
+
+            // Logout functionality
+            document.getElementById('logout-btn').addEventListener('click', () => {
+                sessionStorage.removeItem('adminUser');
+                window.location.href = '/admin/login';
+            });
+            
+            // NEW: Event listeners for filter buttons
+            const filterButtons = document.querySelectorAll('.user-filters button');
+            filterButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    // Toggle active class
+                    filterButtons.forEach(btn => btn.classList.remove('active'));
+                    button.classList.add('active');
+                    
+                    const status = button.getAttribute('data-status');
+                    fetchUsers(status);
+                });
+            });
+
+            // NEW: Event listeners for modal
+            const modalBackdrop = document.getElementById('userModalBackdrop');
+            const closeModalBtn = document.getElementById('closeModalBtn');
+
+            closeModalBtn.addEventListener('click', () => {
+                modalBackdrop.style.display = 'none';
+            });
+
+            modalBackdrop.addEventListener('click', (event) => {
+                if (event.target === modalBackdrop) {
+                    modalBackdrop.style.display = 'none';
+                }
+            });
+        });
+
+        // Fetches basic stats like daily, weekly signups
+        async function fetchBasicStats() {
+            try {
+                const response = await fetch('/api/users/stats');
+                const stats = await response.json();
+                document.getElementById('daily-signups').textContent = stats.daily;
+                document.getElementById('weekly-signups').textContent = stats.weekly;
+            } catch (error) {
+                console.error('Error fetching basic stats:', error);
+            }
+        }
+        
+        // NEW: Fetches new dashboard-specific stats
+        async function fetchDashboardStats() {
+            try {
+                const response = await fetch('/api/dashboard/stats');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const stats = await response.json();
+                
+                // Populate total attempts
+                document.getElementById('total-attempts-count').textContent = stats.totalAttempts || 0;
+                
+                // Populate users per package
+                const packages = stats.usersPerPackage || {};
+                document.getElementById('basis-users-count').textContent = packages.basis || 0;
+                // Note: The keys are normalized from the backend (e.g., 'Pro Elites' -> 'pro_elites')
+                document.getElementById('pro-users-count').textContent = packages.pro || 0;
+                document.getElementById('elites-users-count').textContent = packages.pro_elites || 0;
+
+            } catch (error) {
+                console.error('Error fetching dashboard stats:', error);
+            }
         }
 
-        // Logout function
-        const logout = () => {
-            sessionStorage.removeItem('isAdminLoggedIn');
-            window.location.href = '/admin';
-        };
-
-        document.getElementById('logout-btn').addEventListener('click', (e) => {
-            e.preventDefault();
-            logout();
-        });
-
-        document.addEventListener('DOMContentLoaded', () => {
-            lucide.createIcons();
-            const API_BASE_URL = 'https://nexxtrade.onrender.com/api';
-
-            // Function to format date to YYYY-MM-DD
-            function formatDate(dateString) {
-                const date = new Date(dateString);
-                return date.toISOString().split('T')[0];
+        // MODIFIED: Fetches users, with optional filtering by status
+        async function fetchUsers(status = 'all') {
+            const tableBody = document.getElementById('users-table-body');
+            tableBody.innerHTML = '<tr><td colspan="8">Loading users...</td></tr>';
+            
+            let url = '/api/users';
+            if (status && status !== 'all') {
+                url += `?status=${status}`;
             }
 
-            // Function to check subscription status
-            function getSubscriptionStatus(expirationDate) {
-                const now = new Date();
-                const expiration = new Date(expirationDate);
-                return expiration > now ? '<span class="text-accent">Active</span>' : '<span class="text-danger">Expired</span>';
+            try {
+                const response = await fetch(url);
+                const users = await response.json();
+                currentUsersData = users; // Store for modal access
+                document.getElementById('total-users').textContent = users.length;
+                displayUsers(users);
+            } catch (error) {
+                console.error('Error fetching users:', error);
+                tableBody.innerHTML = '<tr><td colspan="8">Failed to load users.</td></tr>';
+            }
+        }
+
+        // MODIFIED: Displays users in the table, now includes new columns and click handler
+        function displayUsers(users) {
+            const tableBody = document.getElementById('users-table-body');
+            if (users.length === 0) {
+                tableBody.innerHTML = '<tr><td colspan="8">No users found.</td></tr>';
+                return;
             }
 
-            // Function to fetch all data and update the dashboard
-            const fetchData = async () => {
-                // Fetch stats
-                try {
-                    const blogsResponse = await fetch(`${API_BASE_URL}/blogs`);
-                    const blogs = await blogsResponse.json();
-                    document.getElementById('total-blogs-stat').textContent = blogs.length;
+            tableBody.innerHTML = users.map((user, index) => {
+                 // Format dates nicely
+                const regDate = user.registration_date ? new Date(user.registration_date).toLocaleDateString() : 'N/A';
+                const statusClass = user.subscription_status && user.subscription_status.includes('pending') ? 'pending' : 'active';
+                const statusText = user.subscription_status ? user.subscription_status.replace('_', ' ') : 'N/A';
 
-                    const signalsResponse = await fetch(`${API_BASE_URL}/performances`);
-                    const signals = await signalsResponse.json();
-                    document.getElementById('total-signals-stat').textContent = signals.length;
+                return `
+                    <tr onclick="showUserDetailsModal(${index})">
+                        <td>${user.full_name || 'N/A'}</td>
+                        <td>${user.email || 'N/A'}</td>
+                        <td>${user.telegram_handle || 'N/A'}</td>
+                        <td>${user.whatsapp_number || 'N/A'}</td>
+                        <td>${user.plan_name || 'N/A'}</td>
+                        <td>${user.registration_source || 'N/A'}</td>
+                        <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                        <td>${regDate}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+        
+        // NEW: Function to show the user details modal
+        function showUserDetailsModal(userIndex) {
+            const user = currentUsersData[userIndex];
+            if (!user) return;
 
-                    const pricingResponse = await fetch(`${API_BASE_URL}/pricing`);
-                    const plans = await pricingResponse.json();
-                    document.getElementById('total-plans-stat').textContent = plans.length;
+            // Populate modal fields
+            document.getElementById('modal-user-name').textContent = user.full_name || 'N/A';
+            document.getElementById('modal-user-email').textContent = user.email || 'N/A';
+            document.getElementById('modal-user-telegram').textContent = user.telegram_handle || 'N/A';
+            document.getElementById('modal-user-whatsapp').textContent = user.whatsapp_number || 'N/A';
+            document.getElementById('modal-user-plan').textContent = user.plan_name || 'N/A';
+            document.getElementById('modal-user-source').textContent = user.registration_source || 'N/A';
+            document.getElementById('modal-user-regdate').textContent = user.registration_date ? new Date(user.registration_date).toLocaleString() : 'N/A';
+            document.getElementById('modal-user-expdate').textContent = user.subscription_expiration ? new Date(user.subscription_expiration).toLocaleString() : 'N/A';
+            
+            // Populate and style the status badge inside the modal
+            const statusSpan = document.getElementById('modal-user-status');
+            const statusClass = user.subscription_status && user.subscription_status.includes('pending') ? 'pending' : 'active';
+            const statusText = user.subscription_status ? user.subscription_status.replace('_', ' ') : 'N/A';
+            statusSpan.innerHTML = `<span class="status-badge ${statusClass}">${statusText}</span>`;
 
-                    const usersResponse = await fetch(`${API_BASE_URL}/users`);
-                    const users = await usersResponse.json();
-                    document.getElementById('total-users-stat').textContent = users.length;
-                    
-                    const userStatsResponse = await fetch(`${API_BASE_URL}/users/stats`);
-                    const userStats = await userStatsResponse.json();
-                    document.getElementById('users-today-stat').textContent = userStats.daily;
-                    document.getElementById('users-week-stat').textContent = userStats.weekly;
-                    document.getElementById('users-month-stat').textContent = userStats.monthly;
-
-                    // Populate all registered users table
-                    const usersTableBody = document.getElementById('users-table');
-                    usersTableBody.innerHTML = '';
-                    if (users.length === 0) {
-                        usersTableBody.innerHTML = `<tr><td colspan="5" class="text-muted text-center py-4">No registered users found.</td></tr>`;
-                    } else {
-                        users.forEach(user => {
-                            const row = document.createElement('tr');
-                            row.innerHTML = `
-                                <td>${user.email}</td>
-                                <td>${user.telegram_handle}</td>
-                                <td>${formatDate(user.registration_date)}</td>
-                                <td>${formatDate(user.subscription_expiration)}</td>
-                                <td>${getSubscriptionStatus(user.subscription_expiration)}</td>
-                            `;
-                            usersTableBody.appendChild(row);
-                        });
-                    }
-
-                    // Populate recent blog posts table (limit to 5)
-                    const blogsTableBody = document.getElementById('blogs-table');
-                    blogsTableBody.innerHTML = '';
-                    const recentBlogs = blogs.slice(0, 5);
-                    if (recentBlogs.length === 0) {
-                        blogsTableBody.innerHTML = `<tr><td colspan="5" class="text-muted text-center py-4">No recent blog posts.</td></tr>`;
-                    } else {
-                        recentBlogs.forEach(post => {
-                            const row = document.createElement('tr');
-                            row.innerHTML = `
-                                <td>${post.title}</td>
-                                <td>${post.author}</td>
-                                <td>${formatDate(post.published_date)}</td>
-                                <td>${post.status}</td>
-                                <td><a href="/admin/blogs" class="text-muted hover:text-text p-1">Edit</a></td>
-                            `;
-                            blogsTableBody.appendChild(row);
-                        });
-                    }
-
-                    // Populate recent signals table (limit to 5)
-                    const signalsTableBody = document.getElementById('signals-table');
-                    signalsTableBody.innerHTML = '';
-                    const recentSignals = signals.slice(0, 5);
-                    if (recentSignals.length === 0) {
-                        signalsTableBody.innerHTML = `<tr><td colspan="7" class="text-muted text-center py-4">No recent signals.</td></tr>`;
-                    } else {
-                        recentSignals.forEach(signal => {
-                            const row = document.createElement('tr');
-                            const pnlClass = parseFloat(signal.pnl_percent) > 0 ? 'gain' : 'loss';
-                            row.innerHTML = `
-                                <td>${formatDate(signal.date)}</td>
-                                <td>${signal.pair}</td>
-                                <td>${signal.entry_price}</td>
-                                <td>${signal.exit_price}</td>
-                                <td class="${pnlClass}">${signal.pnl_percent}</td>
-                                <td>${signal.leverage}</td>
-                                <td>${signal.result_type}</td>
-                            `;
-                            signalsTableBody.appendChild(row);
-                        });
-                    }
-                    lucide.createIcons();
-                } catch (error) {
-                    console.error('Error fetching dashboard data:', error);
-                    // Update all stat and table elements to show an error state
-                    document.getElementById('total-users-stat').textContent = 'Error';
-                    document.getElementById('users-today-stat').textContent = 'Error';
-                    document.getElementById('users-week-stat').textContent = 'Error';
-                    document.getElementById('users-month-stat').textContent = 'Error';
-                    document.getElementById('total-blogs-stat').textContent = 'Error';
-                    document.getElementById('total-signals-stat').textContent = 'Error';
-                    document.getElementById('total-plans-stat').textContent = 'Error';
-                    document.getElementById('users-table').innerHTML = `<tr><td colspan="5" class="text-danger text-center py-4">Failed to load user data.</td></tr>`;
-                    document.getElementById('blogs-table').innerHTML = `<tr><td colspan="5" class="text-danger text-center py-4">Failed to load data.</td></tr>`;
-                    document.getElementById('signals-table').innerHTML = `<tr><td colspan="7" class="text-danger text-center py-4">Failed to load data.</td></tr>`;
-                }
-            };
-
-            fetchData();
-        });
+            // Display the modal
+            document.getElementById('userModalBackdrop').style.display = 'flex';
+        }
     </script>
 </body>
 </html>
