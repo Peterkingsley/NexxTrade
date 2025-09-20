@@ -212,10 +212,12 @@
       flex-shrink: 0;
     }
 
-    /* New CSS for price layout */
+    /* --- UPDATED PRICE STYLES --- */
     .price-group {
       display: flex;
-      align-items: flex-end;
+      align-items: baseline; /* Align by text baseline */
+      justify-content: center; /* Center the price elements */
+      flex-wrap: wrap; /* Allow wrapping if needed */
       gap: 8px;
     }
     .price-group .price-val {
@@ -223,10 +225,17 @@
       font-weight: 800;
       margin: 0;
     }
+    /* Slashed price style */
+    .price-group .price-slashed {
+        font-size: 1.2rem;
+        font-weight: 600;
+        text-decoration: line-through;
+        opacity: 0.7;
+    }
     .price-group .price-term {
       color: var(--muted);
       font-size: 1rem;
-      margin-bottom: 4px;
+      margin-bottom: 0; /* remove bottom margin as baseline handles it */
     }
 
     /* Testimonials */
@@ -516,11 +525,13 @@
   <section id="pricing" class="pricing container">
     <h2 class="center reveal">Simple Pricing</h2>
     <div class="grid plans">
+      <!-- --- EDITED BASIC PLAN --- -->
       <div class="card plan reveal">
         <h3>Monthly / Basic</h3>
         <p class="muted">It’s okay to start small.</p>
         <div class="price-group">
           <p class="price-val">$35</p>
+          <del class="price-slashed muted">$100</del>
           <p class="price-term muted">per month</p>
         </div>
         <ul class="features">
@@ -547,12 +558,14 @@
         </ul>
         <a class="btn btn-primary" href="/join?plan=monthly">Join Monthly</a>
       </div>
+      <!-- --- EDITED PRO PLAN --- -->
       <div class="card plan reveal" style="outline:2px solid rgba(240,199,94,.25)">
         <div class="tag">Best value</div>
         <h3>Quarterly / Pro</h3>
         <p class="muted">Commit and save 15.2%</p>
         <div class="price-group">
           <p class="price-val">$89</p>
+          <del class="price-slashed muted">$150</del>
           <p class="price-term muted">per 3 months</p>
         </div>
         <ul class="features">
@@ -579,11 +592,13 @@
         </ul>
         <a class="btn btn-primary" href="/join?plan=quarterly">Join Quarterly</a>
       </div>
+      <!-- --- EDITED ELITE PLAN --- -->
       <div class="card plan reveal">
         <h3>Elite / 6 months</h3>
         <p class="muted">For Elite Traders</p>
         <div class="price-group">
-          <p class="price-val">$210</p>
+          <p class="price-val">$199</p>
+          <del class="price-slashed muted">$250</del>
           <p class="price-term muted">bi-annually</p>
         </div>
         <ul class="features">
