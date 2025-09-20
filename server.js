@@ -535,9 +535,10 @@ app.post('/api/payments/fiat/create', async (req, res) => {
         await pool.query(
             `INSERT INTO users (full_name, email, telegram_handle, whatsapp_number, plan_name, subscription_status, registration_date, order_id, last_payment_attempt)
              VALUES ($1, $2, $3, $4, $5, 'pending_fiat', $6, $7, NOW())
-             ON CONFLICT (telegram_handle, plan_name) DO UPDATE SET
+             ON CONFLICT (telegram_handle) DO UPDATE SET
                 full_name = EXCLUDED.full_name,
                 email = EXCLUDED.email,
+                plan_name = EXCLUDED.plan_name,
                 whatsapp_number = EXCLUDED.whatsapp_number,
                 order_id = EXCLUDED.order_id,
                 subscription_status = 'pending_fiat',
@@ -584,13 +585,14 @@ async function createPendingUser(details) {
     
     const registrationDate = new Date().toISOString().split('T')[0];
 
-    // Create or update user record with a 'pending' status.
+    // Create or update user record based on their unique Telegram handle.
     await pool.query(
         `INSERT INTO users (full_name, email, telegram_handle, plan_name, subscription_status, registration_date, order_id, payment_attempts, last_payment_attempt, telegram_chat_id, registration_source, whatsapp_number)
          VALUES ($1, $2, $3, $4, 'pending', $5, $6, 1, NOW(), $7, $8, $9)
-         ON CONFLICT (telegram_handle, plan_name) DO UPDATE SET
+         ON CONFLICT (telegram_handle) DO UPDATE SET
             full_name = EXCLUDED.full_name,
             email = EXCLUDED.email,
+            plan_name = EXCLUDED.plan_name,
             order_id = EXCLUDED.order_id,
             subscription_status = 'pending',
             payment_attempts = users.payment_attempts + 1,
@@ -998,3 +1000,4 @@ app.listen(port, async () => {
   console.log(`Server is running on http://localhost:${port}`);
   await setupWebhook();
 });
+
