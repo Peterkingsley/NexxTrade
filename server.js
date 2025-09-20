@@ -660,23 +660,20 @@ app.post('/api/payments/create-from-bot', async (req, res) => {
             return res.status(400).json({ message: 'Missing required fields from bot.' });
         }
 
-        // Fetch plan details
         const planResult = await pool.query('SELECT * FROM pricingplans WHERE id = $1', [plan_id]);
         if (planResult.rows.length === 0) {
             return res.status(404).json({ message: 'Plan not found.' });
         }
         const plan = planResult.rows[0];
-        console.log('BOT: PLAN DETAILS FETCHED FOR PAYMENT:', plan);
 
+        console.log('BOT: PLAN DETAILS FETCHED FOR PAYMENT:', plan);
         if (!plan.price || typeof plan.price !== 'number' || plan.price <= 0) {
             console.error(`BOT: Invalid price for plan ID ${plan_id}:`, plan.price);
             return res.status(500).json({ message: `Payment processor error: The price for the selected plan is invalid. Please contact support.` });
         }
 
-        // Generate a new order ID
         const order_id = `nexxtrade-bot-${telegram_handle.replace('@', '')}-${Date.now()}`;
-
-        // STEP 1: Check if this user already has this plan
+        
         const existingUserPlan = await pool.query(
             'SELECT * FROM users WHERE telegram_handle = $1 AND plan_name = $2',
             [telegram_handle, plan.plan_name]
@@ -684,25 +681,27 @@ app.post('/api/payments/create-from-bot', async (req, res) => {
 
         if (existingUserPlan.rows.length > 0) {
             const userRecord = existingUserPlan.rows[0];
-
             if (userRecord.subscription_status === 'active') {
-                // Already bought and active
                 return res.status(409).json({ message: `You already have an active subscription for the ${plan.plan_name} plan.` });
             }
-
-            // Pending subscription exists → Update the record
             await pool.query(
-                `UPDATE users SET whatsapp_number = $1, order_id = $2, subscription_status = 'pending', last_payment_attempt = NOW(), payment_attempts = payment_attempts + 1, telegram_chat_id = $3, registration_source = 'bot'
-                 WHERE id = $4`,
+                `UPDATE users SET whatsapp_number = $1, order_id = $2, subscription_status = 'pending', last_payment_attempt = NOW(), payment_attempts = payment_attempts + 1, telegram_chat_id = $3, registration_source = 'bot' WHERE id = $4`,
                 [whatsapp_number, order_id, chat_id, userRecord.id]
             );
-
         } else {
-            // STEP 2: This user does NOT have this plan yet → Create a new record
             const temp_fullname = `User ${telegram_handle}`;
-            const temp_email = `${telegram_handle.replace('@','')}@telegram.user`; // still needed for column but not unique logic
-            const registrationDate = new Date().toISOString().split('T')[0];
+            let temp_email = `${telegram_handle.replace('@','')}@telegram.user`;
+            
+            // **FIX APPLIED HERE**
+            // Check if the synthetic email already exists from a previous plan purchase
+            const emailConflictQuery = await pool.query('SELECT id FROM users WHERE email = $1', [temp_email]);
+            if (emailConflictQuery.rows.length > 0) {
+                console.warn(`BOT INSERT: Email "${temp_email}" already exists. Generating unique synthetic email.`);
+                // If it exists, create a new, unique synthetic email to avoid the constraint violation
+                temp_email = `${telegram_handle.replace('@', '')}.${crypto.randomBytes(3).toString('hex')}@telegram.user`;
+            }
 
+            const registrationDate = new Date().toISOString().split('T')[0];
             await pool.query(
                 `INSERT INTO users (full_name, email, telegram_handle, plan_name, subscription_status, registration_date, order_id, payment_attempts, last_payment_attempt, telegram_chat_id, registration_source, whatsapp_number)
                  VALUES ($1, $2, $3, $4, 'pending', $5, $6, 1, NOW(), $7, 'bot', $8)`,
@@ -710,7 +709,6 @@ app.post('/api/payments/create-from-bot', async (req, res) => {
             );
         }
 
-        // Call NowPayments API to create the payment
         const nowPaymentsResponse = await fetch('https://api.nowpayments.io/v1/payment', {
             method: 'POST',
             headers: {
@@ -729,10 +727,11 @@ app.post('/api/payments/create-from-bot', async (req, res) => {
 
         if (!nowPaymentsResponse.ok) {
             const errorText = await nowPaymentsResponse.text();
-            return res.status(500).json({ message: `Payment processor error: ${errorText}` });
+            return res.status(500).json({ message: `Payment processor error: ${errorText}`});
         }
-
+        
         const paymentData = await nowPaymentsResponse.json();
+
         res.status(200).json(paymentData);
 
     } catch (err) {
