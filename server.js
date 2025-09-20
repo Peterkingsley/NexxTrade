@@ -578,27 +578,45 @@ app.post('/api/payments/create-from-web', async (req, res) => {
         
         const order_id = `nexxtrade-web-${telegram.replace('@', '')}-${Date.now()}`;
         
-        // --- NEW LOGIC ---
+        // --- LOGIC TO HANDLE EMAIL UNIQUENESS ---
         const existingUserPlanQuery = await pool.query(
             'SELECT * FROM users WHERE telegram_handle = $1 AND plan_name = $2',
             [telegram, planName]
         );
+        
+        let emailForDb = email; // Default to the provided email
 
         if (existingUserPlanQuery.rows.length > 0) {
             const userRecord = existingUserPlanQuery.rows[0];
             if (userRecord.subscription_status === 'active') {
                 return res.status(409).json({ message: `You already have an active subscription for the ${planName} plan.` });
             }
+
+            // For pending user, check if the updated email conflicts with ANOTHER user.
+            const emailConflictQuery = await pool.query('SELECT id FROM users WHERE email = $1 AND id != $2', [email, userRecord.id]);
+            if (emailConflictQuery.rows.length > 0) {
+                console.warn(`WEB UPDATE: Email "${email}" conflicts with another user. Keeping original email for user ID ${userRecord.id}.`);
+                emailForDb = userRecord.email; // Revert to the old email to avoid conflict and proceed.
+            }
+
             await pool.query(
                 `UPDATE users SET full_name = $1, email = $2, whatsapp_number = $3, order_id = $4, subscription_status = 'pending', last_payment_attempt = NOW(), payment_attempts = payment_attempts + 1, registration_source = 'web' WHERE id = $5`,
-                [fullname, email, whatsapp_number, order_id, userRecord.id]
+                [fullname, emailForDb, whatsapp_number, order_id, userRecord.id]
             );
         } else {
+            // New user registration for this plan. Check if the email is taken by anyone.
+            const emailConflictQuery = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+            if (emailConflictQuery.rows.length > 0) {
+                console.warn(`WEB INSERT: Email "${email}" already exists. Generating synthetic email for telegram user "${telegram}".`);
+                // Create a synthetic email to allow registration to proceed
+                emailForDb = `${telegram.replace('@', '')}.${crypto.randomBytes(3).toString('hex')}@telegram.user`;
+            }
+            
             const registrationDate = new Date().toISOString().split('T')[0];
             await pool.query(
                 `INSERT INTO users (full_name, email, telegram_handle, plan_name, subscription_status, registration_date, order_id, payment_attempts, last_payment_attempt, registration_source, whatsapp_number)
                  VALUES ($1, $2, $3, $4, 'pending', $5, $6, 1, NOW(), 'web', $7)`,
-                [fullname, email, telegram, planName, registrationDate, order_id, whatsapp_number]
+                [fullname, emailForDb, telegram, planName, registrationDate, order_id, whatsapp_number]
             );
         }
 
@@ -842,20 +860,37 @@ app.post('/api/users/finalize-registration', async (req, res) => {
     }
 
     try {
-        // Step 1: Update the user's details in the database
+        // Get the user record before updating
+        const userResult = await pool.query('SELECT * FROM users WHERE order_id = $1', [orderId]);
+        if (userResult.rows.length === 0) {
+            return res.status(404).json({ message: 'User for this order not found.' });
+        }
+        const user = userResult.rows[0];
+
+        // Check if the provided email conflicts with a DIFFERENT user
+        const emailConflictQuery = await pool.query('SELECT id FROM users WHERE email = $1 AND id != $2', [email, user.id]);
+
+        let emailForDb = email;
+        if (emailConflictQuery.rows.length > 0) {
+            console.warn(`BOT FINALIZE: Email "${email}" conflicts. Keeping original synthetic email for user ID ${user.id}.`);
+            emailForDb = user.email; // Keep the original temp email to proceed
+        }
+
+        // Step 1: Update the user's details in the database with the safe email
         const updateUserQuery = await pool.query(
             `UPDATE users SET full_name = $1, email = $2 WHERE order_id = $3 RETURNING *`,
-            [fullName, email, orderId]
+            [fullName, emailForDb, orderId]
         );
 
         if (updateUserQuery.rows.length === 0) {
-            return res.status(404).json({ message: 'User for this order not found.' });
+            // This case should ideally not be reached due to the check above
+            return res.status(404).json({ message: 'User for this order not found during update.' });
         }
 
-        const user = updateUserQuery.rows[0];
+        const updatedUser = updateUserQuery.rows[0];
 
         // Step 2: Get the plan details to find the correct Telegram group
-        const planResult = await pool.query('SELECT telegram_group_id FROM pricingplans WHERE plan_name = $1', [user.plan_name]);
+        const planResult = await pool.query('SELECT telegram_group_id FROM pricingplans WHERE plan_name = $1', [updatedUser.plan_name]);
         if (planResult.rows.length === 0 || !planResult.rows[0].telegram_group_id) {
             throw new Error('Telegram group ID not found for this plan.');
         }
@@ -957,3 +992,4 @@ app.listen(port, async () => {
   console.log(`Server is running on http://localhost:${port}`);
   await setupWebhook();
 });
+
