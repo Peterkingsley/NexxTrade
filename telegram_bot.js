@@ -260,7 +260,7 @@ bot.on('message', async (msg) => {
                 
                 const checkStatusKeyboard = {
                     reply_markup: {
-                        inline_keyboard: [[{ text: 'I Have Paid, Check Status', callback_data: `check_payment_status_${state.orderId}` }]]
+                        inline_keyboard: [[{ text: 'You Have Paid, Check Status', callback_data: `check_payment_status_${state.orderId}` }]]
                     }
                 };
                 
