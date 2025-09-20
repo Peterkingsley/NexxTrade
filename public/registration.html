@@ -95,7 +95,6 @@
 
   <div class="w-full max-w-lg">
     
-    <!-- View 1: Method Selection (Visible by default) -->
     <div id="method-selection-container" class="card p-6 md:p-8 space-y-6">
         <div class="text-center">
             <h1 class="text-3xl font-bold">Checkout</h1>
@@ -114,7 +113,6 @@
         <a href="/" class="block text-center text-sm text-muted hover:underline pt-2">Back to Homepage</a>
     </div>
 
-    <!-- View 2: Fiat Form (Hidden by default) -->
     <div id="fiat-container" class="card p-6 md:p-8 space-y-6 hidden">
         <div class="text-center">
             <h1 class="text-3xl font-bold">Fiat Checkout</h1>
@@ -152,7 +150,6 @@
         </form>
     </div>
 
-    <!-- View 3: Crypto Form (Hidden by default) -->
     <div id="crypto-container" class="card p-6 md:p-8 space-y-6 hidden">
         <div class="text-center">
             <h1 class="text-3xl font-bold">Crypto Checkout</h1>
@@ -197,15 +194,11 @@
         </form>
     </div>
 
-    <!-- View 4: Payment Display (Hidden by default) -->
     <div id="payment-container" class="card w-full max-w-lg p-6 md:p-8 space-y-6 hidden text-center">
-        <!-- Content is generated dynamically -->
-    </div>
+        </div>
 
-    <!-- View 5: Success Display (Hidden by default) -->
     <div id="success-container" class="card w-full max-w-lg p-6 md:p-8 space-y-6 hidden text-center">
-        <!-- Content is generated dynamically -->
-    </div>
+        </div>
 
   </div>
 
@@ -390,8 +383,23 @@
                 <h2 class="text-2xl font-bold">Complete Your Payment</h2>
                 <p class="text-muted">Send the exact amount to the address below. Your access will be granted automatically upon confirmation.</p>
                 <div class="flex justify-center" id="qrcode"></div>
-                <div><p class="text-muted text-sm">Amount</p><p id="payment-amount" class="font-mono text-lg font-bold"></p></div>
-                <div><p class="text-muted text-sm">Address</p><p id="payment-address" class="font-mono text-sm break-all bg-gray-900 p-2 rounded-lg"></p></div>
+                <div>
+                    <p class="text-muted text-sm">Amount</p>
+                    <p id="payment-amount" class="font-mono text-lg font-bold"></p>
+                </div>
+                <div>
+                    <p class="text-muted text-sm mb-1">Address</p>
+                    <div class="relative flex items-center bg-gray-900 rounded-lg">
+                        <p id="payment-address" class="font-mono text-sm break-all p-3 pr-12 text-left"></p>
+                        <button id="copy-address-btn" class="absolute right-0 top-0 h-full px-3 flex items-center justify-center text-muted hover:text-text transition-colors" title="Copy Address">
+                            <svg class="copy-icon-svg" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect>
+                                <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path>
+                            </svg>
+                            <span class="copy-success-text hidden font-semibold text-xs text-accent">Copied!</span>
+                        </button>
+                    </div>
+                </div>
                 <div class="flex items-center justify-center gap-3 pt-4">
                     <svg class="animate-spin h-5 w-5 text-accent" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                     <span class="text-accent font-semibold">Waiting for payment confirmation...</span>
@@ -406,6 +414,26 @@
             switchView(paymentContainer);
             document.getElementById('payment-amount').textContent = `${data.pay_amount} ${data.pay_currency.toUpperCase()}`;
             document.getElementById('payment-address').textContent = data.pay_address;
+
+            const copyBtn = document.getElementById('copy-address-btn');
+            if (copyBtn) {
+                const copyIcon = copyBtn.querySelector('.copy-icon-svg');
+                const successText = copyBtn.querySelector('.copy-success-text');
+
+                copyBtn.addEventListener('click', () => {
+                    navigator.clipboard.writeText(data.pay_address).then(() => {
+                        copyIcon.classList.add('hidden');
+                        successText.classList.remove('hidden');
+                        setTimeout(() => {
+                            successText.classList.add('hidden');
+                            copyIcon.classList.remove('hidden');
+                        }, 2000);
+                    }).catch(err => {
+                        console.error('Could not copy text: ', err);
+                        alert('Failed to copy address.');
+                    });
+                });
+            }
             
             new QRCode(document.getElementById('qrcode'), {
                 text: data.pay_address, width: 180, height: 180,
