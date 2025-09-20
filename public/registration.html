@@ -229,12 +229,19 @@
         // --- UI Helper ---
         function switchView(visibleContainer) {
             allContainers.forEach(c => c.classList.add('hidden'));
-            visibleContainer.classList.remove('hidden');
+            if(visibleContainer) {
+                visibleContainer.classList.remove('hidden');
+            }
         }
 
         function showMessage(containerId, message) {
             const container = document.getElementById(containerId);
             container.innerHTML = `<div class="message-box error">${message}</div>`;
+        }
+
+        function clearSessionState() {
+            sessionStorage.removeItem('activeCryptoPayment');
+            sessionStorage.removeItem('paymentSuccessInfo');
         }
 
         // --- Plan Population ---
@@ -249,7 +256,6 @@
                 cryptoPlanContainer.innerHTML = '';
                 
                 plansData.forEach((plan, index) => {
-                    // *** FIXED: Use the stable plan ID as the key ***
                     const planKey = plan.id;
                     plans[planKey] = { name: plan.plan_name, priceUSD: plan.price };
                     
@@ -263,13 +269,11 @@
                 document.querySelectorAll('.plan-button').forEach(btn => {
                     btn.addEventListener('click', (e) => {
                         selectedPlanKey = e.currentTarget.dataset.plan;
-                        // De-select all buttons, then activate the clicked one
                         document.querySelectorAll('.plan-button').forEach(b => b.classList.remove('active'));
                         document.querySelectorAll(`.plan-button[data-plan="${selectedPlanKey}"]`).forEach(b => b.classList.add('active'));
                     });
                 });
                 
-                // Activate the default plan
                 if (selectedPlanKey) {
                     document.querySelectorAll(`.plan-button[data-plan="${selectedPlanKey}"]`).forEach(b => b.classList.add('active'));
                 }
@@ -284,7 +288,12 @@
         // --- Event Listeners ---
         fiatOptionBtn.addEventListener('click', () => switchView(fiatContainer));
         cryptoOptionBtn.addEventListener('click', () => switchView(cryptoContainer));
-        backToSelectionBtns.forEach(btn => btn.addEventListener('click', () => switchView(methodSelectionContainer)));
+        
+        backToSelectionBtns.forEach(btn => btn.addEventListener('click', () => {
+            if (paymentCheckInterval) clearInterval(paymentCheckInterval);
+            clearSessionState();
+            switchView(methodSelectionContainer);
+        }));
 
         // --- FIAT Payment Logic ---
         fiatCheckoutForm.addEventListener('submit', async (e) => {
@@ -368,6 +377,10 @@
                     throw new Error(error.message || 'Failed to create payment.');
                 }
                 const paymentData = await response.json();
+                
+                // *** SAVE state to sessionStorage ***
+                sessionStorage.setItem('activeCryptoPayment', JSON.stringify(paymentData));
+
                 displayCryptoPaymentInfo(paymentData);
                 startPolling(paymentData.order_id);
             } catch (error) {
@@ -378,7 +391,6 @@
         });
 
         function displayCryptoPaymentInfo(data) {
-            // Re-populate the payment and success containers before showing
             paymentContainer.innerHTML = `
                 <h2 class="text-2xl font-bold">Complete Your Payment</h2>
                 <p class="text-muted">Send the exact amount to the address below. Your access will be granted automatically upon confirmation.</p>
@@ -419,7 +431,6 @@
             if (copyBtn) {
                 const copyIcon = copyBtn.querySelector('.copy-icon-svg');
                 const successText = copyBtn.querySelector('.copy-success-text');
-
                 copyBtn.addEventListener('click', () => {
                     navigator.clipboard.writeText(data.pay_address).then(() => {
                         copyIcon.classList.add('hidden');
@@ -449,6 +460,9 @@
                     const data = await response.json();
                     if (data.status === 'paid' && data.invite_link) {
                         clearInterval(paymentCheckInterval);
+                        // *** CLEAR payment state and SAVE success state ***
+                        sessionStorage.removeItem('activeCryptoPayment');
+                        sessionStorage.setItem('paymentSuccessInfo', JSON.stringify({ inviteLink: data.invite_link }));
                         displaySuccess(data.invite_link);
                     }
                 } catch (error) { console.error('Polling error:', error); }
@@ -460,8 +474,26 @@
             document.getElementById('join-link').href = inviteLink;
         }
 
+        // *** NEW FUNCTION: Check for existing state on page load ***
+        function checkForExistingState() {
+            const savedPaymentJSON = sessionStorage.getItem('activeCryptoPayment');
+            const savedSuccessJSON = sessionStorage.getItem('paymentSuccessInfo');
+
+            if (savedPaymentJSON) {
+                const paymentData = JSON.parse(savedPaymentJSON);
+                displayCryptoPaymentInfo(paymentData);
+                startPolling(paymentData.order_id);
+            } else if (savedSuccessJSON) {
+                const successData = JSON.parse(savedSuccessJSON);
+                displaySuccess(successData.inviteLink);
+            } else {
+                switchView(methodSelectionContainer);
+            }
+        }
+
         // --- Initialization ---
         fetchAndPopulatePlans();
+        checkForExistingState(); // Check state on initial load
     });
   </script>
 </body>
