@@ -199,12 +199,12 @@
 
     <!-- View 4: Payment Display (Hidden by default) -->
     <div id="payment-container" class="card w-full max-w-lg p-6 md:p-8 space-y-6 hidden text-center">
-        <!-- ... (same as before) ... -->
+        <!-- Content is generated dynamically -->
     </div>
 
     <!-- View 5: Success Display (Hidden by default) -->
     <div id="success-container" class="card w-full max-w-lg p-6 md:p-8 space-y-6 hidden text-center">
-        <!-- ... (same as before) ... -->
+        <!-- Content is generated dynamically -->
     </div>
 
   </div>
@@ -256,7 +256,8 @@
                 cryptoPlanContainer.innerHTML = '';
                 
                 plansData.forEach((plan, index) => {
-                    const planKey = plan.plan_name.toLowerCase().split(' ')[0];
+                    // *** FIXED: Use the stable plan ID as the key ***
+                    const planKey = plan.id;
                     plans[planKey] = { name: plan.plan_name, priceUSD: plan.price };
                     
                     const buttonHTML = `<button type="button" data-plan="${planKey}" class="plan-button"><div class="font-semibold">${plan.plan_name}</div><div class="text-muted text-sm">$${plan.price}</div></button>`;
@@ -276,7 +277,9 @@
                 });
                 
                 // Activate the default plan
-                document.querySelectorAll(`.plan-button[data-plan="${selectedPlanKey}"]`).forEach(b => b.classList.add('active'));
+                if (selectedPlanKey) {
+                    document.querySelectorAll(`.plan-button[data-plan="${selectedPlanKey}"]`).forEach(b => b.classList.add('active'));
+                }
 
             } catch (error) {
                 console.error('Error fetching plans:', error);
@@ -296,6 +299,13 @@
             const payButton = document.getElementById('fiat-pay-button');
             payButton.disabled = true;
             payButton.textContent = 'Processing...';
+            
+            if (!selectedPlanKey || !plans[selectedPlanKey]) {
+                showMessage('fiat-message-box', 'Please select a valid plan.');
+                payButton.disabled = false;
+                payButton.textContent = 'Proceed to Payment';
+                return;
+            }
 
             const data = {
                 fullname: document.getElementById('fiat-fullname').value,
@@ -348,7 +358,7 @@
                 fullname: document.getElementById('crypto-fullname').value,
                 email: document.getElementById('crypto-email').value,
                 telegram: document.getElementById('crypto-telegram').value,
-                whatsapp_number: document.getElementById('crypto-whatsapp').value, // Add this line
+                whatsapp_number: document.getElementById('crypto-whatsapp').value, 
                 planName: plans[selectedPlanKey].name,
                 priceUSD: plans[selectedPlanKey].priceUSD,
                 pay_currency: selectedNetwork,

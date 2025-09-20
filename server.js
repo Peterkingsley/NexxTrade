@@ -608,8 +608,22 @@ app.post('/api/payments/create-from-web', async (req, res) => {
     try {
         const { fullname, email, telegram, planName, priceUSD, pay_currency, whatsapp_number } = req.body;
         
-        if (!priceUSD || !pay_currency || !fullname || !email || !telegram || !whatsapp_number) {
+        if (!pay_currency || !fullname || !email || !telegram || !whatsapp_number || !planName) {
             return res.status(400).json({ message: 'Missing required fields for payment.' });
+        }
+
+        // --- UPDATED & SECURED: Look up plan details from DB instead of trusting client ---
+        const planResult = await pool.query('SELECT * FROM pricingplans WHERE plan_name = $1', [planName]);
+        if (planResult.rows.length === 0) {
+            return res.status(404).json({ message: 'Selected plan not found.' });
+        }
+        const plan = planResult.rows[0];
+
+        // --- ADDED: Logging and Safeguard for Web Flow ---
+        console.log('WEB: PLAN DETAILS FETCHED FOR PAYMENT:', plan);
+        if (!plan.price || typeof plan.price !== 'number' || plan.price <= 0) {
+            console.error(`WEB: Invalid price for plan ${planName}:`, plan.price);
+            return res.status(500).json({ message: `Payment processor error: The price for the selected plan is invalid. Please contact support.` });
         }
         
         // --- NEW LOGIC START ---
@@ -630,7 +644,7 @@ app.post('/api/payments/create-from-web', async (req, res) => {
         // Step 1: Create a pending user record, marking the source as 'web'.
         await createPendingUser({ fullname, email, telegram, planName, order_id, source: 'web', whatsapp_number });
 
-        // Step 2: Create the invoice with NOWPayments.
+        // Step 2: Create the invoice with NOWPayments using the secure price from the database.
         const nowPaymentsResponse = await fetch('https://api.nowpayments.io/v1/payment', {
             method: 'POST',
             headers: {
@@ -638,7 +652,7 @@ app.post('/api/payments/create-from-web', async (req, res) => {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                price_amount: priceUSD,
+                price_amount: plan.price, // Use the secure price from the DB
                 price_currency: 'usd',
                 pay_currency: pay_currency,
                 ipn_callback_url: `${process.env.APP_BASE_URL}/api/payments/nowpayments/webhook`,
@@ -678,6 +692,13 @@ app.post('/api/payments/create-from-bot', async (req, res) => {
             return res.status(404).json({ message: 'Plan not found.' });
         }
         const plan = planResult.rows[0];
+
+        // --- ADDED: Logging and Safeguard for Bot Flow ---
+        console.log('BOT: PLAN DETAILS FETCHED FOR PAYMENT:', plan);
+        if (!plan.price || typeof plan.price !== 'number' || plan.price <= 0) {
+            console.error(`BOT: Invalid price for plan ID ${plan_id}:`, plan.price);
+            return res.status(500).json({ message: `Payment processor error: The price for the selected plan is invalid. Please contact support.` });
+        }
 
         // --- NEW LOGIC START ---
         // Check for an existing active subscription
