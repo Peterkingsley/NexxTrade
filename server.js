@@ -528,22 +528,6 @@ app.post('/api/payments/fiat/create', async (req, res) => {
         }
         
         const order_id = `nexxtrade-fiat-${telegram.replace('@', '')}-${Date.now()}`;
-        const registrationDate = new Date().toISOString().split('T')[0];
-
-        // Create a user record with a pending status.
-        // The actual subscription activation would happen via a webhook from the payment provider.
-        await pool.query(
-            `INSERT INTO users (full_name, email, telegram_handle, whatsapp_number, plan_name, subscription_status, registration_date, order_id, last_payment_attempt)
-             VALUES ($1, $2, $3, $4, $5, 'pending_fiat', $6, $7, NOW())
-             ON CONFLICT (telegram_handle, plan_name) DO UPDATE SET
-                full_name = EXCLUDED.full_name,
-                email = EXCLUDED.email,
-                whatsapp_number = EXCLUDED.whatsapp_number,
-                order_id = EXCLUDED.order_id,
-                subscription_status = 'pending_fiat',
-                last_payment_attempt = NOW()`,
-            [fullname, email, telegram, whatsapp_number, planName, registrationDate, order_id]
-        );
         
         // In a real application, you would now call your payment provider's API
         // to get a real payment link. For this example, we'll return a placeholder.
@@ -571,49 +555,6 @@ app.post('/api/payments/fiat/create', async (req, res) => {
 // --- START: UNIFIED PAYMENT FLOW (WEB + TELEGRAM BOT) ---
 // =================================================================
 
-// Helper function to create a pending user record in the database.
-// This is used by both web and bot flows.
-async function createPendingUser(details) {
-    const {
-        fullname, email, telegram, planName, 
-        order_id, chatId = null, source = 'web', whatsapp_number = null
-    } = details;
-    
-    // Step 1: Check for an existing ACTIVE subscription for this specific plan.
-    const existingSubQuery = await pool.query(
-      `SELECT * FROM users WHERE telegram_handle = $1 AND plan_name = $2 AND subscription_status = 'active'`,
-      [telegram, planName]
-    );
-
-    if (existingSubQuery.rows.length > 0) {
-      // If found, throw a specific error to be caught by the calling function.
-      const err = new Error(`You already have an active subscription for the ${planName} plan.`);
-      err.statusCode = 409; // Use a custom property for the status code
-      throw err;
-    }
-    
-    const registrationDate = new Date().toISOString().split('T')[0];
-
-    // Step 2: If no active sub, INSERT a new record or UPDATE a pending one.
-    // The conflict target is the unique combination of telegram_handle and plan_name.
-    await pool.query(
-        `INSERT INTO users (full_name, email, telegram_handle, plan_name, subscription_status, registration_date, order_id, payment_attempts, last_payment_attempt, telegram_chat_id, registration_source, whatsapp_number)
-         VALUES ($1, $2, $3, $4, 'pending', $5, $6, 1, NOW(), $7, $8, $9)
-         ON CONFLICT (telegram_handle, plan_name) DO UPDATE SET
-            full_name = EXCLUDED.full_name,
-            email = EXCLUDED.email,
-            order_id = EXCLUDED.order_id,
-            subscription_status = 'pending',
-            payment_attempts = users.payment_attempts + 1,
-            last_payment_attempt = NOW(),
-            telegram_chat_id = EXCLUDED.telegram_chat_id,
-            registration_source = EXCLUDED.registration_source,
-            whatsapp_number = EXCLUDED.whatsapp_number
-        `,
-        [fullname, email, telegram, planName, registrationDate, order_id, chatId, source, whatsapp_number]
-    );
-}
-
 // === Flow 1: User starts payment from the Website ===
 app.post('/api/payments/create-from-web', async (req, res) => {
     try {
@@ -637,7 +578,29 @@ app.post('/api/payments/create-from-web', async (req, res) => {
         
         const order_id = `nexxtrade-web-${telegram.replace('@', '')}-${Date.now()}`;
         
-        await createPendingUser({ fullname, email, telegram, planName, order_id, source: 'web', whatsapp_number });
+        // --- NEW LOGIC ---
+        const existingUserPlanQuery = await pool.query(
+            'SELECT * FROM users WHERE telegram_handle = $1 AND plan_name = $2',
+            [telegram, planName]
+        );
+
+        if (existingUserPlanQuery.rows.length > 0) {
+            const userRecord = existingUserPlanQuery.rows[0];
+            if (userRecord.subscription_status === 'active') {
+                return res.status(409).json({ message: `You already have an active subscription for the ${planName} plan.` });
+            }
+            await pool.query(
+                `UPDATE users SET full_name = $1, email = $2, whatsapp_number = $3, order_id = $4, subscription_status = 'pending', last_payment_attempt = NOW(), payment_attempts = payment_attempts + 1, registration_source = 'web' WHERE id = $5`,
+                [fullname, email, whatsapp_number, order_id, userRecord.id]
+            );
+        } else {
+            const registrationDate = new Date().toISOString().split('T')[0];
+            await pool.query(
+                `INSERT INTO users (full_name, email, telegram_handle, plan_name, subscription_status, registration_date, order_id, payment_attempts, last_payment_attempt, registration_source, whatsapp_number)
+                 VALUES ($1, $2, $3, $4, 'pending', $5, $6, 1, NOW(), 'web', $7)`,
+                [fullname, email, telegram, planName, registrationDate, order_id, whatsapp_number]
+            );
+        }
 
         const nowPaymentsResponse = await fetch('https://api.nowpayments.io/v1/payment', {
             method: 'POST',
@@ -666,9 +629,6 @@ app.post('/api/payments/create-from-web', async (req, res) => {
         res.status(200).json(paymentData);
 
     } catch (err) {
-        if (err.statusCode === 409) {
-            return res.status(409).json({ message: err.message });
-        }
         console.error('Error creating payment from web:', err);
         res.status(500).json({ message: 'Server Error during payment creation.' });
     }
@@ -696,20 +656,32 @@ app.post('/api/payments/create-from-bot', async (req, res) => {
 
         const order_id = `nexxtrade-bot-${telegram_handle.replace('@', '')}-${Date.now()}`;
         
-        const temp_fullname = `User ${telegram_handle}`;
-        const temp_email = `${telegram_handle.replace('@','')}@telegram.user`;
-        
-        await createPendingUser({ 
-            fullname: temp_fullname, 
-            email: temp_email, 
-            telegram: telegram_handle, 
-            planName: plan.plan_name, 
-            order_id, 
-            chatId: chat_id, 
-            source: 'bot',
-            whatsapp_number: whatsapp_number
-        });
-        
+        // --- NEW LOGIC ---
+        const existingUserPlanQuery = await pool.query(
+            'SELECT * FROM users WHERE telegram_handle = $1 AND plan_name = $2',
+            [telegram_handle, plan.plan_name]
+        );
+
+        if (existingUserPlanQuery.rows.length > 0) {
+            const userRecord = existingUserPlanQuery.rows[0];
+            if (userRecord.subscription_status === 'active') {
+                return res.status(409).json({ message: `You already have an active subscription for the ${plan.plan_name} plan.` });
+            }
+            await pool.query(
+                `UPDATE users SET whatsapp_number = $1, order_id = $2, subscription_status = 'pending', last_payment_attempt = NOW(), payment_attempts = payment_attempts + 1, telegram_chat_id = $3, registration_source = 'bot' WHERE id = $4`,
+                [whatsapp_number, order_id, chat_id, userRecord.id]
+            );
+        } else {
+            const temp_fullname = `User ${telegram_handle}`;
+            const temp_email = `${telegram_handle.replace('@','')}@telegram.user`;
+            const registrationDate = new Date().toISOString().split('T')[0];
+            await pool.query(
+                `INSERT INTO users (full_name, email, telegram_handle, plan_name, subscription_status, registration_date, order_id, payment_attempts, last_payment_attempt, telegram_chat_id, registration_source, whatsapp_number)
+                 VALUES ($1, $2, $3, $4, 'pending', $5, $6, 1, NOW(), $7, 'bot', $8)`,
+                [temp_fullname, temp_email, telegram_handle, plan.plan_name, registrationDate, order_id, chat_id, whatsapp_number]
+            );
+        }
+
         const nowPaymentsResponse = await fetch('https://api.nowpayments.io/v1/payment', {
             method: 'POST',
             headers: {
@@ -736,9 +708,6 @@ app.post('/api/payments/create-from-bot', async (req, res) => {
         res.status(200).json(paymentData);
 
     } catch (err) {
-        if (err.statusCode === 409) {
-            return res.status(409).json({ message: err.message });
-        }
         console.error('Error creating payment from bot:', err);
         res.status(500).json({ message: 'Server Error during bot payment creation.' });
     }
@@ -978,4 +947,3 @@ app.listen(port, async () => {
   console.log(`Server is running on http://localhost:${port}`);
   await setupWebhook();
 });
-
