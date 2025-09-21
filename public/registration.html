@@ -100,6 +100,7 @@
             <h1 class="text-3xl font-bold">Checkout</h1>
             <p class="text-muted mt-2">Select your preferred payment method.</p>
         </div>
+        <div id="method-selection-message-box"></div>
         <div class="space-y-4">
             <div id="fiat-option-btn" class="payment-option text-left space-y-1">
                 <span class="font-semibold text-lg">Pay with Fiat</span>
@@ -237,6 +238,8 @@
         function showMessage(containerId, message) {
             const container = document.getElementById(containerId);
             container.innerHTML = `<div class="message-box error">${message}</div>`;
+            // Clear message after a few seconds to not be permanent
+            setTimeout(() => { container.innerHTML = '' }, 5000);
         }
 
         function clearSessionState() {
@@ -286,7 +289,13 @@
         }
 
         // --- Event Listeners ---
-        fiatOptionBtn.addEventListener('click', () => switchView(fiatContainer));
+        
+        // MODIFICATION START: Changed Fiat button behavior
+        fiatOptionBtn.addEventListener('click', () => {
+            showMessage('method-selection-message-box', 'Coming soon. Please choose Pay with Crypto.');
+        });
+        // MODIFICATION END
+
         cryptoOptionBtn.addEventListener('click', () => switchView(cryptoContainer));
         
         backToSelectionBtns.forEach(btn => btn.addEventListener('click', () => {
