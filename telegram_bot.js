@@ -256,7 +256,7 @@ bot.on('message', async (msg) => {
                 const formattedCurrency = networkMap[paymentData.pay_currency.toLowerCase()] || paymentData.pay_currency.toUpperCase();
 
                 const addressMessage = `Please send exactly *${paymentData.pay_amount} ${formattedCurrency}* to this address:\n\n` + `\`${paymentData.pay_address}\``;
-                const monitoringMessage = `👆 Tap & copy the address above to pay.\n✅ Auto Join VIP: Access in ~2 minutes after payment.\n☎️ Support: @Nexxtrade_io\n\n🔃Checking payment Status: ⏳`;
+                const monitoringMessage = `👆 Tap & copy the address above to pay.\n✅ Auto Join VIP: Access in ~2 minutes after payment.\n☎️ Support: @Nexxtrade_Support\n\n🔃Checking payment Status: ⏳`;
                 
                 const checkStatusKeyboard = {
                     reply_markup: {
