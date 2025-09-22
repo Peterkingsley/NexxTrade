@@ -424,5 +424,6 @@ bot.on('callback_query', async (callbackQuery) => {
 
 module.exports = {
     bot,
-    setupWebhook
+    setupWebhook,
+    userRegistrationState
 };

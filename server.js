@@ -16,7 +16,7 @@ const port = process.env.PORT || 3000;
 
 // NEW: Import the Telegram bot and webhook setup function
 // This allows the server to command the bot (e.g., to create invite links).
-const { bot, setupWebhook } = require('./telegram_bot.js');
+const { bot, setupWebhook, userRegistrationState } = require('./telegram_bot.js');
 
 // Middleware setup
 // Use the CORS middleware to allow cross-origin requests
@@ -785,12 +785,19 @@ app.post('/api/payments/nowpayments/webhook', async (req, res) => {
 
                 // === DELIVERY LOGIC ===
                 // Check the user's registration source to determine how to deliver the invite link.
-                if (user.registration_source === 'bot' && user.telegram_chat_id) {
-                    // With the new flow, we no longer send the invite link directly from the webhook.
-                    // The bot will now poll for status, ask for user details, and then call a new endpoint to get the link.
-                    // We can optionally send a confirmation message here to prompt the user.
-                    await bot.sendMessage(user.telegram_chat_id, `✅ Payment confirmed! Please return to our chat to complete your registration.`);
-                
+               if (user.registration_source === 'bot' && user.telegram_chat_id) {
+    // Immediately start registration flow in bot’s memory
+    userRegistrationState[user.telegram_chat_id] = {
+        orderId: user.order_id,
+        planId: null,            // not needed anymore
+        telegramHandle: user.telegram_handle,
+        stage: 'awaiting_full_name'
+    };
+
+    await bot.sendMessage(
+      user.telegram_chat_id,
+      `✅ Payment confirmed! To complete your registration, please provide your full name.`
+    );
                 } else {
                     // Flow 1 Delivery: User is waiting on the website.
                     // Generate the link and store it in the database for the frontend to poll.
