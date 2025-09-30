@@ -202,6 +202,13 @@
             // Update page title
             document.title = `${post.title} — NexxTrade Blog`;
 
+            // Filter out the specific paragraph from the content
+            const lineToRemove = "As October 1 draws nearer, the chances of a partial US government shutdown are rising.";
+            const lines = post.content.split('\n');
+            const filteredLines = lines.filter(line => !line.includes(lineToRemove));
+            const modifiedContent = filteredLines.join('\n');
+
+
             // Render the full blog post
             blogDetailContainer.innerHTML = `
                 <div class="max-w-4xl mx-auto">
@@ -209,7 +216,7 @@
                     <p class="text-center muted mb-6">By ${post.author} • ${new Date(post.published_date).toLocaleDateString()}</p>
                     <img src="${post.featured_image_url}" alt="Featured image for ${post.title}" class="featured-image">
                     <div class="prose">
-                        ${post.content}
+                        ${modifiedContent}
                     </div>
                 </div>
             `;
