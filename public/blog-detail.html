@@ -5,21 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>NexxTrade — Blog Post</title>
   <meta name="description" content="Insights, strategies, and market analysis from NexxTrade to help you trade smarter." />
-  <!-- Load Tailwind CSS for a clean, professional look and easy responsiveness -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Lucide Icons for a clean, professional look -->
   <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
   <style>
-    /* Custom CSS to match the existing NexxTrade site's theme */
     :root{
-      --bg:#0b0f14;           /* deep navy/charcoal */
-      --bg-2:#0f141b;         /* card background */
-      --text:#e9edf3;         /* off-white */
-      --muted:#a8b3c7;        /* muted text */
-      --accent:#2ad678;       /* profit green */
-      --accent-2:#f0c75e;     /* gold for badges */
-      --danger:#ff5d5d;       /* soft red */
-      --line:#1b2330;         /* subtle borders */
+      --bg:#0b0f14;
+      --bg-2:#0f141b;
+      --text:#e9edf3;
+      --muted:#a8b3c7;
+      --accent:#2ad678;
+      --accent-2:#f0c75e;
+      --danger:#ff5d5d;
+      --line:#1b2330;
       --shadow:0 8px 24px rgba(0,0,0,.35);
       --radius:16px;
       --radius-lg:20px;
@@ -30,77 +27,33 @@
     a{color:inherit;text-decoration:none}
     img{max-width:100%;display:block}
     button{font:inherit}
-
-    /* Utility classes */
     .container{width:100%;max-width:var(--max);margin-inline:auto;padding-inline:20px}
     .btn{display:inline-flex;align-items:center;gap:.6rem;padding:.9rem .9rem;border-radius:999px;border:1px solid transparent;cursor:pointer;transition:.2s ease;white-space:nowrap}
     .btn-primary{background:var(--accent);color:#04140a;font-weight:600}
     .btn-primary:hover{filter:brightness(1.1);transform:translateY(-1px)}
     .muted{color:var(--muted)}
-
-    /* Header */
     header{position:sticky;top:0;z-index:50;background:linear-gradient(180deg, rgba(11,15,20,.9), rgba(11,15,20,.6));backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
     .nav{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 20px;}
     .brand{display:flex;align-items:center;gap:.6rem}
-    .logo {
-        width: 44px;
-        height: auto;
-        border-radius: 8px;
-        display: block;
-    }
+    .logo {width: 44px;height: auto;border-radius: 8px;display: block;}
     nav a{opacity:.9}
     nav a:hover{opacity:1}
     .nav-links{display:flex;gap:18px;align-items:center}
     .nav-toggle-btn { display: none; }
-    
-    /* Main Content Styling for Blog Detail */
     .main-content { padding: 48px 0; }
-    #blog-detail .featured-image {
-      max-width: 80%; /* Reduce image size */
-      margin: 0 auto 2rem auto; /* Center the image */
-      height: auto; /* Let height adjust based on image aspect ratio */
-      object-fit: contain; /* Ensure the entire image is visible within the frame */
-      border-radius: var(--radius-lg);
-      border: 1px solid var(--line); /* Add a subtle frame */
-      opacity: 0.9; /* Slightly reduce boldness */
-    }
-    #blog-detail .prose {
-        color: var(--text);
-        max-width: 800px; /* Optimal reading width */
-        margin: 0 auto;
-        white-space: pre-wrap; /* This is the fix: it respects newlines and spaces */
-        font-size: 1.1rem;
-        line-height: 1.7;
-    }
-    #blog-detail .prose h1,
-    #blog-detail .prose h2,
-    #blog-detail .prose h3 {
-        color: var(--text);
-    }
-    #blog-detail .prose p {
-        line-height: 1.7;
-        margin-bottom: 1.5rem;
-    }
-    #blog-detail .prose a {
-        color: var(--accent);
-        text-decoration: underline;
-    }
-     #blog-detail .prose a:hover {
-        color: #fff;
-    }
-    #blog-detail .prose strong {
-        color: var(--text);
-    }
-
-    /* Footer */
+    #blog-detail .featured-image {max-width: 80%;margin: 0 auto 2rem auto;height: auto;object-fit: contain;border-radius: var(--radius-lg);border: 1px solid var(--line);opacity: 0.9;}
+    #blog-detail .prose {color: var(--text);max-width: 800px;margin: 0 auto;white-space: pre-wrap;font-size: 1.1rem;line-height: 1.7;}
+    #blog-detail .prose h1,#blog-detail .prose h2,#blog-detail .prose h3 {color: var(--text);}
+    #blog-detail .prose p {line-height: 1.7;margin-bottom: 1.5rem;}
+    #blog-detail .prose a {color: var(--accent);text-decoration: underline;}
+    #blog-detail .prose a:hover {color: #fff;}
+    #blog-detail .prose strong {color: var(--text);}
     footer{border-top:1px solid var(--line);background:#0b1017;padding:36px 20px 12px;}
     .f-grid{display:grid;grid-template-columns:2fr 1fr 1fr 1.2fr;gap:20px;}
     footer ul{list-style:none;margin:0;padding:0;display:grid;gap:8px}
     footer li a{color:var(--muted)}
     footer li a:hover{color:var(--text)}
     .subtle{font-size:.88rem;color:var(--muted)}
-
-    /* Responsive */
     @media (max-width: 980px){
       .f-grid{grid-template-columns:1fr;}
       .nav-links{display:none;}
@@ -109,15 +62,14 @@
   </style>
 </head>
 <body>
-  <!-- Header -->
   <header>
     <div class="container nav">
       <a class="brand" href="/" aria-label="NexxTrade home">
         <img src="/images/Nexxtrade (1).svg" alt="NexxTrade Logo" class="logo">
         <strong>NexxTrade</strong>
       </a>
-       <button class="nav-toggle-btn" aria-label="Toggle navigation" aria-controls="nav-menu">
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
+      <button class="nav-toggle-btn" aria-label="Toggle navigation" aria-controls="nav-menu">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
       </button>
       <nav class="nav-links" id="nav-menu" aria-label="primary">
         <a href="/performance">Performance</a>
@@ -130,13 +82,11 @@
   </header>
   
   <main class="main-content">
-    <!-- The detailed blog post will be loaded here -->
     <div id="blog-detail" class="container">
         <p class="text-center text-muted">Loading post...</p>
     </div>
   </main>
 
-  <!-- Footer -->
   <footer>
     <div class="container grid f-grid">
       <div>
@@ -177,10 +127,8 @@
   </footer>
 
   <script>
-    // Set current year in footer
     document.getElementById('year').textContent = new Date().getFullYear();
 
-    // API and post loading logic
     const API_BASE_URL = 'https://nexxtrade.onrender.com/api';
     const urlParams = new URLSearchParams(window.location.search);
     const postId = urlParams.get('id');
@@ -199,14 +147,17 @@
             }
             const post = await res.json();
 
-            // Update page title
             document.title = `${post.title} — NexxTrade Blog`;
 
-            // Remove any leading whitespace (like empty newlines) from the content
-            const modifiedContent = post.content.replace(/^\s+/, '');
+            let modifiedContent = post.content.replace(/^\s+/, '');
 
+            // Remove the first paragraph (before "As October 1 draws nearer...")
+            let paragraphs = modifiedContent.split(/<\/p>/i);
+            if (paragraphs.length > 1) {
+                paragraphs.shift();
+                modifiedContent = paragraphs.join('</p>');
+            }
 
-            // Render the full blog post
             blogDetailContainer.innerHTML = `
                 <div class="max-w-4xl mx-auto">
                     <h1 class="text-3xl md:text-4xl font-bold mb-4 text-center">${post.title}</h1>
@@ -223,9 +174,7 @@
         }
     }
 
-    // Load the blog post when the page is ready
     document.addEventListener('DOMContentLoaded', loadBlogPost);
   </script>
 </body>
 </html>
-
