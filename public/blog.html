@@ -332,7 +332,7 @@
 
             posts.forEach(post => {
                 const blogCard = document.createElement('a');
-                blogCard.href = `#`; // You can link this to a specific blog post page later
+                blogCard.href = `/blog-detail.html?id=${post.id}`;
                 blogCard.classList.add('blog-card', 'card', 'reveal');
 
                 blogCard.innerHTML = `
