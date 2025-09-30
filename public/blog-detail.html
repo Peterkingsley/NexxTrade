@@ -202,11 +202,8 @@
             // Update page title
             document.title = `${post.title} — NexxTrade Blog`;
 
-            // Filter out the specific paragraph from the content
-            const lineToRemove = "As October 1 draws nearer, the chances of a partial US government shutdown are rising.";
-            const lines = post.content.split('\n');
-            const filteredLines = lines.filter(line => !line.includes(lineToRemove));
-            const modifiedContent = filteredLines.join('\n');
+            // Remove any leading/trailing whitespace (like empty newlines) from the content
+            const modifiedContent = post.content.trim();
 
 
             // Render the full blog post
