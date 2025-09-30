@@ -56,11 +56,11 @@
     /* Main Content Styling for Blog Detail */
     .main-content { padding: 48px 0; }
     #blog-detail .featured-image {
-      width: 100%;
+      max-width: 80%; /* Reduce image size */
+      margin: 0 auto 2rem auto; /* Center the image */
       height: auto; /* Let height adjust based on image aspect ratio */
       object-fit: contain; /* Ensure the entire image is visible within the frame */
       border-radius: var(--radius-lg);
-      margin-bottom: 2rem;
       border: 1px solid var(--line); /* Add a subtle frame */
       opacity: 0.9; /* Slightly reduce boldness */
     }
