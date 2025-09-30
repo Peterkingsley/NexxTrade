@@ -151,11 +151,11 @@
 
             let modifiedContent = post.content.replace(/^\s+/, '');
 
-            // Remove the first paragraph (before "As October 1 draws nearer...")
-            let paragraphs = modifiedContent.split(/<\/p>/i);
-            if (paragraphs.length > 1) {
-                paragraphs.shift();
-                modifiedContent = paragraphs.join('</p>');
+            // Remove all content before the target sentence
+            const target = "As October 1 draws nearer";
+            const idx = modifiedContent.indexOf(target);
+            if (idx !== -1) {
+                modifiedContent = modifiedContent.substring(idx);
             }
 
             blogDetailContainer.innerHTML = `
