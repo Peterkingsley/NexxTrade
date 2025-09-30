@@ -56,11 +56,13 @@
     /* Main Content Styling for Blog Detail */
     .main-content { padding: 48px 0; }
     #blog-detail .featured-image {
-        width: 100%;
-        max-height: 450px;
-        object-fit: cover;
-        border-radius: var(--radius-lg);
-        margin-bottom: 2rem;
+      width: 100%;
+      height: auto; /* Let height adjust based on image aspect ratio */
+      object-fit: contain; /* Ensure the entire image is visible within the frame */
+      border-radius: var(--radius-lg);
+      margin-bottom: 2rem;
+      border: 1px solid var(--line); /* Add a subtle frame */
+      opacity: 0.9; /* Slightly reduce boldness */
     }
     #blog-detail .prose {
         color: var(--text);
@@ -115,7 +117,7 @@
         <strong>NexxTrade</strong>
       </a>
        <button class="nav-toggle-btn" aria-label="Toggle navigation" aria-controls="nav-menu">
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
       </button>
       <nav class="nav-links" id="nav-menu" aria-label="primary">
         <a href="/performance">Performance</a>
