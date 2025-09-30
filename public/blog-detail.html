@@ -202,8 +202,8 @@
             // Update page title
             document.title = `${post.title} — NexxTrade Blog`;
 
-            // Remove any leading/trailing whitespace (like empty newlines) from the content
-            const modifiedContent = post.content.trim();
+            // Remove any leading whitespace (like empty newlines) from the content
+            const modifiedContent = post.content.replace(/^\s+/, '');
 
 
             // Render the full blog post
