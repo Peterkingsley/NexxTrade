@@ -113,7 +113,7 @@ bot.onText(/\/faq/, (msg) => {
 
 bot.onText(/\/support/, (msg) => {
     const chatId = msg.chat.id;
-    bot.sendMessage(chatId, 'For support, please contact our admin directly.');
+    bot.sendMessage(chatId, '☎Customer Support: @NexxTrade_Support.');
 });
 
 
