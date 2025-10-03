@@ -423,16 +423,19 @@
                     // 3. Populate User Acquisition Sources
                     acquisitionContainer.innerHTML = ''; // Clear loading message
                     const sources = [
-                        { label: 'Web Signups', count: stats.userAcquisition.web },
-                        { label: 'Bot Signups', count: stats.userAcquisition.bot },
-                        { label: 'Referred Users', count: stats.userAcquisition.referred }
+                        { label: 'Web Signups', data: stats.userAcquisition.web },
+                        { label: 'Bot Signups', data: stats.userAcquisition.bot },
+                        { label: 'Referred Users', data: stats.userAcquisition.referred }
                     ];
 
                     sources.forEach(source => {
                         const card = document.createElement('div');
                         card.className = 'p-4 border border-line rounded-lg';
                         card.innerHTML = `
-                            <div class="text-2xl font-bold">${source.count}</div>
+                            <div>
+                                <span class="text-2xl font-bold">${source.data.active}</span>
+                                <span class="text-muted">/ ${source.data.total}</span>
+                            </div>
                             <p class="text-muted">${source.label}</p>
                         `;
                         acquisitionContainer.appendChild(card);
@@ -534,3 +537,4 @@
     </script>
 </body>
 </html>
+

@@ -667,7 +667,7 @@ app.get('/api/users/stats', async (req, res) => {
   }
 });
 
-// NEW: API route for detailed admin dashboard statistics
+// MODIFIED: API route for detailed admin dashboard statistics
 app.get('/api/dashboard-stats', async (req, res) => {
   try {
     // Query 1: Get active users per package
@@ -679,12 +679,15 @@ app.get('/api/dashboard-stats', async (req, res) => {
     `);
     const activeUsersPerPackage = activeUsersPerPackageQuery.rows;
 
-    // Query 2: Get user acquisition channels
+    // Query 2: Get user acquisition channels (total vs. active)
     const userAcquisitionQuery = await pool.query(`
       SELECT
-        (SELECT COUNT(*) FROM users WHERE registration_source = 'web') AS web_users,
-        (SELECT COUNT(*) FROM users WHERE registration_source = 'bot') AS bot_users,
-        (SELECT COUNT(*) FROM users WHERE referred_by IS NOT NULL) AS referred_users;
+        (SELECT COUNT(*) FROM users WHERE registration_source = 'web') AS total_web,
+        (SELECT COUNT(*) FROM users WHERE registration_source = 'bot') AS total_bot,
+        (SELECT COUNT(*) FROM users WHERE referred_by IS NOT NULL) AS total_referred,
+        (SELECT COUNT(*) FROM users WHERE registration_source = 'web' AND subscription_status = 'active') AS active_web,
+        (SELECT COUNT(*) FROM users WHERE registration_source = 'bot' AND subscription_status = 'active') AS active_bot,
+        (SELECT COUNT(*) FROM users WHERE referred_by IS NOT NULL AND subscription_status = 'active') AS active_referred;
     `);
     const userAcquisition = userAcquisitionQuery.rows[0];
 
@@ -700,9 +703,18 @@ app.get('/api/dashboard-stats', async (req, res) => {
     res.status(200).json({
       activeUsersPerPackage,
       userAcquisition: {
-        web: parseInt(userAcquisition.web_users, 10),
-        bot: parseInt(userAcquisition.bot_users, 10),
-        referred: parseInt(userAcquisition.referred_users, 10)
+        web: {
+          total: parseInt(userAcquisition.total_web, 10),
+          active: parseInt(userAcquisition.active_web, 10)
+        },
+        bot: {
+          total: parseInt(userAcquisition.total_bot, 10),
+          active: parseInt(userAcquisition.active_bot, 10)
+        },
+        referred: {
+          total: parseInt(userAcquisition.total_referred, 10),
+          active: parseInt(userAcquisition.active_referred, 10)
+        }
       },
       totalActiveUsers
     });
@@ -1318,3 +1330,4 @@ app.listen(port, async () => {
   console.log(`Server is running on http://localhost:${port}`);
   await setupWebhook();
 });
+
