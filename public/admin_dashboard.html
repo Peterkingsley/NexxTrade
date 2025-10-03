@@ -248,56 +248,29 @@
         <div class="space-y-8">
             <h2 class="text-2xl font-semibold">Dashboard Overview</h2>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div class="card p-6 flex flex-col items-center justify-center text-center space-y-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent-2">
-                        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-                    </svg>
-                    <div class="text-3xl font-bold" id="total-users-stat">...</div>
-                    <p class="text-muted">Total Users</p>
-                </div>
-                <div class="card p-6 flex flex-col items-center justify-center text-center space-y-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent-2">
-                        <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
-                        <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
-                    </svg>
-                    <div class="text-3xl font-bold" id="total-blogs-stat">...</div>
-                    <p class="text-muted">Total Blog Posts</p>
-                </div>
-                <div class="card p-6 flex flex-col items-center justify-center text-center space-y-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent">
-                        <polyline points="20 6 9 17 4 12"/>
-                    </svg>
-                    <div class="text-3xl font-bold" id="total-signals-stat">...</div>
-                    <p class="text-muted">Total Performance Signals</p>
-                </div>
-                <div class="card p-6 flex flex-col items-center justify-center text-center space-y-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent-2">
-                        <path d="M12 2v20M17 5H9.5a3.5 3.5 0 1 0 0 7h5a3.5 3.5 0 1 1 0 7H6"/>
-                    </svg>
-                    <div class="text-3xl font-bold" id="total-plans-stat">...</div>
-                    <p class="text-muted">Active Pricing Plans</p>
+            <!-- Main Stats -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Total Active Users -->
+                <div class="md:col-span-3 card p-6 flex flex-col items-center justify-center text-center space-y-2 bg-gradient-to-br from-green-900/30 to-bg-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                    <div class="text-5xl font-extrabold" id="total-active-users-stat">...</div>
+                    <p class="text-muted text-lg">Total Active Users</p>
                 </div>
             </div>
-            
+
+            <!-- Active Users by Package -->
             <div class="card p-6">
-                <h3 class="text-xl font-semibold mb-4 flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent-2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
-                    User Registration Stats
-                </h3>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
-                    <div class="p-4 border border-line rounded-lg">
-                        <div class="text-2xl font-bold" id="users-today-stat">...</div>
-                        <p class="text-muted">Today</p>
-                    </div>
-                    <div class="p-4 border border-line rounded-lg">
-                        <div class="text-2xl font-bold" id="users-week-stat">...</div>
-                        <p class="text-muted">This Week</p>
-                    </div>
-                    <div class="p-4 border border-line rounded-lg">
-                        <div class="text-2xl font-bold" id="users-month-stat">...</div>
-                        <p class="text-muted">This Month</p>
-                    </div>
+                <h3 class="text-xl font-semibold mb-4">Active Users by Package</h3>
+                <div id="active-users-per-package-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div class="p-4 border border-dashed border-line rounded-lg text-center text-muted">Loading package data...</div>
+                </div>
+            </div>
+
+            <!-- User Acquisition -->
+            <div class="card p-6">
+                <h3 class="text-xl font-semibold mb-4">User Acquisition Source</h3>
+                <div id="user-acquisition-container" class="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+                     <div class="p-4 border border-dashed border-line rounded-lg text-center text-muted">Loading acquisition data...</div>
                 </div>
             </div>
 
@@ -402,44 +375,85 @@
 
             // Function to format date to YYYY-MM-DD
             function formatDate(dateString) {
+                if (!dateString) return 'N/A';
                 const date = new Date(dateString);
                 return date.toISOString().split('T')[0];
             }
 
             // Function to check subscription status
-            function getSubscriptionStatus(expirationDate) {
-                const now = new Date();
-                const expiration = new Date(expirationDate);
-                return expiration > now ? '<span class="text-accent">Active</span>' : '<span class="text-danger">Expired</span>';
+            function getSubscriptionStatus(status, expirationDate) {
+                 if (status === 'active') {
+                    const now = new Date();
+                    const expiration = new Date(expirationDate);
+                    return expiration > now ? '<span class="text-accent">Active</span>' : '<span class="text-danger">Expired</span>';
+                }
+                return `<span class="text-muted">${status || 'pending'}</span>`;
             }
+            
+            // --- NEW: Function to fetch and render the new dashboard stats ---
+            const fetchDashboardStats = async () => {
+                const totalActiveUsersEl = document.getElementById('total-active-users-stat');
+                const packageContainer = document.getElementById('active-users-per-package-container');
+                const acquisitionContainer = document.getElementById('user-acquisition-container');
 
-            // Function to fetch all data and update the dashboard
-            const fetchData = async () => {
-                // Fetch stats
                 try {
-                    const blogsResponse = await fetch(`${API_BASE_URL}/blogs`);
-                    const blogs = await blogsResponse.json();
-                    document.getElementById('total-blogs-stat').textContent = blogs.length;
+                    const response = await fetch(`${API_BASE_URL}/dashboard-stats`);
+                    if (!response.ok) throw new Error('Failed to fetch dashboard stats');
+                    const stats = await response.json();
 
-                    const signalsResponse = await fetch(`${API_BASE_URL}/performances`);
-                    const signals = await signalsResponse.json();
-                    document.getElementById('total-signals-stat').textContent = signals.length;
+                    // 1. Populate Total Active Users
+                    totalActiveUsersEl.textContent = stats.totalActiveUsers;
+                    
+                    // 2. Populate Active Users by Package
+                    packageContainer.innerHTML = ''; // Clear loading message
+                    if (stats.activeUsersPerPackage.length > 0) {
+                        stats.activeUsersPerPackage.forEach(pkg => {
+                            const card = document.createElement('div');
+                            card.className = 'p-4 border border-line rounded-lg';
+                            card.innerHTML = `
+                                <div class="text-2xl font-bold">${pkg.active_users}</div>
+                                <p class="text-muted">${pkg.plan_name}</p>
+                            `;
+                            packageContainer.appendChild(card);
+                        });
+                    } else {
+                        packageContainer.innerHTML = '<p class="text-muted col-span-full text-center">No active users on any package.</p>';
+                    }
 
-                    const pricingResponse = await fetch(`${API_BASE_URL}/pricing`);
-                    const plans = await pricingResponse.json();
-                    document.getElementById('total-plans-stat').textContent = plans.length;
+                    // 3. Populate User Acquisition Sources
+                    acquisitionContainer.innerHTML = ''; // Clear loading message
+                    const sources = [
+                        { label: 'Web Signups', count: stats.userAcquisition.web },
+                        { label: 'Bot Signups', count: stats.userAcquisition.bot },
+                        { label: 'Referred Users', count: stats.userAcquisition.referred }
+                    ];
 
+                    sources.forEach(source => {
+                        const card = document.createElement('div');
+                        card.className = 'p-4 border border-line rounded-lg';
+                        card.innerHTML = `
+                            <div class="text-2xl font-bold">${source.count}</div>
+                            <p class="text-muted">${source.label}</p>
+                        `;
+                        acquisitionContainer.appendChild(card);
+                    });
+
+
+                } catch (error) {
+                    console.error('Error fetching dashboard stats:', error);
+                    totalActiveUsersEl.textContent = 'Error';
+                    packageContainer.innerHTML = '<p class="text-danger text-center col-span-full">Could not load package data.</p>';
+                    acquisitionContainer.innerHTML = '<p class="text-danger text-center col-span-full">Could not load acquisition data.</p>';
+                }
+            };
+
+
+            // --- MODIFIED: This function now only handles the lower tables ---
+            const fetchTableData = async () => {
+                try {
+                    // Fetch and populate all registered users table
                     const usersResponse = await fetch(`${API_BASE_URL}/users`);
                     const users = await usersResponse.json();
-                    document.getElementById('total-users-stat').textContent = users.length;
-                    
-                    const userStatsResponse = await fetch(`${API_BASE_URL}/users/stats`);
-                    const userStats = await userStatsResponse.json();
-                    document.getElementById('users-today-stat').textContent = userStats.daily;
-                    document.getElementById('users-week-stat').textContent = userStats.weekly;
-                    document.getElementById('users-month-stat').textContent = userStats.monthly;
-
-                    // Populate all registered users table
                     const usersTableBody = document.getElementById('users-table');
                     usersTableBody.innerHTML = '';
                     if (users.length === 0) {
@@ -451,14 +465,16 @@
                                 <td>${user.email}</td>
                                 <td>${user.telegram_handle}</td>
                                 <td>${formatDate(user.registration_date)}</td>
-                                <td>${formatDate(user.subscription_expiration)}</td>
-                                <td>${getSubscriptionStatus(user.subscription_expiration)}</td>
+                                <td>${user.subscription_expiration ? formatDate(user.subscription_expiration) : 'N/A'}</td>
+                                <td>${getSubscriptionStatus(user.subscription_status, user.subscription_expiration)}</td>
                             `;
                             usersTableBody.appendChild(row);
                         });
                     }
 
-                    // Populate recent blog posts table (limit to 5)
+                    // Fetch and populate recent blog posts table (limit to 5)
+                    const blogsResponse = await fetch(`${API_BASE_URL}/blogs`);
+                    const blogs = await blogsResponse.json();
                     const blogsTableBody = document.getElementById('blogs-table');
                     blogsTableBody.innerHTML = '';
                     const recentBlogs = blogs.slice(0, 5);
@@ -478,7 +494,9 @@
                         });
                     }
 
-                    // Populate recent signals table (limit to 5)
+                    // Fetch and populate recent signals table (limit to 5)
+                    const signalsResponse = await fetch(`${API_BASE_URL}/performances`);
+                    const signals = await signalsResponse.json();
                     const signalsTableBody = document.getElementById('signals-table');
                     signalsTableBody.innerHTML = '';
                     const recentSignals = signals.slice(0, 5);
@@ -487,7 +505,7 @@
                     } else {
                         recentSignals.forEach(signal => {
                             const row = document.createElement('tr');
-                            const pnlClass = parseFloat(signal.pnl_percent) > 0 ? 'gain' : 'loss';
+                            const pnlClass = parseFloat(signal.pnl_percent) > 0 ? 'text-accent' : 'text-danger';
                             row.innerHTML = `
                                 <td>${formatDate(signal.date)}</td>
                                 <td>${signal.pair}</td>
@@ -502,22 +520,16 @@
                     }
                     lucide.createIcons();
                 } catch (error) {
-                    console.error('Error fetching dashboard data:', error);
-                    // Update all stat and table elements to show an error state
-                    document.getElementById('total-users-stat').textContent = 'Error';
-                    document.getElementById('users-today-stat').textContent = 'Error';
-                    document.getElementById('users-week-stat').textContent = 'Error';
-                    document.getElementById('users-month-stat').textContent = 'Error';
-                    document.getElementById('total-blogs-stat').textContent = 'Error';
-                    document.getElementById('total-signals-stat').textContent = 'Error';
-                    document.getElementById('total-plans-stat').textContent = 'Error';
+                    console.error('Error fetching table data:', error);
                     document.getElementById('users-table').innerHTML = `<tr><td colspan="5" class="text-danger text-center py-4">Failed to load user data.</td></tr>`;
-                    document.getElementById('blogs-table').innerHTML = `<tr><td colspan="5" class="text-danger text-center py-4">Failed to load data.</td></tr>`;
-                    document.getElementById('signals-table').innerHTML = `<tr><td colspan="7" class="text-danger text-center py-4">Failed to load data.</td></tr>`;
+                    document.getElementById('blogs-table').innerHTML = `<tr><td colspan="5" class="text-danger text-center py-4">Failed to load blog data.</td></tr>`;
+                    document.getElementById('signals-table').innerHTML = `<tr><td colspan="7" class="text-danger text-center py-4">Failed to load signal data.</td></tr>`;
                 }
             };
 
-            fetchData();
+            // Initial data fetch on page load
+            fetchDashboardStats();
+            fetchTableData();
         });
     </script>
 </body>

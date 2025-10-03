@@ -667,6 +667,52 @@ app.get('/api/users/stats', async (req, res) => {
   }
 });
 
+// NEW: API route for detailed admin dashboard statistics
+app.get('/api/dashboard-stats', async (req, res) => {
+  try {
+    // Query 1: Get active users per package
+    const activeUsersPerPackageQuery = await pool.query(`
+      SELECT plan_name, COUNT(*) AS active_users
+      FROM users
+      WHERE subscription_status = 'active'
+      GROUP BY plan_name;
+    `);
+    const activeUsersPerPackage = activeUsersPerPackageQuery.rows;
+
+    // Query 2: Get user acquisition channels
+    const userAcquisitionQuery = await pool.query(`
+      SELECT
+        (SELECT COUNT(*) FROM users WHERE registration_source = 'web') AS web_users,
+        (SELECT COUNT(*) FROM users WHERE registration_source = 'bot') AS bot_users,
+        (SELECT COUNT(*) FROM users WHERE referred_by IS NOT NULL) AS referred_users;
+    `);
+    const userAcquisition = userAcquisitionQuery.rows[0];
+
+    // Query 3: Get total active users
+    const totalActiveUsersQuery = await pool.query(`
+      SELECT COUNT(*) AS total_active_users
+      FROM users
+      WHERE subscription_status = 'active';
+    `);
+    const totalActiveUsers = parseInt(totalActiveUsersQuery.rows[0].total_active_users, 10);
+
+    // Combine all stats into a single JSON response
+    res.status(200).json({
+      activeUsersPerPackage,
+      userAcquisition: {
+        web: parseInt(userAcquisition.web_users, 10),
+        bot: parseInt(userAcquisition.bot_users, 10),
+        referred: parseInt(userAcquisition.referred_users, 10)
+      },
+      totalActiveUsers
+    });
+
+  } catch (err) {
+    console.error('Error fetching dashboard stats:', err);
+    res.status(500).json({ message: 'Server error while fetching dashboard stats.' });
+  }
+});
+
 
 // =================================================================
 // --- START: Fiat Payment API Routes (Placeholder) ---
