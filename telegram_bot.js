@@ -34,6 +34,9 @@ const setupWebhook = async () => {
         const commands = [
             { command: 'start', description: 'Restart the Bot' },
             { command: 'getsignals', description: 'Get Signals' },
+            { command: 'myreferral', description: 'Get your referral link' },
+            { command: 'setreferral', description: 'Set your custom referral name' },
+            { command: 'referralstats', description: 'Check your referral stats' },
             { command: 'faq', description: 'View FAQ' },
             { command: 'support', description: 'Contact Support' }
         ];
@@ -54,6 +57,7 @@ const mainMenuOptions = {
         inline_keyboard: [
             [{ text: 'Join VIP', callback_data: 'join_vip' }, { text: 'Pricing', callback_data: 'pricing' }],
             [{ text: 'Recent Signals', callback_data: 'recent_signals' }, { text: 'Signal Stats', callback_data: 'signal_stats' }],
+            [{ text: 'Refer & Earn', callback_data: 'refer_earn' }],
             [{ text: 'Get Signals Now', callback_data: 'get_signals_now' }]
         ]
     }
@@ -82,12 +86,18 @@ Please choose from the options below to get started
 
 // --- Bot Command Handlers ---
 
-bot.onText(/\/start/, (msg) => {
+bot.onText(/\/start(?: (.+))?/, (msg, match) => {
     const chatId = msg.chat.id;
+    const referralCode = match[1]; // This will capture the referral code from /start [referral_code]
+
     // Clear any previous registration state for this user
-    if (userRegistrationState[chatId]) {
-        delete userRegistrationState[chatId];
+    userRegistrationState[chatId] = {}; // Reset the state object
+
+    if (referralCode) {
+        userRegistrationState[chatId].referralCode = referralCode;
+        bot.sendMessage(chatId, `Welcome! You've been referred by ${referralCode}.`);
     }
+
     bot.sendMessage(chatId, introMessage, mainMenuOptions);
 });
 
@@ -96,6 +106,24 @@ bot.onText(/\/getsignals/, (msg) => {
     // This function shows the subscription plans, starting the registration flow.
     showSubscriptionPlans(chatId, 'Choose your plan to continue');
 });
+
+// --- REFERRAL COMMANDS ---
+bot.onText(/\/setreferral/, (msg) => {
+    const chatId = msg.chat.id;
+    userRegistrationState[chatId] = { stage: 'awaiting_referral_code' };
+    bot.sendMessage(chatId, "Please enter your desired referral username. It can only contain letters and numbers (e.g., kingslayer21).");
+});
+
+bot.onText(/\/myreferral/, (msg) => {
+    const chatId = msg.chat.id;
+    handleReferralInfo(chatId, msg.from.username, 'link');
+});
+
+bot.onText(/\/referralstats/, (msg) => {
+    const chatId = msg.chat.id;
+    handleReferralInfo(chatId, msg.from.username, 'stats');
+});
+// --- END REFERRAL COMMANDS ---
 
 bot.onText(/\/faq/, (msg) => {
     const chatId = msg.chat.id;
@@ -177,6 +205,46 @@ Most traded Pair: ${stats.mostTradedPair}
     }
 };
 
+const handleReferralInfo = async (chatId, telegramUsername, type) => {
+    if (!telegramUsername) {
+        return bot.sendMessage(chatId, "Please set a username in your Telegram settings to use the referral system.");
+    }
+
+    try {
+        const response = await fetch(`${serverUrl}/api/users/referral-stats/${telegramUsername}`);
+        if (response.status === 404) {
+             return bot.sendMessage(chatId, "It looks like you're not registered yet. Please sign up for a plan to activate your referral features!");
+        }
+        if (!response.ok) {
+            throw new Error('Failed to fetch referral data from the server.');
+        }
+
+        const stats = await response.json();
+
+        if (type === 'link' || (type === 'stats' && !stats.referralLink)) {
+            if (stats.referralLink) {
+                bot.sendMessage(chatId, `Here is your personal referral link:\n\n${stats.referralLink}`);
+            } else {
+                bot.sendMessage(chatId, "You haven't set your custom referral name yet. Use the /setreferral command to create your unique link!");
+            }
+        }
+        
+        if (type === 'stats') {
+             const statsMessage = `
+📈 *Your Referral Stats*
+
+👥 *Total Referrals:* ${stats.totalReferrals}
+💰 *Total Earnings:* $${parseFloat(stats.totalEarnings || 0).toFixed(2)}
+            `;
+            bot.sendMessage(chatId, statsMessage, { parse_mode: 'Markdown' });
+        }
+    } catch (error) {
+        console.error('Error fetching referral info:', error);
+        bot.sendMessage(chatId, "Sorry, I couldn't retrieve your referral information right now. Please try again later.");
+    }
+};
+
+
 const createLinkMenu = (chatId, text, url) => {
     const opts = {
         reply_markup: {
@@ -202,6 +270,38 @@ bot.on('message', async (msg) => {
 
     try {
         switch (state.stage) {
+            case 'awaiting_referral_code':
+                const referralCode = msg.text.trim();
+                const telegramHandle = msg.from.username ? `@${msg.from.username}` : null;
+
+                if (!telegramHandle) {
+                    bot.sendMessage(chatId, "You must have a public Telegram username to set a referral code. Please set one in your Telegram settings and try again.");
+                    delete userRegistrationState[chatId];
+                    return;
+                }
+
+                if (!/^[a-zA-Z0-9]+$/.test(referralCode)) {
+                    bot.sendMessage(chatId, "Invalid format. Your referral name can only contain letters and numbers. Please try another name.");
+                    return;
+                }
+
+                const response = await fetch(`${serverUrl}/api/users/set-referral-code`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ telegram_handle: telegramHandle, referral_code: referralCode })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    bot.sendMessage(chatId, `✅ Success! Your new referral link is:\n\n${serverUrl}/@${data.referral_code}`);
+                } else {
+                    bot.sendMessage(chatId, `⚠️ ${data.message}`);
+                }
+                
+                delete userRegistrationState[chatId];
+                break;
+            
             case 'awaiting_whatsapp':
                 if (!/^\+?\d{10,}$/.test(msg.text)) {
                     bot.sendMessage(chatId, "That doesn't look right. Please enter a valid WhatsApp number, including the country code (e.g., +1234567890).");
@@ -212,7 +312,7 @@ bot.on('message', async (msg) => {
                 state.stage = 'awaiting_payment';
                 bot.sendMessage(chatId, "Thank you! Generating your unique payment address... please wait.");
 
-                const response = await fetch(`${serverUrl}/api/payments/create-from-bot`, {
+                const paymentResponse = await fetch(`${serverUrl}/api/payments/create-from-bot`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -220,14 +320,15 @@ bot.on('message', async (msg) => {
                         chat_id: chatId,
                         plan_id: state.planId,
                         pay_currency: state.network,
-                        whatsapp_number: state.whatsapp
+                        whatsapp_number: state.whatsapp,
+                        referral_code: state.referralCode // Pass the referral code if it exists
                     }),
                 });
                 
                 // --- NEW LOGIC START ---
                 // Handle the case where the user already has an active subscription for this plan.
-                if (response.status === 409) { // 409 Conflict status
-                    const errorData = await response.json();
+                if (paymentResponse.status === 409) { // 409 Conflict status
+                    const errorData = await paymentResponse.json();
                     // Inform the user they already have the plan and offer next steps.
                     bot.sendMessage(chatId, `⚠️ ${errorData.message}`, {
                          reply_markup: {
@@ -243,12 +344,12 @@ bot.on('message', async (msg) => {
                 }
                 // --- NEW LOGIC END ---
 
-                if (!response.ok) {
-                    const errorData = await response.json().catch(() => ({ message: "An unexpected server error occurred." }));
+                if (!paymentResponse.ok) {
+                    const errorData = await paymentResponse.json().catch(() => ({ message: "An unexpected server error occurred." }));
                     throw new Error(errorData.message || 'Please try again later.');
                 }
 
-                const paymentData = await response.json();
+                const paymentData = await paymentResponse.json();
                 state.orderId = paymentData.order_id;
                 
                 const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${paymentData.pay_address}&size=200x200`;
@@ -336,6 +437,8 @@ bot.on('callback_query', async (callbackQuery) => {
         }
         if (data === 'recent_signals') return createLinkMenu(chatId, 'Click the button below to see our recent signals and full performance history.', `${serverUrl}/performance`);
         if (data === 'signal_stats') return handleSignalStats(chatId);
+        if (data === 'refer_earn') return handleReferralInfo(chatId, telegramUser.username, 'link');
+        
         if (data === 'main_menu') {
             if (userRegistrationState[chatId]) delete userRegistrationState[chatId];
             return bot.sendMessage(chatId, introMessage, mainMenuOptions);
@@ -344,7 +447,10 @@ bot.on('callback_query', async (callbackQuery) => {
         if (data.startsWith('select_plan_')) {
             const planId = parseInt(data.split('_')[2], 10);
             const telegramHandle = telegramUser.username ? `@${telegramUser.username}` : `user_${telegramUser.id}`;
-            userRegistrationState[chatId] = { planId, telegramHandle, stage: 'awaiting_payment_method' };
+            // Preserve referral code if it exists
+            const existingState = userRegistrationState[chatId] || {};
+            userRegistrationState[chatId] = { ...existingState, planId, telegramHandle, stage: 'awaiting_payment_method' };
+
             const paymentKeyboard = {
                 reply_markup: {
                     inline_keyboard: [

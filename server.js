@@ -52,6 +52,80 @@ async function connectToDatabase() {
 // Call the function to test the database connection on server start
 connectToDatabase();
 
+// =============================================================================
+// --- REFERRAL SYSTEM ROUTES ---
+// =============================================================================
+
+// Route to handle vanity referral URLs like /@username
+app.get('/@:referralCode', (req, res) => {
+    const { referralCode } = req.params;
+    // Redirect to the registration/join page with the referral code as a query parameter
+    res.redirect(`/join?ref=${referralCode}`);
+});
+
+
+// API route for a user to set their custom referral code
+app.post('/api/users/set-referral-code', async (req, res) => {
+    const { telegram_handle, referral_code } = req.body;
+
+    if (!telegram_handle || !referral_code) {
+        return res.status(400).json({ message: 'Telegram handle and referral code are required.' });
+    }
+
+    // Validate that the code contains only letters and numbers
+    if (!/^[a-zA-Z0-9]+$/.test(referral_code)) {
+        return res.status(400).json({ message: 'Referral code can only contain letters and numbers.' });
+    }
+
+    try {
+        // Check if the user exists
+        const userResult = await pool.query('SELECT id FROM users WHERE telegram_handle = $1', [telegram_handle]);
+        if (userResult.rows.length === 0) {
+            return res.status(404).json({ message: 'User not found.' });
+        }
+        const userId = userResult.rows[0].id;
+
+        // Attempt to update the user's referral code
+        await pool.query('UPDATE users SET referral_code = $1 WHERE id = $2', [referral_code, userId]);
+
+        res.status(200).json({ message: 'Referral code set successfully!', referral_code });
+    } catch (err) {
+        // Check for the unique constraint violation
+        if (err.code === '23505' && err.constraint === 'users_referral_code_key') {
+            return res.status(409).json({ message: 'This referral name is already taken. Please choose another one.' });
+        }
+        console.error('Error setting referral code:', err);
+        res.status(500).json({ message: 'Server error.' });
+    }
+});
+
+
+// API route to get a user's referral statistics
+app.get('/api/users/referral-stats/:telegram_handle', async (req, res) => {
+    const { telegram_handle } = req.params;
+
+    try {
+        const userResult = await pool.query('SELECT id, total_referral_earnings, referral_code FROM users WHERE telegram_handle = $1', ['@' + telegram_handle]);
+        if (userResult.rows.length === 0) {
+            return res.status(404).json({ message: 'User not found.' });
+        }
+        const user = userResult.rows[0];
+
+        const referralsCountResult = await pool.query('SELECT COUNT(*) FROM referrals WHERE referrer_id = $1', [user.id]);
+        const totalReferrals = parseInt(referralsCountResult.rows[0].count, 10);
+
+        res.status(200).json({
+            totalReferrals,
+            totalEarnings: user.total_referral_earnings,
+            referralLink: user.referral_code ? `${process.env.APP_BASE_URL}/@${user.referral_code}` : null
+        });
+    } catch (err) {
+        console.error('Error fetching referral stats:', err);
+        res.status(500).json({ message: 'Server error.' });
+    }
+});
+
+
 // API Routes for Blogs Management
 // Based on the 'blogposts' table from your SQL dump.
 // The columns are: id, title, teaser, content, author, published_date, status, featured_image_url
@@ -555,10 +629,23 @@ app.post('/api/payments/fiat/create', async (req, res) => {
 // --- START: UNIFIED PAYMENT FLOW (WEB + TELEGRAM BOT) ---
 // =================================================================
 
+// Helper function to find referrer ID
+async function getReferrerId(referralCode) {
+    if (!referralCode) {
+        return null;
+    }
+    const referrerResult = await pool.query('SELECT id FROM users WHERE referral_code = $1', [referralCode]);
+    if (referrerResult.rows.length > 0) {
+        return referrerResult.rows[0].id;
+    }
+    return null;
+}
+
+
 // === Flow 1: User starts payment from the Website ===
 app.post('/api/payments/create-from-web', async (req, res) => {
     try {
-        const { fullname, email, telegram, planName, pay_currency, whatsapp_number } = req.body;
+        const { fullname, email, telegram, planName, pay_currency, whatsapp_number, referral_code } = req.body;
         
         if (!pay_currency || !fullname || !email || !telegram || !whatsapp_number || !planName) {
             return res.status(400).json({ message: 'Missing required fields for payment.' });
@@ -577,6 +664,7 @@ app.post('/api/payments/create-from-web', async (req, res) => {
         }
         
         const order_id = `nexxtrade-web-${telegram.replace('@', '')}-${Date.now()}`;
+        const referrerId = await getReferrerId(referral_code);
         
         // --- LOGIC TO HANDLE EMAIL UNIQUENESS ---
         const existingUserPlanQuery = await pool.query(
@@ -600,8 +688,8 @@ app.post('/api/payments/create-from-web', async (req, res) => {
             }
 
             await pool.query(
-                `UPDATE users SET full_name = $1, email = $2, whatsapp_number = $3, order_id = $4, subscription_status = 'pending', last_payment_attempt = NOW(), payment_attempts = payment_attempts + 1, registration_source = 'web' WHERE id = $5`,
-                [fullname, emailForDb, whatsapp_number, order_id, userRecord.id]
+                `UPDATE users SET full_name = $1, email = $2, whatsapp_number = $3, order_id = $4, subscription_status = 'pending', last_payment_attempt = NOW(), payment_attempts = payment_attempts + 1, registration_source = 'web', referred_by = $5 WHERE id = $6`,
+                [fullname, emailForDb, whatsapp_number, order_id, referrerId, userRecord.id]
             );
         } else {
             // New user registration for this plan. Check if the email is taken by anyone.
@@ -614,9 +702,9 @@ app.post('/api/payments/create-from-web', async (req, res) => {
             
             const registrationDate = new Date().toISOString().split('T')[0];
             await pool.query(
-                `INSERT INTO users (full_name, email, telegram_handle, plan_name, subscription_status, registration_date, order_id, payment_attempts, last_payment_attempt, registration_source, whatsapp_number)
-                 VALUES ($1, $2, $3, $4, 'pending', $5, $6, 1, NOW(), 'web', $7)`,
-                [fullname, emailForDb, telegram, planName, registrationDate, order_id, whatsapp_number]
+                `INSERT INTO users (full_name, email, telegram_handle, plan_name, subscription_status, registration_date, order_id, payment_attempts, last_payment_attempt, registration_source, whatsapp_number, referred_by)
+                 VALUES ($1, $2, $3, $4, 'pending', $5, $6, 1, NOW(), 'web', $7, $8)`,
+                [fullname, emailForDb, telegram, planName, registrationDate, order_id, whatsapp_number, referrerId]
             );
         }
 
@@ -655,7 +743,7 @@ app.post('/api/payments/create-from-web', async (req, res) => {
 // === Flow 2: User starts payment from the Telegram Bot ===
 app.post('/api/payments/create-from-bot', async (req, res) => {
     try {
-        const { telegram_handle, chat_id, plan_id, pay_currency, whatsapp_number } = req.body;
+        const { telegram_handle, chat_id, plan_id, pay_currency, whatsapp_number, referral_code } = req.body;
         if (!telegram_handle || !chat_id || !plan_id || !pay_currency || !whatsapp_number) {
             return res.status(400).json({ message: 'Missing required fields from bot.' });
         }
@@ -673,7 +761,8 @@ app.post('/api/payments/create-from-bot', async (req, res) => {
         }
 
         const order_id = `nexxtrade-bot-${telegram_handle.replace('@', '')}-${Date.now()}`;
-        
+        const referrerId = await getReferrerId(referral_code);
+
         const existingUserPlan = await pool.query(
             'SELECT * FROM users WHERE telegram_handle = $1 AND plan_name = $2',
             [telegram_handle, plan.plan_name]
@@ -685,8 +774,8 @@ app.post('/api/payments/create-from-bot', async (req, res) => {
                 return res.status(409).json({ message: `You already have an active subscription for the ${plan.plan_name} plan.` });
             }
             await pool.query(
-                `UPDATE users SET whatsapp_number = $1, order_id = $2, subscription_status = 'pending', last_payment_attempt = NOW(), payment_attempts = payment_attempts + 1, telegram_chat_id = $3, registration_source = 'bot' WHERE id = $4`,
-                [whatsapp_number, order_id, chat_id, userRecord.id]
+                `UPDATE users SET whatsapp_number = $1, order_id = $2, subscription_status = 'pending', last_payment_attempt = NOW(), payment_attempts = payment_attempts + 1, telegram_chat_id = $3, registration_source = 'bot', referred_by = $4 WHERE id = $5`,
+                [whatsapp_number, order_id, chat_id, referrerId, userRecord.id]
             );
         } else {
             const temp_fullname = `User ${telegram_handle}`;
@@ -703,9 +792,9 @@ app.post('/api/payments/create-from-bot', async (req, res) => {
 
             const registrationDate = new Date().toISOString().split('T')[0];
             await pool.query(
-                `INSERT INTO users (full_name, email, telegram_handle, plan_name, subscription_status, registration_date, order_id, payment_attempts, last_payment_attempt, telegram_chat_id, registration_source, whatsapp_number)
-                 VALUES ($1, $2, $3, $4, 'pending', $5, $6, 1, NOW(), $7, 'bot', $8)`,
-                [temp_fullname, temp_email, telegram_handle, plan.plan_name, registrationDate, order_id, chat_id, whatsapp_number]
+                `INSERT INTO users (full_name, email, telegram_handle, plan_name, subscription_status, registration_date, order_id, payment_attempts, last_payment_attempt, telegram_chat_id, registration_source, whatsapp_number, referred_by)
+                 VALUES ($1, $2, $3, $4, 'pending', $5, $6, 1, NOW(), $7, 'bot', $8, $9)`,
+                [temp_fullname, temp_email, telegram_handle, plan.plan_name, registrationDate, order_id, chat_id, whatsapp_number, referrerId]
             );
         }
 
@@ -758,7 +847,7 @@ app.post('/api/payments/nowpayments/webhook', async (req, res) => {
             return res.status(401).send('Invalid HMAC signature');
         }
         
-        const { order_id, payment_status } = ipnData;
+        const { order_id, payment_status, price_amount } = ipnData;
         
         // Only process finished/confirmed payments
         if (['finished', 'confirmed'].includes(payment_status)) {
@@ -782,22 +871,52 @@ app.post('/api/payments/nowpayments/webhook', async (req, res) => {
                     `UPDATE users SET subscription_status = 'active', subscription_expiration = $1 WHERE id = $2`,
                     [newExpiration.toISOString().split('T')[0], user.id]
                 );
+                
+                // --- START: REFERRAL COMMISSION LOGIC ---
+                if (user.referred_by) {
+                    const commissionAmount = parseFloat(price_amount) * 0.10; // Calculate 10% commission
+                    
+                    // Use a transaction to ensure both operations succeed or fail together
+                    const client = await pool.connect();
+                    try {
+                        await client.query('BEGIN');
+                        // Log the referral transaction
+                        await client.query(
+                            'INSERT INTO referrals (referrer_id, referred_user_id, commission_amount) VALUES ($1, $2, $3)',
+                            [user.referred_by, user.id, commissionAmount]
+                        );
+                        // Update the referrer's total earnings
+                        await client.query(
+                            'UPDATE users SET total_referral_earnings = total_referral_earnings + $1 WHERE id = $2',
+                            [commissionAmount, user.referred_by]
+                        );
+                        await client.query('COMMIT');
+                        console.log(`Successfully awarded $${commissionAmount} commission to user ID ${user.referred_by} for referring user ID ${user.id}.`);
+                    } catch (e) {
+                        await client.query('ROLLBACK');
+                        console.error('Failed to process referral commission:', e);
+                    } finally {
+                        client.release();
+                    }
+                }
+                // --- END: REFERRAL COMMISSION LOGIC ---
+
 
                 // === DELIVERY LOGIC ===
                 // Check the user's registration source to determine how to deliver the invite link.
                if (user.registration_source === 'bot' && user.telegram_chat_id) {
-    // Immediately start registration flow in bot’s memory
-    userRegistrationState[user.telegram_chat_id] = {
-        orderId: user.order_id,
-        planId: null,            // not needed anymore
-        telegramHandle: user.telegram_handle,
-        stage: 'awaiting_full_name'
-    };
+                    // Immediately start registration flow in bot’s memory
+                    userRegistrationState[user.telegram_chat_id] = {
+                        orderId: user.order_id,
+                        planId: null,            // not needed anymore
+                        telegramHandle: user.telegram_handle,
+                        stage: 'awaiting_full_name'
+                    };
 
-    await bot.sendMessage(
-      user.telegram_chat_id,
-      `✅ Payment confirmed! To complete your registration, please provide your full name.`
-    );
+                    await bot.sendMessage(
+                      user.telegram_chat_id,
+                      `✅ Payment confirmed! To complete your registration, please provide your full name.`
+                    );
                 } else {
                     // Flow 1 Delivery: User is waiting on the website.
                     // Generate the link and store it in the database for the frontend to poll.
@@ -962,6 +1081,15 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.get('/*', (req, res) => {
     // This will catch all routes and redirect to the correct html file.
     const route = req.path.split('/')[1] || '';
+
+    // If the route starts with @, it's a referral link, which is handled above.
+    // We can add a check here just in case, but the specific route handler should catch it first.
+    if (route.startsWith('@')) {
+        // The /@:referralCode route handler will manage this
+        return;
+    }
+
+
     switch(route) {
         case 'join':
             res.sendFile(path.join(__dirname, 'public', 'registration.html'));
@@ -998,4 +1126,3 @@ app.listen(port, async () => {
   console.log(`Server is running on http://localhost:${port}`);
   await setupWebhook();
 });
-
