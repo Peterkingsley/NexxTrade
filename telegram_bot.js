@@ -22,6 +22,8 @@ const bot = new TelegramBot(token, { polling: false });
 // In a production environment, this should be replaced with a database or a persistent cache like Redis.
 const userRegistrationState = {};
 
+// NEW: Variable to store the bot's username
+let botUsername = '';
 
 // This function sets up the webhook on Telegram's side and registers the commands.
 const setupWebhook = async () => {
@@ -29,6 +31,12 @@ const setupWebhook = async () => {
         const webhookUrl = `${serverUrl}/bot${token}`;
         await bot.setWebHook(webhookUrl);
         console.log(`Webhook set to: ${webhookUrl}`);
+
+        // NEW: Get bot's info to build referral links correctly
+        const me = await bot.getMe();
+        botUsername = me.username;
+        console.log(`Bot username is @${botUsername}`);
+
 
         // Define the list of commands to be displayed in the menu
         const commands = [
@@ -220,10 +228,24 @@ const handleReferralInfo = async (chatId, telegramUsername, type) => {
         }
 
         const stats = await response.json();
+        const referralCode = stats.referralCode;
 
-        if (type === 'link' || (type === 'stats' && !stats.referralLink)) {
-            if (stats.referralLink) {
-                bot.sendMessage(chatId, `Here is your personal referral link:\n\n${stats.referralLink}`);
+        if (type === 'link') {
+            if (referralCode) {
+                const websiteLink = `${serverUrl}/@${referralCode}`;
+                const botLink = `https://t.me/${botUsername}?start=${referralCode}`;
+                const message = `
+🔗 *Your Personal Referral Links*
+
+*For Website Sign-ups:*
+Share this link for users who prefer to register on the website.
+\`${websiteLink}\`
+
+*For Direct Bot Sign-ups:*
+Share this link to bring users directly to this Telegram bot.
+\`${botLink}\`
+                `;
+                bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
             } else {
                 bot.sendMessage(chatId, "You haven't set your custom referral name yet. Use the /setreferral command to create your unique link!");
             }
@@ -237,6 +259,11 @@ const handleReferralInfo = async (chatId, telegramUsername, type) => {
 💰 *Total Earnings:* $${parseFloat(stats.totalEarnings || 0).toFixed(2)}
             `;
             bot.sendMessage(chatId, statsMessage, { parse_mode: 'Markdown' });
+
+            // Also show the links if they haven't set one yet.
+            if (!referralCode) {
+                 bot.sendMessage(chatId, "You haven't set your custom referral name yet. Use the /setreferral command to create your unique link!");
+            }
         }
     } catch (error) {
         console.error('Error fetching referral info:', error);
@@ -294,7 +321,18 @@ bot.on('message', async (msg) => {
                 const data = await response.json();
 
                 if (response.ok) {
-                    bot.sendMessage(chatId, `✅ Success! Your new referral link is:\n\n${serverUrl}/@${data.referral_code}`);
+                    const websiteLink = `${serverUrl}/@${data.referral_code}`;
+                    const botLink = `https://t.me/${botUsername}?start=${data.referral_code}`;
+                    const message = `
+✅ Success! Your new referral links are ready:
+
+*For Website Sign-ups:*
+\`${websiteLink}\`
+
+*For Direct Bot Sign-ups:*
+\`${botLink}\`
+                    `;
+                    bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
                 } else {
                     bot.sendMessage(chatId, `⚠️ ${data.message}`);
                 }
@@ -533,3 +571,4 @@ module.exports = {
     setupWebhook,
     userRegistrationState
 };
+
