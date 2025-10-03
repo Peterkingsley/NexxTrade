@@ -249,11 +249,14 @@
                 hiddenInputFiat.value = referralCode;
                 fiatCheckoutForm.appendChild(hiddenInputFiat);
 
-                // Optional: Display a message to the user
+                // Display a message to the user
                 const refMessage = document.createElement('p');
-                refMessage.className = 'text-center text-sm text-accent -mt-4 mb-4';
+                refMessage.className = 'text-center text-sm text-accent'; // Use neutral classes
                 refMessage.textContent = `Referred by: ${referralCode}`;
-                methodSelectionContainer.querySelector('.text-center').appendChild(refMessage);
+
+                // Insert the message after the header, but before the message box
+                const headingDiv = methodSelectionContainer.querySelector('.text-center');
+                headingDiv.insertAdjacentElement('afterend', refMessage);
             }
         }
 
@@ -556,3 +559,4 @@
   </script>
 </body>
 </html>
+
