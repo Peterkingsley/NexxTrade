@@ -279,7 +279,16 @@ Share this link for users who prefer to register on the website.
 Share this link to bring users directly to this Telegram bot.
 \`${botLink}\`
                 `;
-                bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+                const opts = {
+                    parse_mode: 'Markdown',
+                    reply_markup: {
+                        inline_keyboard: [
+                            [{ text: '📈 View Stats', callback_data: 'referral_stats' }],
+                            [{ text: '⬅️ Back to Main Menu', callback_data: 'main_menu' }]
+                        ]
+                    }
+                };
+                bot.sendMessage(chatId, message, opts);
             } else {
                 bot.sendMessage(chatId, "You haven't set your custom referral name yet. Use the /setreferral command to create your unique link!");
             }
@@ -293,10 +302,17 @@ Share this link to bring users directly to this Telegram bot.
 💰 *Total Lifetime Earnings:* $${parseFloat(stats.totalEarnings || 0).toFixed(2)}
 💸 *Total Paid Out:* $${parseFloat(stats.totalPayouts || 0).toFixed(2)}
 🏦 *Available Balance:* $${parseFloat(stats.availableBalance || 0).toFixed(2)}
-
-To withdraw your available balance, use the \`/requestpayout\` command.
             `;
-            bot.sendMessage(chatId, statsMessage, { parse_mode: 'Markdown' });
+            const opts = {
+                parse_mode: 'Markdown',
+                reply_markup: {
+                    inline_keyboard: [
+                        [{ text: '💰 Request Payout', callback_data: 'request_payout' }],
+                        [{ text: '⬅️ Back to Main Menu', callback_data: 'main_menu' }]
+                    ]
+                }
+            };
+            bot.sendMessage(chatId, statsMessage, opts);
 
             if (!referralCode) {
                  bot.sendMessage(chatId, "You haven't set your custom referral name yet. Use the /setreferral command to create your unique link!");
@@ -553,7 +569,43 @@ bot.on('callback_query', async (callbackQuery) => {
         }
         if (data === 'recent_signals') return createLinkMenu(chatId, 'Click the button below to see our recent signals and full performance history.', `${serverUrl}/performance`);
         if (data === 'signal_stats') return handleSignalStats(chatId);
-        if (data === 'refer_earn') return handleReferralInfo(chatId, telegramUser.username, 'link');
+        
+        if (data === 'refer_earn') {
+            return handleReferralInfo(chatId, telegramUser.username, 'link');
+        }
+
+        if (data === 'referral_stats') {
+            return handleReferralInfo(chatId, telegramUser.username, 'stats');
+        }
+
+        if (data === 'request_payout') {
+            const telegramUsername = telegramUser.username;
+            if (!telegramUsername) {
+                return bot.sendMessage(chatId, "Please set a username in your Telegram settings to use the referral system.");
+            }
+            try {
+                const response = await fetch(`${serverUrl}/api/users/referral-stats/${telegramUsername}`);
+                if (!response.ok) {
+                    throw new Error('Could not fetch your balance.');
+                }
+                const stats = await response.json();
+                const availableBalance = parseFloat(stats.availableBalance || 0);
+
+                if (availableBalance <= 0) {
+                    return bot.sendMessage(chatId, "You do not have any available earnings to withdraw at this time.");
+                }
+
+                userRegistrationState[chatId] = { 
+                    stage: 'awaiting_payout_amount',
+                    balance: availableBalance
+                };
+
+                return bot.sendMessage(chatId, `Your available balance is *$${availableBalance.toFixed(2)}*.\n\nPlease enter the amount you would like to withdraw.`, { parse_mode: 'Markdown' });
+            } catch (error) {
+                console.error('Error initiating payout from callback:', error);
+                return bot.sendMessage(chatId, "Sorry, I couldn't retrieve your balance to start the payout process. Please try again later.");
+            }
+        }
         
         if (data === 'main_menu') {
             if (userRegistrationState[chatId]) delete userRegistrationState[chatId];
@@ -649,3 +701,4 @@ module.exports = {
     setupWebhook,
     userRegistrationState
 };
+
