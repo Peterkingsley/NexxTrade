@@ -45,6 +45,7 @@ const setupWebhook = async () => {
             { command: 'myreferral', description: 'Get your referral link' },
             { command: 'setreferral', description: 'Set your custom referral name' },
             { command: 'referralstats', description: 'Check your referral stats' },
+            { command: 'requestpayout', description: 'Request a payout of your earnings' },
             { command: 'faq', description: 'View FAQ' },
             { command: 'support', description: 'Contact Support' }
         ];
@@ -130,6 +131,39 @@ bot.onText(/\/myreferral/, (msg) => {
 bot.onText(/\/referralstats/, (msg) => {
     const chatId = msg.chat.id;
     handleReferralInfo(chatId, msg.from.username, 'stats');
+});
+
+bot.onText(/\/requestpayout/, async (msg) => {
+    const chatId = msg.chat.id;
+    const telegramUsername = msg.from.username;
+
+    if (!telegramUsername) {
+        return bot.sendMessage(chatId, "Please set a username in your Telegram settings to use the referral system.");
+    }
+    
+    try {
+        const response = await fetch(`${serverUrl}/api/users/referral-stats/${telegramUsername}`);
+        if (!response.ok) {
+            throw new Error('Could not fetch your balance.');
+        }
+        const stats = await response.json();
+        const availableBalance = parseFloat(stats.availableBalance || 0);
+
+        if (availableBalance <= 0) {
+            return bot.sendMessage(chatId, "You do not have any available earnings to withdraw at this time.");
+        }
+
+        userRegistrationState[chatId] = { 
+            stage: 'awaiting_payout_amount',
+            balance: availableBalance
+        };
+
+        bot.sendMessage(chatId, `Your available balance is *$${availableBalance.toFixed(2)}*.\n\nPlease enter the amount you would like to withdraw.`, { parse_mode: 'Markdown' });
+
+    } catch (error) {
+        console.error('Error initiating payout:', error);
+        bot.sendMessage(chatId, "Sorry, I couldn't retrieve your balance to start the payout process. Please try again later.");
+    }
 });
 // --- END REFERRAL COMMANDS ---
 
@@ -256,11 +290,14 @@ Share this link to bring users directly to this Telegram bot.
 📈 *Your Referral Stats*
 
 👥 *Total Referrals:* ${stats.totalReferrals}
-💰 *Total Earnings:* $${parseFloat(stats.totalEarnings || 0).toFixed(2)}
+💰 *Total Lifetime Earnings:* $${parseFloat(stats.totalEarnings || 0).toFixed(2)}
+💸 *Total Paid Out:* $${parseFloat(stats.totalPayouts || 0).toFixed(2)}
+🏦 *Available Balance:* $${parseFloat(stats.availableBalance || 0).toFixed(2)}
+
+To withdraw your available balance, use the \`/requestpayout\` command.
             `;
             bot.sendMessage(chatId, statsMessage, { parse_mode: 'Markdown' });
 
-            // Also show the links if they haven't set one yet.
             if (!referralCode) {
                  bot.sendMessage(chatId, "You haven't set your custom referral name yet. Use the /setreferral command to create your unique link!");
             }
@@ -340,6 +377,52 @@ bot.on('message', async (msg) => {
                 delete userRegistrationState[chatId];
                 break;
             
+            case 'awaiting_payout_amount':
+                const amount = parseFloat(msg.text);
+                if (isNaN(amount) || amount <= 0) {
+                    bot.sendMessage(chatId, "Please enter a valid positive number for the amount.");
+                    return;
+                }
+                if (amount > state.balance) {
+                    bot.sendMessage(chatId, `The amount you entered exceeds your available balance of $${state.balance.toFixed(2)}. Please enter a smaller amount.`);
+                    return;
+                }
+                state.payoutAmount = amount;
+                state.stage = 'awaiting_payout_address';
+                bot.sendMessage(chatId, `You are requesting to withdraw *$${amount.toFixed(2)}*.\n\nPlease provide your USDT (TRC-20) wallet address for the payout.`, { parse_mode: 'Markdown' });
+                break;
+            
+            case 'awaiting_payout_address':
+                const address = msg.text.trim();
+                // Basic validation for a TRC20 address (starts with 'T' and is 34 chars long)
+                if (!/^T[A-Za-z1-9]{33}$/.test(address)) {
+                    bot.sendMessage(chatId, "That does not appear to be a valid USDT (TRC-20) address. Please double-check and send the correct address.");
+                    return;
+                }
+                state.payoutAddress = address;
+                
+                bot.sendMessage(chatId, "Submitting your payout request...");
+
+                const payoutResponse = await fetch(`${serverUrl}/api/users/request-payout`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        telegram_username: msg.from.username,
+                        amount: state.payoutAmount,
+                        payout_address: state.payoutAddress
+                    })
+                });
+
+                if (payoutResponse.ok) {
+                    bot.sendMessage(chatId, "✅ Your payout request has been successfully submitted for review. You will be notified once it has been processed by an admin.");
+                } else {
+                    const error = await payoutResponse.json();
+                    bot.sendMessage(chatId, `⚠️ There was an error submitting your request: ${error.message}`);
+                }
+
+                delete userRegistrationState[chatId];
+                break;
+
             case 'awaiting_whatsapp':
                 if (!/^\+?\d{10,}$/.test(msg.text)) {
                     bot.sendMessage(chatId, "That doesn't look right. Please enter a valid WhatsApp number, including the country code (e.g., +1234567890).");
@@ -363,11 +446,8 @@ bot.on('message', async (msg) => {
                     }),
                 });
                 
-                // --- NEW LOGIC START ---
-                // Handle the case where the user already has an active subscription for this plan.
-                if (paymentResponse.status === 409) { // 409 Conflict status
+                if (paymentResponse.status === 409) { 
                     const errorData = await paymentResponse.json();
-                    // Inform the user they already have the plan and offer next steps.
                     bot.sendMessage(chatId, `⚠️ ${errorData.message}`, {
                          reply_markup: {
                             inline_keyboard: [
@@ -376,11 +456,9 @@ bot.on('message', async (msg) => {
                             ]
                         }
                     });
-                    // Clear the state since this transaction is cancelled.
                     delete userRegistrationState[chatId];
-                    return; // Stop further execution
+                    return;
                 }
-                // --- NEW LOGIC END ---
 
                 if (!paymentResponse.ok) {
                     const errorData = await paymentResponse.json().catch(() => ({ message: "An unexpected server error occurred." }));

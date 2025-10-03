@@ -2,6 +2,23 @@
 // This file sets up a Node.js backend server using Express and a PostgreSQL database.
 // It handles API routes for managing blogs, pricing plans, roles, and performance data.
 
+/*
+ REQUIRED DATABASE CHANGES FOR PAYOUTS:
+ Please run the following SQL command on your database to create the 'payouts' table:
+
+ CREATE TABLE public.payouts (
+    id SERIAL PRIMARY KEY,
+    user_id integer NOT NULL REFERENCES public.users(id),
+    amount numeric NOT NULL,
+    status character varying(20) NOT NULL DEFAULT 'pending',
+    payout_address text NOT NULL,
+    requested_at timestamp with time zone DEFAULT now(),
+    completed_at timestamp with time zone,
+    admin_notes text
+ );
+
+*/
+
 // Import required modules
 const express = require('express');
 const cors = require('cors'); // Import the cors package
@@ -100,28 +117,79 @@ app.post('/api/users/set-referral-code', async (req, res) => {
 });
 
 
-// API route to get a user's referral statistics
-app.get('/api/users/referral-stats/:telegram_handle', async (req, res) => {
-    const { telegram_handle } = req.params;
+// API route to get a user's referral statistics (UPDATED)
+app.get('/api/users/referral-stats/:telegramUsername', async (req, res) => {
+    const { telegramUsername } = req.params;
 
     try {
-        const userResult = await pool.query('SELECT id, total_referral_earnings, referral_code FROM users WHERE telegram_handle = $1', ['@' + telegram_handle]);
+        const userResult = await pool.query('SELECT id, total_referral_earnings, referral_code FROM users WHERE telegram_handle = $1', ['@' + telegramUsername]);
         if (userResult.rows.length === 0) {
             return res.status(404).json({ message: 'User not found.' });
         }
         const user = userResult.rows[0];
+        const userId = user.id;
 
-        const referralsCountResult = await pool.query('SELECT COUNT(*) FROM referrals WHERE referrer_id = $1', [user.id]);
+        // Get total number of successful referrals
+        const referralsCountResult = await pool.query('SELECT COUNT(*) FROM referrals WHERE referrer_id = $1', [userId]);
         const totalReferrals = parseInt(referralsCountResult.rows[0].count, 10);
+        
+        // Get total amount paid out
+        const payoutsResult = await pool.query(
+            "SELECT COALESCE(SUM(amount), 0) as total_payouts FROM payouts WHERE user_id = $1 AND status = 'completed'",
+            [userId]
+        );
+        const totalPayouts = parseFloat(payoutsResult.rows[0].total_payouts);
+        const totalEarnings = parseFloat(user.total_referral_earnings || 0);
+        const availableBalance = totalEarnings - totalPayouts;
 
         res.status(200).json({
             totalReferrals,
-            totalEarnings: user.total_referral_earnings,
-            referralLink: user.referral_code ? `${process.env.APP_BASE_URL}/@${user.referral_code}` : null
+            totalEarnings: totalEarnings.toFixed(2),
+            totalPayouts: totalPayouts.toFixed(2),
+            availableBalance: availableBalance.toFixed(2),
+            referralCode: user.referral_code
         });
     } catch (err) {
         console.error('Error fetching referral stats:', err);
         res.status(500).json({ message: 'Server error.' });
+    }
+});
+
+// NEW: API route to handle a payout request from a user
+app.post('/api/users/request-payout', async (req, res) => {
+    const { telegram_username, amount, payout_address } = req.body;
+
+    if (!telegram_username || !amount || !payout_address) {
+        return res.status(400).json({ message: 'Missing required information for payout request.' });
+    }
+    
+    try {
+        const userResult = await pool.query('SELECT id, total_referral_earnings FROM users WHERE telegram_handle = $1', ['@' + telegram_username]);
+        if (userResult.rows.length === 0) {
+            return res.status(404).json({ message: "User account not found." });
+        }
+        const user = userResult.rows[0];
+        
+        const payoutsResult = await pool.query(
+            "SELECT COALESCE(SUM(amount), 0) as total_payouts FROM payouts WHERE user_id = $1 AND status = 'completed'",
+            [user.id]
+        );
+        const availableBalance = parseFloat(user.total_referral_earnings) - parseFloat(payoutsResult.rows[0].total_payouts);
+
+        if (parseFloat(amount) > availableBalance) {
+            return res.status(400).json({ message: "Requested amount exceeds your available balance." });
+        }
+
+        await pool.query(
+            'INSERT INTO payouts (user_id, amount, payout_address, status) VALUES ($1, $2, $3, $4)',
+            [user.id, amount, payout_address, 'pending']
+        );
+
+        res.status(201).json({ message: 'Payout request submitted successfully.' });
+
+    } catch (err) {
+        console.error('Error creating payout request:', err);
+        res.status(500).json({ message: 'Server error while submitting your request.' });
     }
 });
 
@@ -703,7 +771,7 @@ app.post('/api/payments/create-from-web', async (req, res) => {
             const registrationDate = new Date().toISOString().split('T')[0];
             await pool.query(
                 `INSERT INTO users (full_name, email, telegram_handle, plan_name, subscription_status, registration_date, order_id, payment_attempts, last_payment_attempt, registration_source, whatsapp_number, referred_by)
-                 VALUES ($1, $2, $3, $4, 'pending', $5, $6, 1, NOW(), 'web', $7, $8)`,
+                 VALUES ($1, $2, $3, $4, $5, $6, 1, NOW(), 'web', $7, $8)`,
                 [fullname, emailForDb, telegram, planName, registrationDate, order_id, whatsapp_number, referrerId]
             );
         }
@@ -830,7 +898,7 @@ app.post('/api/payments/create-from-bot', async (req, res) => {
 });
 
 
-// === Confirmation (Webhook): The single source of truth for payment completion ===
+// === Confirmation (Webhook): The single source of truth for payment completion (UPDATED) ===
 app.post('/api/payments/nowpayments/webhook', async (req, res) => {
     const ipnData = req.body;
     const hmac = req.headers['x-nowpayments-sig'];
@@ -856,42 +924,60 @@ app.post('/api/payments/nowpayments/webhook', async (req, res) => {
             if (userResult.rows.length > 0) {
                 const user = userResult.rows[0];
                 
-                // Activate the subscription (set expiration date, status, etc.)
-                // This logic is simplified; you'd have your full subscription extension logic here.
+                // Activate the subscription
                 const planResult = await pool.query('SELECT * FROM pricingplans WHERE plan_name = $1', [user.plan_name]);
                 if (planResult.rows.length === 0) throw new Error('Plan details not found for user.');
                 
                 const plan = planResult.rows[0];
                 const today = new Date();
                 let newExpiration = new Date(today);
-                // Your logic to calculate newExpiration based on plan.term
-                newExpiration.setMonth(newExpiration.getMonth() + 1); // Simplified: Add 1 month
+                
+                if (plan.term.toLowerCase().includes('month')) newExpiration.setMonth(newExpiration.getMonth() + 1);
+                if (plan.term.toLowerCase().includes('quarter')) newExpiration.setMonth(newExpiration.getMonth() + 3);
+                if (plan.term.toLowerCase().includes('year')) newExpiration.setFullYear(newExpiration.getFullYear() + 1);
+                if (plan.term.toLowerCase().includes('bi-annually')) newExpiration.setMonth(newExpiration.getMonth() + 6);
+
 
                 await pool.query(
                     `UPDATE users SET subscription_status = 'active', subscription_expiration = $1 WHERE id = $2`,
                     [newExpiration.toISOString().split('T')[0], user.id]
                 );
                 
-                // --- START: REFERRAL COMMISSION LOGIC ---
+                // --- START: REFERRAL COMMISSION & NOTIFICATION LOGIC ---
                 if (user.referred_by) {
                     const commissionAmount = parseFloat(price_amount) * 0.10; // Calculate 10% commission
+                    const referrerId = user.referred_by;
                     
-                    // Use a transaction to ensure both operations succeed or fail together
                     const client = await pool.connect();
                     try {
                         await client.query('BEGIN');
                         // Log the referral transaction
                         await client.query(
                             'INSERT INTO referrals (referrer_id, referred_user_id, commission_amount) VALUES ($1, $2, $3)',
-                            [user.referred_by, user.id, commissionAmount]
+                            [referrerId, user.id, commissionAmount]
                         );
                         // Update the referrer's total earnings
-                        await client.query(
-                            'UPDATE users SET total_referral_earnings = total_referral_earnings + $1 WHERE id = $2',
-                            [commissionAmount, user.referred_by]
+                        const updatedReferrerResult = await client.query(
+                            'UPDATE users SET total_referral_earnings = total_referral_earnings + $1 WHERE id = $2 RETURNING total_referral_earnings, telegram_chat_id',
+                            [commissionAmount, referrerId]
                         );
                         await client.query('COMMIT');
-                        console.log(`Successfully awarded $${commissionAmount} commission to user ID ${user.referred_by} for referring user ID ${user.id}.`);
+                        console.log(`Successfully awarded $${commissionAmount.toFixed(2)} commission to user ID ${referrerId}.`);
+
+                        // Send notification if chat ID is available
+                        if (updatedReferrerResult.rows.length > 0) {
+                            const referrer = updatedReferrerResult.rows[0];
+                            if (referrer.telegram_chat_id) {
+                                const newTotalEarnings = parseFloat(referrer.total_referral_earnings);
+                                // Fetch their total payouts to calculate available balance for the message
+                                const payoutsResult = await pool.query("SELECT COALESCE(SUM(amount), 0) as total_payouts FROM payouts WHERE user_id = $1 AND status = 'completed'", [referrerId]);
+                                const newAvailableBalance = newTotalEarnings - parseFloat(payoutsResult.rows[0].total_payouts);
+
+                                const notificationMessage = `🎉 Congratulations! A new user has subscribed using your referral link. You've just earned $${commissionAmount.toFixed(2)}!\n\nYour new available balance is $${newAvailableBalance.toFixed(2)}.`;
+                                bot.sendMessage(referrer.telegram_chat_id, notificationMessage).catch(err => console.error("Failed to send referral notification:", err));
+                            }
+                        }
+
                     } catch (e) {
                         await client.query('ROLLBACK');
                         console.error('Failed to process referral commission:', e);
@@ -899,27 +985,20 @@ app.post('/api/payments/nowpayments/webhook', async (req, res) => {
                         client.release();
                     }
                 }
-                // --- END: REFERRAL COMMISSION LOGIC ---
+                // --- END: REFERRAL COMMISSION & NOTIFICATION LOGIC ---
 
 
                 // === DELIVERY LOGIC ===
-                // Check the user's registration source to determine how to deliver the invite link.
                if (user.registration_source === 'bot' && user.telegram_chat_id) {
-                    // Immediately start registration flow in bot’s memory
                     userRegistrationState[user.telegram_chat_id] = {
                         orderId: user.order_id,
-                        planId: null,            // not needed anymore
-                        telegramHandle: user.telegram_handle,
                         stage: 'awaiting_full_name'
                     };
-
                     await bot.sendMessage(
                       user.telegram_chat_id,
                       `✅ Payment confirmed! To complete your registration, please provide your full name.`
                     );
                 } else {
-                    // Flow 1 Delivery: User is waiting on the website.
-                    // Generate the link and store it in the database for the frontend to poll.
                     const inviteLink = await bot.createChatInviteLink(plan.telegram_group_id, { member_limit: 1 });
                     await pool.query('UPDATE users SET telegram_invite_token = $1 WHERE id = $2', [inviteLink.invite_link, user.id]);
                     console.log(`Generated invite link for web user ${user.telegram_handle} and stored it.`);
@@ -1074,6 +1153,61 @@ app.post(`/bot${telegramToken}`, (req, res) => {
     res.sendStatus(200);
 });
 
+// --- NEW PAYOUT ADMIN ROUTES ---
+app.get('/api/payouts', async (req, res) => {
+    try {
+        const { rows } = await pool.query(`
+            SELECT p.id, u.telegram_handle, p.amount, p.payout_address, p.status, p.requested_at 
+            FROM payouts p
+            JOIN users u ON p.user_id = u.id
+            ORDER BY p.requested_at DESC
+        `);
+        res.json(rows);
+    } catch (err) {
+        console.error("Error fetching payouts:", err);
+        res.status(500).send("Server Error");
+    }
+});
+
+app.put('/api/payouts/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { status } = req.body; // Expecting status: 'completed' or 'rejected'
+        if (!['completed', 'rejected'].includes(status)) {
+            return res.status(400).send("Invalid status provided.");
+        }
+        
+        const { rows } = await pool.query(
+            "UPDATE payouts SET status = $1, completed_at = CASE WHEN $1 = 'completed' THEN NOW() ELSE NULL END WHERE id = $2 RETURNING *",
+            [status, id]
+        );
+         if (rows.length === 0) {
+            return res.status(404).send('Payout request not found.');
+        }
+
+        // Notify user about the status update
+        const payout = rows[0];
+        const userResult = await pool.query('SELECT telegram_chat_id FROM users WHERE id = $1', [payout.user_id]);
+        if (userResult.rows.length > 0 && userResult.rows[0].telegram_chat_id) {
+            const chatId = userResult.rows[0].telegram_chat_id;
+            let message = '';
+            if (status === 'completed') {
+                message = `✅ Your payout request for $${payout.amount} has been approved and processed.`;
+            } else if (status === 'rejected') {
+                message = `⚠️ Your payout request for $${payout.amount} has been rejected. Please contact support for more details.`;
+            }
+            if (message) {
+                bot.sendMessage(chatId, message).catch(err => console.error("Failed to send payout status notification:", err));
+            }
+        }
+        
+        res.json(payout);
+    } catch (err) {
+        console.error("Error updating payout status:", err);
+        res.status(500).send("Server Error");
+    }
+});
+
 
 // --- UPDATED: Routes for Clean URLs ---
 app.use(express.static(path.join(__dirname, 'public')));
@@ -1109,7 +1243,8 @@ app.get('/*', (req, res) => {
                 'blogs': 'admin_blogs.html',
                 'performance': 'admin_performance.html',
                 'pricing': 'admin_pricing.html',
-                'roles': 'admin_roles.html'
+                'roles': 'admin_roles.html',
+                'payouts': 'admin_payouts.html' // NEW
             };
             const adminFile = adminFiles[adminRoute] || 'admin.html';
             res.sendFile(path.join(__dirname, 'public', adminFile));
