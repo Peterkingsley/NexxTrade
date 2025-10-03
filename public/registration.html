@@ -226,6 +226,37 @@
         let selectedPlanKey = null;
         let selectedNetwork = null;
         let paymentCheckInterval = null;
+        let referralCode = null;
+
+        // --- Referral Code Logic ---
+        function captureReferralCode() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const refCode = urlParams.get('ref');
+            if (refCode) {
+                referralCode = refCode;
+                console.log('Referral code captured:', referralCode);
+
+                // Add a hidden input to both forms
+                const hiddenInputCrypto = document.createElement('input');
+                hiddenInputCrypto.type = 'hidden';
+                hiddenInputCrypto.name = 'referral_code';
+                hiddenInputCrypto.value = referralCode;
+                cryptoCheckoutForm.appendChild(hiddenInputCrypto);
+
+                const hiddenInputFiat = document.createElement('input');
+                hiddenInputFiat.type = 'hidden';
+                hiddenInputFiat.name = 'referral_code';
+                hiddenInputFiat.value = referralCode;
+                fiatCheckoutForm.appendChild(hiddenInputFiat);
+
+                // Optional: Display a message to the user
+                const refMessage = document.createElement('p');
+                refMessage.className = 'text-center text-sm text-accent -mt-4 mb-4';
+                refMessage.textContent = `Referred by: ${referralCode}`;
+                methodSelectionContainer.querySelector('.text-center').appendChild(refMessage);
+            }
+        }
+
 
         // --- UI Helper ---
         function switchView(visibleContainer) {
@@ -325,6 +356,7 @@
                 whatsapp_number: document.getElementById('fiat-whatsapp').value,
                 planName: plans[selectedPlanKey].name,
                 priceUSD: plans[selectedPlanKey].priceUSD,
+                referral_code: referralCode // Pass referral code
             };
 
             try {
@@ -373,6 +405,7 @@
                 planName: plans[selectedPlanKey].name,
                 priceUSD: plans[selectedPlanKey].priceUSD,
                 pay_currency: selectedNetwork,
+                referral_code: referralCode // Pass referral code
             };
 
             try {
@@ -516,6 +549,7 @@
         }
 
         // --- Initialization ---
+        captureReferralCode(); // <-- Add this call
         fetchAndPopulatePlans();
         checkForExistingState();
     });
