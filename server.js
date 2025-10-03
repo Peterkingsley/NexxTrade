@@ -1,11 +1,22 @@
-// server.js
-// This file sets up a Node.js backend server using Express and a PostgreSQL database.
-// It handles API routes for managing blogs, pricing plans, roles, and performance data.
-
 /*
- REQUIRED DATABASE CHANGES FOR PAYOUTS:
- Please run the following SQL command on your database to create the 'payouts' table:
+ REQUIRED DATABASE CHANGES FOR REFERRAL & PAYOUT SYSTEM:
+ Please run the following SQL commands on your database to enable these features.
 
+ -- 1. Add columns to the 'users' table for tracking referrals
+ ALTER TABLE public.users ADD COLUMN referral_code VARCHAR(255) UNIQUE;
+ ALTER TABLE public.users ADD COLUMN referred_by INTEGER REFERENCES public.users(id);
+ ALTER TABLE public.users ADD COLUMN total_referral_earnings NUMERIC DEFAULT 0;
+
+ -- 2. Create the 'referrals' table to log each commission-earning event
+ CREATE TABLE public.referrals (
+    id SERIAL PRIMARY KEY,
+    referrer_id INTEGER NOT NULL REFERENCES public.users(id),
+    referred_user_id INTEGER NOT NULL REFERENCES public.users(id),
+    commission_amount NUMERIC NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+ );
+
+ -- 3. Create the 'payouts' table for managing withdrawal requests
  CREATE TABLE public.payouts (
     id SERIAL PRIMARY KEY,
     user_id integer NOT NULL REFERENCES public.users(id),

@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NexxTrade Admin Panel - Manage Payouts</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
+    <style>
+        /* Custom CSS to match the original site's theme and styles */
+        :root {
+            --bg: #0b0f14;
+            --bg-2: #0f141b;
+            --text: #e9edf3;
+            --muted: #a8b3c7;
+            --accent: #2ad678;
+            --accent-2: #f0c75e;
+            --danger: #ff5d5d;
+            --line: #1b2330;
+            --shadow: 0 8px 24px rgba(0,0,0,.35);
+            --radius: 16px;
+            --radius-lg: 20px;
+        }
+        
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, "Helvetica Neue", Arial, sans-serif;
+            overflow-x: hidden;
+        }
+        
+        .card {
+            background: var(--bg-2);
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: .6rem;
+            padding: .7rem 1.2rem;
+            border-radius: 999px;
+            border: 1px solid transparent;
+            cursor: pointer;
+            transition: .2s ease;
+            white-space: nowrap;
+            font-weight: 600;
+            font-size: 0.875rem;
+        }
+        
+        .btn-success { background: var(--accent); color: #04140a; }
+        .btn-danger { background: var(--danger); color: #1a0000; }
+        .btn-success:hover, .btn-danger:hover { filter: brightness(1.1); }
+        .btn-ghost { background: transparent; border-color: var(--line); color: var(--text); }
+        .btn-ghost:hover { background: #0f151d; }
+        
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            margin-inline: auto;
+            padding-inline: 20px;
+        }
+        
+        .tab-btn {
+            padding: 12px 20px;
+            border-bottom: 2px solid transparent;
+            color: var(--muted);
+            font-weight: 500;
+            cursor: pointer;
+            transition: color 0.2s, border-color 0.2s;
+        }
+        
+        .tab-btn:hover { color: var(--text); }
+        .tab-btn.active { color: var(--accent); border-color: var(--accent); }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+        
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--line);
+        }
+        
+        th {
+            color: var(--muted);
+            font-weight: 600;
+            background: #0d1219;
+        }
+        
+        .message-box {
+            padding: 16px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 500;
+            margin-bottom: 1rem;
+        }
+        
+        .message-box.success {
+            background-color: rgba(42, 214, 120, 0.1);
+            color: var(--accent);
+            border: 1px solid rgba(42, 214, 120, 0.2);
+        }
+        
+        .message-box.error {
+            background-color: rgba(255, 93, 93, 0.1);
+            color: var(--danger);
+            border: 1px solid rgba(255, 93, 93, 0.2);
+        }
+        .brand { display: flex; align-items: center; gap: .6rem; }
+        .logo { width: 44px; height: auto; border-radius: 8px; display: block; }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            text-transform: capitalize;
+        }
+        .status-pending { background-color: rgba(240, 199, 94, 0.1); color: var(--accent-2); }
+        .status-completed { background-color: rgba(42, 214, 120, 0.1); color: var(--accent); }
+        .status-rejected { background-color: rgba(255, 93, 93, 0.1); color: var(--danger); }
+        
+        @media (max-width: 768px) {
+            .container { padding-inline: 16px; }
+            .admin-header { flex-direction: column; align-items: flex-start; }
+            .tab-nav { flex-wrap: wrap; justify-content: center; border-bottom: none; gap: 8px; }
+            .tab-nav .tab-btn { flex: 1 1 auto; border-radius: 999px; padding: 8px 16px; }
+            .tab-nav .tab-btn.active { background-color: var(--line); }
+            .card table { display: block; width: 100%; white-space: nowrap; overflow-x: auto; }
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+    <div id="admin-panel" class="container space-y-8">
+        <div class="card p-4 md:p-6 flex justify-between items-center admin-header">
+            <div class="flex items-center gap-4">
+                <a class="brand" href="/" aria-label="NexxTrade home">
+                    <img src="/images/Nexxtrade (1).svg" alt="NexxTrade Logo" class="logo">
+                    <h1 class="text-xl md:text-2xl font-bold">NexxTrade Admin Panel</h1>
+                </a>
+            </div>
+            <a href="/admin" id="logout-btn" class="btn btn-ghost">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
+                Log Out
+            </a>
+        </div>
+
+        <div class="flex flex-wrap border-b border-line gap-2 tab-nav">
+            <a href="/admin/dashboard" class="tab-btn">Dashboard</a>
+            <a href="/admin/blogs" class="tab-btn">Manage Blogs</a>
+            <a href="/admin/performance" class="tab-btn">Performance</a>
+            <a href="/admin/pricing" class="tab-btn">Update Pricing</a>
+            <a href="/admin/roles" class="tab-btn">Delegate Roles</a>
+            <a href="/admin/payouts" class="tab-btn active">Manage Payouts</a>
+        </div>
+
+        <div class="space-y-8">
+            <h2 class="text-2xl font-semibold">Payout Request Management</h2>
+
+            <div id="payout-message-box"></div>
+        
+            <div class="card p-6">
+                <h3 class="text-xl font-semibold mb-4 flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent-2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 1 0 0 7h5a3.5 3.5 0 1 1 0 7H6"/></svg>
+                    Pending & Completed Payouts
+                </h3>
+        
+                <div class="overflow-x-auto">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>User (Telegram)</th>
+                                <th>Amount (USD)</th>
+                                <th>Payout Address</th>
+                                <th>Date Requested</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="payouts-table">
+                            <tr><td colspan="6" class="text-muted text-center py-4">Loading payout requests...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        // Check for authentication on page load
+        if (sessionStorage.getItem('isAdminLoggedIn') !== 'true') {
+            window.location.href = '/admin';
+        }
+
+        // Logout function
+        const logout = () => {
+            sessionStorage.removeItem('isAdminLoggedIn');
+            window.location.href = '/admin';
+        };
+
+        document.getElementById('logout-btn').addEventListener('click', (e) => {
+            e.preventDefault();
+            logout();
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            
+            const API_BASE_URL = 'https://nexxtrade.onrender.com/api';
+            const payoutsTableBody = document.getElementById('payouts-table');
+            const messageBoxContainer = document.getElementById('payout-message-box');
+
+            function showMessage(message, type) {
+                messageBoxContainer.innerHTML = `<div class="message-box ${type}">${message}</div>`;
+                setTimeout(() => {
+                    messageBoxContainer.innerHTML = '';
+                }, 5000);
+            }
+
+            const fetchPayouts = async () => {
+                try {
+                    const response = await fetch(`${API_BASE_URL}/payouts`);
+                    const payouts = await response.json();
+                    
+                    payoutsTableBody.innerHTML = '';
+                    if (payouts.length === 0) {
+                        payoutsTableBody.innerHTML = `<tr><td colspan="6" class="text-muted text-center py-4">No payout requests found.</td></tr>`;
+                        return;
+                    }
+
+                    payouts.forEach(payout => {
+                        const row = document.createElement('tr');
+                        const requestedDate = new Date(payout.requested_at).toLocaleString();
+                        const statusClass = `status-${payout.status}`;
+                        
+                        let actionsHtml = `
+                            <div class="flex gap-2">
+                                <button onclick="updatePayoutStatus(${payout.id}, 'completed')" class="btn btn-success">Approve</button>
+                                <button onclick="updatePayoutStatus(${payout.id}, 'rejected')" class="btn btn-danger">Reject</button>
+                            </div>
+                        `;
+
+                        if (payout.status !== 'pending') {
+                            actionsHtml = '<span>-</span>'; // No actions for completed/rejected
+                        }
+
+                        row.innerHTML = `
+                            <td>${payout.telegram_handle}</td>
+                            <td>$${parseFloat(payout.amount).toFixed(2)}</td>
+                            <td>${payout.payout_address}</td>
+                            <td>${requestedDate}</td>
+                            <td><span class="status-badge ${statusClass}">${payout.status}</span></td>
+                            <td>${actionsHtml}</td>
+                        `;
+                        payoutsTableBody.appendChild(row);
+                    });
+                } catch (error) {
+                    console.error('Error fetching payouts:', error);
+                    showMessage('Error loading payout requests. Please check the server connection.', 'error');
+                }
+            };
+
+            const updatePayoutStatus = async (id, status) => {
+                const action = status === 'completed' ? 'approve' : 'reject';
+                if (!confirm(`Are you sure you want to ${action} this payout request?`)) return;
+                
+                try {
+                    const response = await fetch(`${API_BASE_URL}/payouts/${id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ status }),
+                    });
+
+                    if (response.ok) {
+                        showMessage(`Payout request has been successfully ${status}. The user has been notified.`, 'success');
+                        fetchPayouts(); // Refresh the table
+                    } else {
+                        throw new Error('Failed to update payout status.');
+                    }
+                } catch (error) {
+                    console.error(`Error ${action}ing payout:`, error);
+                    showMessage(`Error updating payout status. Please try again.`, 'error');
+                }
+            };
+
+            // Make the update function globally accessible for the onclick handlers
+            window.updatePayoutStatus = updatePayoutStatus;
+
+            fetchPayouts();
+        });
+    </script>
+</body>
+</html>

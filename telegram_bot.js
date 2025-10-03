@@ -649,4 +649,3 @@ module.exports = {
     setupWebhook,
     userRegistrationState
 };
-
