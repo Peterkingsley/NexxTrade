@@ -838,10 +838,11 @@ app.post('/api/payments/create-from-web', async (req, res) => {
             }
             
             const registrationDate = new Date().toISOString().split('T')[0];
-            await pool.query(
-                `INSERT INTO users (full_name, email, telegram_handle, plan_name, subscription_status, registration_date, order_id, payment_attempts, last_payment_attempt, registration_source, whatsapp_number, referred_by)
-                 VALUES ($1, $2, $3, $4, $5, $6, 1, NOW(), 'web', $7, $8)`,
-                [fullname, emailForDb, telegram, planName, registrationDate, order_id, whatsapp_number, referrerId]
+           // This is the CORRECTED code block
+          await pool.query(
+          `INSERT INTO users (full_name, email, telegram_handle, plan_name, subscription_status, registration_date, order_id, payment_attempts, last_payment_attempt, registration_source, whatsapp_number, referred_by)
+           VALUES ($1, $2, $3, $4, 'pending', $5, $6, 1, NOW(), 'web', $7, $8)`,
+          [fullname, emailForDb, telegram, planName, registrationDate, order_id, whatsapp_number, referrerId]
             );
         }
 
