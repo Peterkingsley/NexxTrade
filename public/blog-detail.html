@@ -57,14 +57,13 @@
     /* Main Content Styling for Blog Detail */
     .main-content { padding: 48px 0; }
     #blog-detail .featured-image {
-      width: 100%;
-      max-width: 800px;
-      margin: 0 auto 2rem auto;
-      height: auto;
-      aspect-ratio: 16 / 9;
-      object-fit: cover;
-      border-radius: var(--radius-lg);
-      border: 1px solid var(--line);
+        width: 100%;
+        max-width: 800px;
+        margin: 0 auto 2rem auto;
+        height: auto;
+        max-height: 500px; /* Prevents very tall images from taking over */
+        object-fit: contain; /* This ensures the whole image is visible */
+        border-radius: var(--radius-lg);
     }
     
     /* Styles for rendering rich text content from the editor */
@@ -277,3 +276,5 @@
   </script>
 </body>
 </html>
+
+
