@@ -55,7 +55,7 @@
     .nav-toggle-btn { display: none; }
     
     /* Main Content Styling for Blog Detail */
-    .main-content { padding: 48px 0; }
+    .main-content { padding: 48px 20px; }
     #blog-detail .featured-image {
         width: 100%;
         max-width: 800px;
@@ -257,8 +257,8 @@
             // Render the full blog post
             blogDetailContainer.innerHTML = `
                 <div class="max-w-4xl mx-auto">
-                    <h1 class="text-3xl md:text-4xl font-bold mb-4 text-center">${post.title}</h1>
-                    <p class="text-center muted mb-6">By ${post.author} • ${new Date(post.published_date).toLocaleDateString()}</p>
+                    <h1 class="text-3xl md:text-4xl font-bold mb-4 text-left md:text-center">${post.title}</h1>
+                    <p class="text-left md:text-center muted mb-6">By ${post.author} • ${new Date(post.published_date).toLocaleDateString()}</p>
                     ${post.featured_image_url ? `<img src="${post.featured_image_url}" alt="Featured image for ${post.title}" class="featured-image">` : ''}
                     <div class="prose">
                         ${post.content}
@@ -276,5 +276,4 @@
   </script>
 </body>
 </html>
-
 
