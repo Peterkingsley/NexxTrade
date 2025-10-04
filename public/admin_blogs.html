@@ -7,6 +7,8 @@
     <title>NexxTrade Admin Panel - Manage Blogs</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
+    <!-- 1. Add the TinyMCE script -->
+    <script src="https://cdn.tiny.cloud/1/no-api-key/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
     <style>
         /* Custom CSS to match the original site's theme and styles */
         :root {
@@ -275,7 +277,8 @@
                     </div>
                     <div>
                         <label for="blog-content" class="block text-sm font-medium mb-1 text-muted">Content</label>
-                        <textarea id="blog-content" rows="10" placeholder="The full content of your blog post (supports Markdown)." class="input-field" required></textarea>
+                        <!-- The old textarea is now replaced by the rich text editor -->
+                        <textarea id="blog-content"></textarea>
                     </div>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
@@ -356,6 +359,17 @@
         });
 
         document.addEventListener('DOMContentLoaded', () => {
+            // 2. Initialize TinyMCE
+            tinymce.init({
+                selector: 'textarea#blog-content',
+                plugins: 'advlist lists link image code', // Added plugins for lists, links, images
+                toolbar: 'undo redo | styles | bold italic underline | fontsizeselect | forecolor backcolor | alignleft aligncenter alignright alignjustify | bullist numlist checklist | outdent indent | link image | code',
+                skin: 'oxide-dark', // Dark theme to match the site
+                content_css: 'dark',
+                height: 500,
+                menubar: false,
+            });
+
             lucide.createIcons();
             
             // Set your API base URL
@@ -380,7 +394,6 @@
                 }, 5000);
             }
 
-            // NEW: Function to compress and resize the image
             const compressImage = (file, quality, maxWidth, maxHeight) => {
                 return new Promise((resolve, reject) => {
                     const reader = new FileReader();
@@ -393,7 +406,6 @@
                             let width = img.width;
                             let height = img.height;
 
-                            // Calculate new dimensions while maintaining aspect ratio
                             if (width > height) {
                                 if (width > maxWidth) {
                                     height = Math.round(height * (maxWidth / width));
@@ -411,7 +423,6 @@
                             const ctx = canvas.getContext('2d');
                             ctx.drawImage(img, 0, 0, width, height);
 
-                            // Get the base64 data from the canvas with compression
                             const compressedBase64 = canvas.toDataURL('image/jpeg', quality);
                             resolve(compressedBase64);
                         };
@@ -451,14 +462,13 @@
                         `;
                         blogsTableBody.appendChild(row);
                     });
-                    lucide.createIcons(); // Re-create icons after updating HTML
+                    lucide.createIcons();
                 } catch (error) {
                     console.error('Error fetching blog posts:', error);
                     showMessage(blogMessageBox, 'Error loading blog posts. Please check the server connection.', 'error');
                 }
             };
 
-            // MODIFIED: addUpdatePost to use JSON and handle Base64 image
             const addUpdatePost = async (e) => {
                 e.preventDefault();
                 const postId = blogIdInput.value;
@@ -468,7 +478,6 @@
                 const file = featuredImageInput.files[0];
                 let featured_image_url = null;
 
-                // Check if a new file is uploaded
                 if (file) {
                     try {
                         featured_image_url = await compressImage(file, 0.7, 1024, 1024);
@@ -479,17 +488,15 @@
                         return;
                     }
                 } else if (postId) {
-                    // For edits, if no new file is uploaded, keep the existing image URL
-                    // The editPost function should store this somewhere, e.g., a hidden input or data attribute.
-                    // For this example, we'll retrieve it directly from the preview source.
                     featured_image_url = imagePreview.src;
                 }
 
+                // 3. Get content from TinyMCE instead of the textarea
                 const data = {
                     title: document.getElementById('blog-title').value,
                     author: document.getElementById('blog-author').value,
                     teaser: document.getElementById('blog-teaser').value,
-                    content: document.getElementById('blog-content').value,
+                    content: tinymce.get('blog-content').getContent(),
                     published_date: document.getElementById('blog-date').value,
                     status: document.getElementById('blog-status').value,
                     featured_image_url: featured_image_url,
@@ -524,6 +531,8 @@
                     showMessage(blogMessageBox, 'Error saving blog post. Please check server logs.', 'error');
                 } finally {
                     addBlogForm.reset();
+                    // 4. Clear the editor content
+                    tinymce.get('blog-content').setContent('');
                     blogIdInput.value = '';
                     saveBlogBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Add New Post';
                     cancelEditBtn.classList.add('hidden');
@@ -543,7 +552,8 @@
                     document.getElementById('blog-title').value = post.title;
                     document.getElementById('blog-author').value = post.author;
                     document.getElementById('blog-teaser').value = post.teaser;
-                    document.getElementById('blog-content').value = post.content;
+                    // 5. Set the editor content when editing
+                    tinymce.get('blog-content').setContent(post.content);
                     document.getElementById('blog-date').value = new Date(post.published_date).toISOString().split('T')[0];
                     document.getElementById('blog-status').value = post.status;
 
@@ -583,6 +593,8 @@
             addBlogForm.addEventListener('submit', addUpdatePost);
             cancelEditBtn.addEventListener('click', () => {
                 addBlogForm.reset();
+                // 6. Clear the editor on cancel
+                tinymce.get('blog-content').setContent('');
                 blogIdInput.value = '';
                 saveBlogBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Add New Post';
                 cancelEditBtn.classList.add('hidden');

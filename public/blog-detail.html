@@ -57,41 +57,93 @@
     /* Main Content Styling for Blog Detail */
     .main-content { padding: 48px 0; }
     #blog-detail .featured-image {
-      max-width: 80%; /* Reduce image size */
-      margin: 0 auto 2rem auto; /* Center the image */
-      height: auto; /* Let height adjust based on image aspect ratio */
-      object-fit: contain; /* Ensure the entire image is visible within the frame */
+      width: 100%;
+      max-width: 800px;
+      margin: 0 auto 2rem auto;
+      height: auto;
+      aspect-ratio: 16 / 9;
+      object-fit: cover;
       border-radius: var(--radius-lg);
-      border: 1px solid var(--line); /* Add a subtle frame */
-      opacity: 0.9; /* Slightly reduce boldness */
+      border: 1px solid var(--line);
     }
+    
+    /* Styles for rendering rich text content from the editor */
     #blog-detail .prose {
-        color: var(--text);
-        max-width: 800px; /* Optimal reading width */
+        color: var(--muted);
+        max-width: 800px;
         margin: 0 auto;
-        white-space: pre-wrap; /* This is the fix: it respects newlines and spaces */
         font-size: 1.1rem;
         line-height: 1.7;
     }
     #blog-detail .prose h1,
     #blog-detail .prose h2,
-    #blog-detail .prose h3 {
+    #blog-detail .prose h3,
+    #blog-detail .prose h4 {
         color: var(--text);
+        margin-top: 2em;
+        margin-bottom: 1em;
+        font-weight: 600;
     }
+     #blog-detail .prose h1 { font-size: 2.25em; }
+     #blog-detail .prose h2 { font-size: 1.75em; }
+     #blog-detail .prose h3 { font-size: 1.25em; }
+
     #blog-detail .prose p {
-        line-height: 1.7;
-        margin-bottom: 1.5rem;
+        margin-bottom: 1.25em;
     }
     #blog-detail .prose a {
         color: var(--accent);
         text-decoration: underline;
+        font-weight: 500;
     }
      #blog-detail .prose a:hover {
         color: #fff;
     }
     #blog-detail .prose strong {
         color: var(--text);
+        font-weight: 600;
     }
+    #blog-detail .prose em {
+        font-style: italic;
+    }
+     #blog-detail .prose u {
+        text-decoration: underline;
+    }
+    #blog-detail .prose ul,
+    #blog-detail .prose ol {
+        margin-left: 1.5rem;
+        margin-bottom: 1.25em;
+    }
+    #blog-detail .prose ul {
+        list-style-type: disc;
+    }
+    #blog-detail .prose ol {
+        list-style-type: decimal;
+    }
+    #blog-detail .prose li {
+        margin-bottom: 0.5em;
+    }
+    #blog-detail .prose blockquote {
+        border-left: 4px solid var(--line);
+        padding-left: 1.5rem;
+        margin-left: 0;
+        font-style: italic;
+        color: var(--muted);
+    }
+    #blog-detail .prose img {
+        border-radius: var(--radius);
+        margin-top: 2em;
+        margin-bottom: 2em;
+    }
+    #blog-detail .prose code {
+        background-color: var(--bg-2);
+        border: 1px solid var(--line);
+        padding: 0.2em 0.4em;
+        border-radius: 6px;
+        font-family: monospace;
+        color: var(--accent-2);
+    }
+
 
     /* Footer */
     footer{border-top:1px solid var(--line);background:#0b1017;padding:36px 20px 12px;}
@@ -202,28 +254,15 @@
 
             // Update page title
             document.title = `${post.title} — NexxTrade Blog`;
-
-            // Remove leading whitespace
-            let modifiedContent = post.content.replace(/^\s+/, '');
-
-            // Split into paragraphs
-            let paragraphs = modifiedContent.split(/<\/p>/i);
-
-            // Remove the first paragraph (index 0) if it’s not the one you want
-            if (paragraphs.length > 1) {
-                paragraphs.shift();
-                modifiedContent = paragraphs.join('</p>');
-            }
-
-
+            
             // Render the full blog post
             blogDetailContainer.innerHTML = `
                 <div class="max-w-4xl mx-auto">
                     <h1 class="text-3xl md:text-4xl font-bold mb-4 text-center">${post.title}</h1>
                     <p class="text-center muted mb-6">By ${post.author} • ${new Date(post.published_date).toLocaleDateString()}</p>
-                    <img src="${post.featured_image_url}" alt="Featured image for ${post.title}" class="featured-image">
+                    ${post.featured_image_url ? `<img src="${post.featured_image_url}" alt="Featured image for ${post.title}" class="featured-image">` : ''}
                     <div class="prose">
-                        ${modifiedContent}
+                        ${post.content}
                     </div>
                 </div>
             `;
@@ -238,4 +277,3 @@
   </script>
 </body>
 </html>
-
