@@ -7,18 +7,30 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
     <style>
-        .sidebar {
-            transition: transform 0.3s ease-in-out;
+        /* Style for the user tags */
+        .user-tag {
+            display: inline-flex;
+            align-items: center;
         }
-        .sidebar-closed {
-            transform: translateX(-100%);
+        .user-tag-remove {
+            margin-left: 0.5rem;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        #telegramHandlesContainer input {
+            outline: none;
+            border: none;
+            box-shadow: none;
         }
     </style>
 </head>
 <body class="bg-gray-100 font-sans">
-    <div class="flex h-screen">
+    <div class="relative min-h-screen md:flex">
+        <!-- Overlay for mobile sidebar -->
+        <div id="overlay" class="fixed inset-0 bg-black bg-opacity-50 z-30 hidden md:hidden"></div>
+
         <!-- Sidebar -->
-        <aside id="sidebar" class="bg-gray-800 text-white w-64 space-y-6 py-7 px-2 absolute inset-y-0 left-0 transform md:relative md:translate-x-0 sidebar-closed md:sidebar-open">
+        <aside id="sidebar" class="bg-gray-800 text-white w-64 space-y-6 py-7 px-2 fixed inset-y-0 left-0 transform -translate-x-full md:relative md:translate-x-0 transition-transform duration-300 ease-in-out z-40">
             <a href="/admin/dashboard" class="text-white text-2xl font-semibold px-4">Admin Panel</a>
             <nav>
                 <a href="/admin/dashboard" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700">
@@ -52,24 +64,25 @@
         </aside>
 
         <!-- Main content -->
-        <div class="flex-1 flex flex-col overflow-hidden">
+        <div class="flex-1 flex flex-col">
             <header class="flex justify-between items-center p-4 bg-white border-b">
                 <div class="flex items-center">
+                    <!-- Hamburger Menu for Mobile -->
                     <button id="menu-button" class="text-gray-500 focus:outline-none md:hidden">
                         <i class="fas fa-bars fa-lg"></i>
                     </button>
-                    <h1 class="text-2xl font-semibold text-gray-800 ml-3">Push Notifications</h1>
+                    <h1 class="text-xl md:text-2xl font-semibold text-gray-800 ml-3">Push Notifications</h1>
                 </div>
                  <div class="flex items-center">
                     <span class="text-gray-600 mr-2" id="usernameDisplay"></span>
                     <i class="fas fa-user-circle fa-2x text-gray-400"></i>
                 </div>
             </header>
-            <main class="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-6">
+            <main class="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-4 sm:p-6">
                 <div class="container mx-auto">
                     <!-- Notification Composer Card -->
-                    <div class="bg-white p-8 rounded-lg shadow-lg">
-                        <h2 class="text-2xl font-bold mb-6 text-gray-800">Compose and Send Notification</h2>
+                    <div class="bg-white p-6 md:p-8 rounded-lg shadow-lg">
+                        <h2 class="text-xl md:text-2xl font-bold mb-6 text-gray-800">Compose and Send Notification</h2>
                         <form id="notificationForm">
                             <!-- Message Textarea -->
                             <div class="mb-6">
@@ -84,36 +97,38 @@
                                     <option value="all">Everyone (Bot Users Only)</option>
                                     <option value="active">Active Subscribers</option>
                                     <option value="pending">Pending Subscribers</option>
-                                    <option value="specific">Specific User</option>
+                                    <option value="specific">Specific User(s)</option>
                                 </select>
                             </div>
 
                             <!-- Specific User Input (Initially Hidden) -->
-                            <div id="specificUserContainer" class="mb-6" style="display: none;">
-                                <label for="telegramHandle" class="block text-gray-700 text-sm font-bold mb-2">Telegram Handle</label>
-                                <input type="text" id="telegramHandle" name="telegramHandle" class="shadow-sm appearance-none border rounded w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g., @username">
+                            <div id="specificUserContainer" class="mb-6 hidden">
+                                <label for="telegramHandleInput" class="block text-gray-700 text-sm font-bold mb-2">Telegram Handles</label>
+                                <div id="telegramHandlesContainer" class="flex flex-wrap items-center gap-2 shadow-sm border rounded w-full p-2 bg-white focus-within:ring-2 focus-within:ring-blue-500">
+                                    <input type="text" id="telegramHandleInput" class="flex-grow py-1 px-2" placeholder="Type username and press Enter...">
+                                </div>
+                                <p class="text-xs text-gray-500 mt-1">Add one or more Telegram usernames.</p>
                             </div>
                             
-                             <!-- Embed Command -->
+                            <!-- Embed Command Checkboxes -->
                             <div class="mb-8">
-                                <label for="embedCommand" class="block text-gray-700 text-sm font-bold mb-2">Embed Command Button (Optional)</label>
-                                <select id="embedCommand" name="embedCommand" class="shadow-sm border rounded w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                    <option value="">-- No Button --</option>
-                                    <option value="/start">/start</option>
-                                    <option value="/getsignals">/getsignals</option>
-                                    <option value="/myreferral">/myreferral</option>
-                                    <option value="/setreferral">/setreferral</option>
-                                    <option value="/referralstats">/referralstats</option>
-                                    <option value="/requestpayout">/requestpayout</option>
-                                    <option value="/faq">/faq</option>
-                                    <option value="/support">/support</option>
-                                </select>
+                                <label class="block text-gray-700 text-sm font-bold mb-2">Embed Command Button(s) (Optional)</label>
+                                <div id="embedCommandContainer" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 border rounded p-4">
+                                    <div><label class="flex items-center"><input type="checkbox" name="embedCommand" value="/start" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"><span class="ml-2 text-gray-700">/start</span></label></div>
+                                    <div><label class="flex items-center"><input type="checkbox" name="embedCommand" value="/getsignals" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"><span class="ml-2 text-gray-700">/getsignals</span></label></div>
+                                    <div><label class="flex items-center"><input type="checkbox" name="embedCommand" value="/myreferral" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"><span class="ml-2 text-gray-700">/myreferral</span></label></div>
+                                    <div><label class="flex items-center"><input type="checkbox" name="embedCommand" value="/setreferral" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"><span class="ml-2 text-gray-700">/setreferral</span></label></div>
+                                    <div><label class="flex items-center"><input type="checkbox" name="embedCommand" value="/referralstats" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"><span class="ml-2 text-gray-700">/referralstats</span></label></div>
+                                    <div><label class="flex items-center"><input type="checkbox" name="embedCommand" value="/requestpayout" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"><span class="ml-2 text-gray-700">/requestpayout</span></label></div>
+                                    <div><label class="flex items-center"><input type="checkbox" name="embedCommand" value="/faq" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"><span class="ml-2 text-gray-700">/faq</span></label></div>
+                                    <div><label class="flex items-center"><input type="checkbox" name="embedCommand" value="/support" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"><span class="ml-2 text-gray-700">/support</span></label></div>
+                                </div>
                             </div>
 
 
                             <!-- Submit Button -->
                             <div class="flex items-center justify-end">
-                                <button type="submit" id="sendButton" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg focus:outline-none focus:shadow-outline transition duration-300">
+                                <button type="submit" id="sendButton" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg focus:outline-none focus:shadow-outline transition duration-300 w-full sm:w-auto">
                                     <i class="fas fa-paper-plane mr-2"></i>Send Notification
                                 </button>
                             </div>
@@ -127,122 +142,165 @@
     </div>
 
     <script>
-        // --- Authentication and UI Setup ---
         document.addEventListener('DOMContentLoaded', function() {
+            // --- Authentication and UI Setup ---
             checkAuth();
             setupUI();
+            setupMultiUserInput();
+            setupFormSubmission();
         });
 
         function checkAuth() {
-    if (sessionStorage.getItem('isAdminLoggedIn') !== 'true') {
-        window.location.href = '/admin';
-    }
-    // Optional: You can remove the username display logic if it's not set during login
-    else {
-            document.getElementById('usernameDisplay').textContent = user.username;
-    }
-}
+            if (sessionStorage.getItem('isAdminLoggedIn') !== 'true') {
+                window.location.href = '/admin';
+            } else {
+                const user = JSON.parse(sessionStorage.getItem('user'));
+                if (user && user.username) {
+                    document.getElementById('usernameDisplay').textContent = user.username;
+                }
+            }
+        }
 
         function setupUI() {
-    const menuButton = document.getElementById('menu-button');
-    const sidebar = document.getElementById('sidebar');
-    menuButton.addEventListener('click', () => {
-        sidebar.classList.toggle('sidebar-closed');
-        sidebar.classList.toggle('sidebar-open');
-    });
-    
-    document.getElementById('logoutButton').addEventListener('click', () => {
-        localStorage.removeItem('user');
-        window.location.href = '/admin/login';
-    });
-    
-    // Show/hide specific user input based on dropdown selection
-    const targetAudience = document.getElementById('targetAudience');
-    const specificUserContainer = document.getElementById('specificUserContainer');
-    targetAudience.addEventListener('change', (e) => {
-        if (e.target.value === 'specific') {
-            specificUserContainer.style.display = 'block';
-        } else {
-            specificUserContainer.style.display = 'none';
-        }
-    });
+            // --- Responsive Sidebar Toggle ---
+            const menuButton = document.getElementById('menu-button');
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('overlay');
 
-    // 👇 Add this line
-    if (targetAudience.value === 'specific') {
-        specificUserContainer.style.display = 'block';
-    }
-}
+            const toggleSidebar = () => {
+                sidebar.classList.toggle('-translate-x-full');
+                overlay.classList.toggle('hidden');
+            };
 
-        
-        // --- Form Submission Logic ---
-        const form = document.getElementById('notificationForm');
-        const sendButton = document.getElementById('sendButton');
-        const statusMessage = document.getElementById('statusMessage');
-
-        form.addEventListener('submit', async function(event) {
-            event.preventDefault();
+            menuButton.addEventListener('click', toggleSidebar);
+            overlay.addEventListener('click', toggleSidebar);
             
-            const message = document.getElementById('message').value;
-            const target = document.getElementById('targetAudience').value;
-            const telegramHandle = document.getElementById('telegramHandle').value;
-            const command = document.getElementById('embedCommand').value;
-
-            if (target === 'specific' && !telegramHandle) {
-                displayStatus('Please enter a Telegram handle for the specific user.', 'error');
-                return;
-            }
-
-            const payload = { message, target, command };
-            if (target === 'specific') {
-                payload.telegramHandle = telegramHandle;
-            }
-
-            // Disable button and show loading state
-            sendButton.disabled = true;
-            sendButton.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i>Sending...`;
-            displayStatus('Processing your request...', 'info');
-
-            try {
-                // NOTE: The API endpoint '/api/notifications/send' does not exist yet.
-                // We will create it in the next step.
-                const response = await fetch('/api/notifications/send', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-
-                const result = await response.json();
-
-                if (response.ok) {
-                    displayStatus(result.message, 'success');
-                    form.reset(); // Clear the form on success
-                    document.getElementById('specificUserContainer').style.display = 'none'; // Re-hide specific user input
+            // --- Logout ---
+            document.getElementById('logoutButton').addEventListener('click', () => {
+                sessionStorage.removeItem('isAdminLoggedIn');
+                sessionStorage.removeItem('user');
+                window.location.href = '/admin'; 
+            });
+            
+            // --- Show/Hide Specific User Input ---
+            const targetAudience = document.getElementById('targetAudience');
+            const specificUserContainer = document.getElementById('specificUserContainer');
+            targetAudience.addEventListener('change', function() {
+                if (this.value === 'specific') {
+                    specificUserContainer.classList.remove('hidden');
                 } else {
-                    throw new Error(result.message || 'An unknown error occurred.');
+                    specificUserContainer.classList.add('hidden');
                 }
-            } catch (error) {
-                console.error('Error sending notification:', error);
-                displayStatus(`Error: ${error.message}`, 'error');
-            } finally {
-                // Re-enable the button
-                sendButton.disabled = false;
-                sendButton.innerHTML = `<i class="fas fa-paper-plane mr-2"></i>Send Notification`;
-            }
-        });
+            });
+        }
+        
+        // --- Logic for multi-user input ---
+        function setupMultiUserInput() {
+            const container = document.getElementById('telegramHandlesContainer');
+            const input = document.getElementById('telegramHandleInput');
 
-        function displayStatus(message, type) {
-            statusMessage.innerHTML = message;
-            statusMessage.className = 'mt-4 text-center p-3 rounded-lg ';
-            switch(type) {
-                case 'success':
-                    statusMessage.classList.add('bg-green-100', 'text-green-800');
-                    break;
-                case 'error':
-                    statusMessage.classList.add('bg-red-100', 'text-red-800');
-                    break;
-                case 'info':
-                    statusMessage.classList.add('bg-blue-100', 'text-blue-800');
-                    break;
+            input.addEventListener('keydown', function(event) {
+                if (event.key === 'Enter' && input.value.trim() !== '') {
+                    event.preventDefault();
+                    addTag(input.value.trim());
+                    input.value = '';
+                }
+            });
+
+            function addTag(username) {
+                const existingTags = Array.from(container.querySelectorAll('.user-tag-text')).map(t => t.textContent);
+                if (existingTags.includes(username)) {
+                    input.value = '';
+                    return;
+                }
+                
+                const tag = document.createElement('span');
+                tag.className = 'user-tag bg-blue-100 text-blue-800 text-sm font-medium px-2.5 py-1 rounded';
+                
+                const tagText = document.createElement('span');
+                tagText.className = 'user-tag-text';
+                tagText.textContent = username;
+                
+                const removeBtn = document.createElement('span');
+                removeBtn.className = 'user-tag-remove';
+                removeBtn.innerHTML = '&times;';
+                removeBtn.onclick = () => tag.remove();
+                
+                tag.appendChild(tagText);
+                tag.appendChild(removeBtn);
+                
+                container.insertBefore(tag, input);
+            }
+        }
+        
+        function setupFormSubmission() {
+            // --- Form Submission Logic ---
+            const form = document.getElementById('notificationForm');
+            const sendButton = document.getElementById('sendButton');
+            const statusMessage = document.getElementById('statusMessage');
+
+            form.addEventListener('submit', async function(event) {
+                event.preventDefault();
+                
+                const message = document.getElementById('message').value;
+                const target = document.getElementById('targetAudience').value;
+                const telegramHandles = Array.from(document.querySelectorAll('.user-tag-text')).map(tag => tag.textContent);
+                const commands = Array.from(document.querySelectorAll('input[name="embedCommand"]:checked')).map(cb => cb.value);
+
+                if (target === 'specific' && telegramHandles.length === 0) {
+                    displayStatus('Please enter at least one Telegram handle.', 'error');
+                    return;
+                }
+
+                const payload = { message, target, commands, telegramHandles: [] };
+                if (target === 'specific') {
+                    payload.telegramHandles = telegramHandles;
+                }
+
+                sendButton.disabled = true;
+                sendButton.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i>Sending...`;
+                displayStatus('Processing your request...', 'info');
+
+                try {
+                    const response = await fetch('/api/notifications/send', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    const result = await response.json();
+
+                    if (response.ok) {
+                        displayStatus(result.message, 'success');
+                        form.reset(); 
+                        document.getElementById('specificUserContainer').classList.add('hidden');
+                        document.querySelectorAll('.user-tag').forEach(tag => tag.remove());
+                    } else {
+                        throw new Error(result.message || 'An unknown error occurred.');
+                    }
+                } catch (error) {
+                    console.error('Error sending notification:', error);
+                    displayStatus(`Error: ${error.message}`, 'error');
+                } finally {
+                    sendButton.disabled = false;
+                    sendButton.innerHTML = `<i class="fas fa-paper-plane mr-2"></i>Send Notification`;
+                }
+            });
+
+            function displayStatus(message, type) {
+                statusMessage.innerHTML = message;
+                statusMessage.className = 'mt-4 text-center p-3 rounded-lg ';
+                switch(type) {
+                    case 'success':
+                        statusMessage.classList.add('bg-green-100', 'text-green-800');
+                        break;
+                    case 'error':
+                        statusMessage.classList.add('bg-red-100', 'text-red-800');
+                        break;
+                    case 'info':
+                        statusMessage.classList.add('bg-blue-100', 'text-blue-800');
+                        break;
+                }
             }
         }
     </script>
