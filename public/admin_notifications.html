@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-g">
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin - Send Notifications</title>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -144,29 +144,35 @@
 }
 
         function setupUI() {
-            const menuButton = document.getElementById('menu-button');
-            const sidebar = document.getElementById('sidebar');
-            menuButton.addEventListener('click', () => {
-                sidebar.classList.toggle('sidebar-closed');
-                sidebar.classList.toggle('sidebar-open');
-            });
-            
-            document.getElementById('logoutButton').addEventListener('click', () => {
-                localStorage.removeItem('user');
-                window.location.href = '/admin/login';
-            });
-            
-            // Show/hide specific user input based on dropdown selection
-            const targetAudience = document.getElementById('targetAudience');
-            const specificUserContainer = document.getElementById('specificUserContainer');
-            targetAudience.addEventListener('change', (e) => {
-                if (e.target.value === 'specific') {
-                    specificUserContainer.style.display = 'block';
-                } else {
-                    specificUserContainer.style.display = 'none';
-                }
-            });
+    const menuButton = document.getElementById('menu-button');
+    const sidebar = document.getElementById('sidebar');
+    menuButton.addEventListener('click', () => {
+        sidebar.classList.toggle('sidebar-closed');
+        sidebar.classList.toggle('sidebar-open');
+    });
+    
+    document.getElementById('logoutButton').addEventListener('click', () => {
+        localStorage.removeItem('user');
+        window.location.href = '/admin/login';
+    });
+    
+    // Show/hide specific user input based on dropdown selection
+    const targetAudience = document.getElementById('targetAudience');
+    const specificUserContainer = document.getElementById('specificUserContainer');
+    targetAudience.addEventListener('change', (e) => {
+        if (e.target.value === 'specific') {
+            specificUserContainer.style.display = 'block';
+        } else {
+            specificUserContainer.style.display = 'none';
         }
+    });
+
+    // 👇 Add this line
+    if (targetAudience.value === 'specific') {
+        specificUserContainer.style.display = 'block';
+    }
+}
+
         
         // --- Form Submission Logic ---
         const form = document.getElementById('notificationForm');
