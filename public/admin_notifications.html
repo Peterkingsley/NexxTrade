@@ -251,7 +251,7 @@
                 const target = document.getElementById('targetAudience').value;
                 const telegramHandleInput = document.getElementById('telegramHandleInput');
 
-                // FIX: If a handle is typed but not submitted via "Enter", add it as a tag before validating.
+                // If a handle is typed but not submitted via "Enter", add it as a tag before validating.
                 if (target === 'specific' && telegramHandleInput.value.trim() !== '') {
                     addTag(telegramHandleInput.value.trim());
                     telegramHandleInput.value = '';
@@ -265,8 +265,14 @@
                     displayStatus('Please enter at least one Telegram handle.', 'error');
                     return;
                 }
+                
+                // FIX: Construct the payload more cleanly.
+                const payload = {
+                    message,
+                    target,
+                    commands
+                };
 
-                const payload = { message, target, commands, telegramHandles: [] };
                 if (target === 'specific') {
                     payload.telegramHandles = telegramHandles;
                 }
