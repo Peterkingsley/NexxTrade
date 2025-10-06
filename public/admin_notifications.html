@@ -134,13 +134,14 @@
         });
 
         function checkAuth() {
-            const user = JSON.parse(localStorage.getItem('user'));
-            if (!user || !user.permissions.includes('send_notifications')) {
-                window.location.href = '/admin/login';
-            } else {
-                 document.getElementById('usernameDisplay').textContent = user.username;
-            }
-        }
+    if (sessionStorage.getItem('isAdminLoggedIn') !== 'true') {
+        window.location.href = '/admin';
+    }
+    // Optional: You can remove the username display logic if it's not set during login
+    else {
+            document.getElementById('usernameDisplay').textContent = user.username;
+    }
+}
 
         function setupUI() {
             const menuButton = document.getElementById('menu-button');
