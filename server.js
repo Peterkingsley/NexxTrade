@@ -846,7 +846,7 @@ app.post('/api/payments/create-from-web', async (req, res) => {
             );
         }
 
-        const nowPaymentsResponse = await fetch('[https://api.nowpayments.io/v1/payment](https://api.nowpayments.io/v1/payment)', {
+        const nowPaymentsResponse = await fetch('https://api.nowpayments.io/v1/payment', {
             method: 'POST',
             headers: {
                 'x-api-key': process.env.NOWPAYMENTS_API_KEY,
@@ -936,7 +936,7 @@ app.post('/api/payments/create-from-bot', async (req, res) => {
             );
         }
 
-        const nowPaymentsResponse = await fetch('[https://api.nowpayments.io/v1/payment](https://api.nowpayments.io/v1/payment)', {
+        const nowPaymentsResponse = await fetch('https://api.nowpayments.io/v1/payment', {
             method: 'POST',
             headers: {
                 'x-api-key': process.env.NOWPAYMENTS_API_KEY,
@@ -1279,10 +1279,11 @@ app.put('/api/payouts/:id', async (req, res) => {
 });
 
 
-// --- NEW: NOTIFICATION ROUTE ---
+// --- NEW: NOTIFICATION ROUTE (CORRECTED) ---
 app.post('/api/notifications/send', async (req, res) => {
     try {
-        const { message, target, command, telegramHandle } = req.body;
+        // FIX: Destructure 'telegramHandles' (plural array) and 'commands' (plural array)
+        const { message, target, commands, telegramHandles } = req.body;
 
         // Basic validation
         if (!message || !target) {
@@ -1304,11 +1305,14 @@ app.post('/api/notifications/send', async (req, res) => {
                 query = `SELECT telegram_chat_id FROM users WHERE telegram_chat_id IS NOT NULL AND registration_source = 'bot' AND subscription_status = 'pending'`;
                 break;
             case 'specific':
-                if (!telegramHandle) {
-                    return res.status(400).json({ message: 'Telegram handle is required for specific users.' });
+                // FIX: Check for the existence and length of the 'telegramHandles' array
+                if (!telegramHandles || telegramHandles.length === 0) {
+                    return res.status(400).json({ message: 'At least one Telegram handle is required for specific users.' });
                 }
-                query = `SELECT telegram_chat_id FROM users WHERE telegram_handle = $1`;
-                params.push(telegramHandle.startsWith('@') ? telegramHandle : '@' + telegramHandle);
+                // FIX: Use a query that can accept an array of usernames for more efficient database lookup
+                query = `SELECT telegram_chat_id FROM users WHERE telegram_handle = ANY($1::text[])`;
+                // Ensure all handles are formatted correctly with an '@' prefix
+                params.push(telegramHandles.map(h => h.startsWith('@') ? h : '@' + h));
                 break;
             default:
                 return res.status(400).json({ message: 'Invalid target audience specified.' });
@@ -1322,18 +1326,23 @@ app.post('/api/notifications/send', async (req, res) => {
 
         // Prepare message options, including the command button if selected
         const messageOptions = {};
-        if (command) {
+        // FIX: Handle an array of 'commands' to create multiple buttons
+        if (commands && commands.length > 0) {
             const commandMap = {
                 '/start': { text: 'Go to Main Menu', callback_data: 'main_menu' },
                 '/getsignals': { text: '🚀 Get Signals Now', callback_data: 'get_signals_now' },
                 '/myreferral': { text: '🔗 Get My Referral Link', callback_data: 'refer_earn' },
                 '/referralstats': { text: '📈 View My Stats', callback_data: 'referral_stats' },
                 '/requestpayout': { text: '💰 Request Payout', callback_data: 'request_payout' }
+                 // Note: /setreferral, /faq, /support are not in the map, so they won't create buttons unless added here.
             };
-            const button = commandMap[command];
-            if (button) {
+            // Map the array of command strings to an array of button objects
+            const buttons = commands.map(command => commandMap[command]).filter(Boolean); // .filter(Boolean) removes any undefined values if a command isn't in the map
+            
+            if (buttons.length > 0) {
                 messageOptions.reply_markup = {
-                    inline_keyboard: [[button]]
+                    // Place all buttons in a single row in the keyboard
+                    inline_keyboard: [buttons]
                 };
             }
         }
@@ -1428,4 +1437,3 @@ app.listen(port, async () => {
   console.log(`Server is running on http://localhost:${port}`);
   await setupWebhook();
 });
-
