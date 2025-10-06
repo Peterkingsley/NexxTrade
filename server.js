@@ -846,7 +846,7 @@ app.post('/api/payments/create-from-web', async (req, res) => {
             );
         }
 
-        const nowPaymentsResponse = await fetch('https://api.nowpayments.io/v1/payment', {
+        const nowPaymentsResponse = await fetch('[https://api.nowpayments.io/v1/payment](https://api.nowpayments.io/v1/payment)', {
             method: 'POST',
             headers: {
                 'x-api-key': process.env.NOWPAYMENTS_API_KEY,
@@ -936,7 +936,7 @@ app.post('/api/payments/create-from-bot', async (req, res) => {
             );
         }
 
-        const nowPaymentsResponse = await fetch('https://api.nowpayments.io/v1/payment', {
+        const nowPaymentsResponse = await fetch('[https://api.nowpayments.io/v1/payment](https://api.nowpayments.io/v1/payment)', {
             method: 'POST',
             headers: {
                 'x-api-key': process.env.NOWPAYMENTS_API_KEY,
@@ -1279,6 +1279,102 @@ app.put('/api/payouts/:id', async (req, res) => {
 });
 
 
+// --- NEW: NOTIFICATION ROUTE ---
+app.post('/api/notifications/send', async (req, res) => {
+    try {
+        const { message, target, command, telegramHandle } = req.body;
+
+        // Basic validation
+        if (!message || !target) {
+            return res.status(400).json({ message: 'Message and target audience are required.' });
+        }
+
+        let query = '';
+        const params = [];
+
+        // Build the database query based on the selected target
+        switch (target) {
+            case 'all':
+                query = `SELECT telegram_chat_id FROM users WHERE telegram_chat_id IS NOT NULL AND registration_source = 'bot'`;
+                break;
+            case 'active':
+                query = `SELECT telegram_chat_id FROM users WHERE telegram_chat_id IS NOT NULL AND registration_source = 'bot' AND subscription_status = 'active'`;
+                break;
+            case 'pending':
+                query = `SELECT telegram_chat_id FROM users WHERE telegram_chat_id IS NOT NULL AND registration_source = 'bot' AND subscription_status = 'pending'`;
+                break;
+            case 'specific':
+                if (!telegramHandle) {
+                    return res.status(400).json({ message: 'Telegram handle is required for specific users.' });
+                }
+                query = `SELECT telegram_chat_id FROM users WHERE telegram_handle = $1`;
+                params.push(telegramHandle.startsWith('@') ? telegramHandle : '@' + telegramHandle);
+                break;
+            default:
+                return res.status(400).json({ message: 'Invalid target audience specified.' });
+        }
+
+        const { rows: users } = await pool.query(query, params);
+
+        if (users.length === 0) {
+            return res.status(404).json({ message: 'No users found for the selected criteria.' });
+        }
+
+        // Prepare message options, including the command button if selected
+        const messageOptions = {};
+        if (command) {
+            const commandMap = {
+                '/start': { text: 'Go to Main Menu', callback_data: 'main_menu' },
+                '/getsignals': { text: '🚀 Get Signals Now', callback_data: 'get_signals_now' },
+                '/myreferral': { text: '🔗 Get My Referral Link', callback_data: 'refer_earn' },
+                '/referralstats': { text: '📈 View My Stats', callback_data: 'referral_stats' },
+                '/requestpayout': { text: '💰 Request Payout', callback_data: 'request_payout' }
+            };
+            const button = commandMap[command];
+            if (button) {
+                messageOptions.reply_markup = {
+                    inline_keyboard: [[button]]
+                };
+            }
+        }
+
+        // --- Asynchronously send messages with a delay to avoid rate limiting ---
+        let successCount = 0;
+        let errorCount = 0;
+        
+        const sendPromises = users.map((user, index) => {
+            return new Promise(resolve => {
+                setTimeout(async () => {
+                    try {
+                        if (user.telegram_chat_id) {
+                            await bot.sendMessage(user.telegram_chat_id, message, messageOptions);
+                            successCount++;
+                        }
+                    } catch (err) {
+                        console.error(`Failed to send message to chat_id ${user.telegram_chat_id}:`, err.response ? err.response.body : err.message);
+                        errorCount++;
+                    }
+                    resolve();
+                }, index * 50); // 50ms delay between each message (20 messages per second)
+            });
+        });
+
+        // Wait for all messages to be sent
+        await Promise.all(sendPromises);
+
+        console.log(`Notification batch completed. Successful: ${successCount}, Failed: ${errorCount}`);
+        
+        res.status(200).json({ 
+            message: `Notification sent successfully to ${successCount} user(s). Failed for ${errorCount} user(s).` 
+        });
+
+    } catch (err) {
+        console.error('Error in /api/notifications/send:', err);
+        res.status(500).json({ message: 'Server error while sending notifications.' });
+    }
+});
+
+
 // --- UPDATED: Routes for Clean URLs ---
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -1314,7 +1410,8 @@ app.get('/*', (req, res) => {
                 'performance': 'admin_performance.html',
                 'pricing': 'admin_pricing.html',
                 'roles': 'admin_roles.html',
-                'payouts': 'admin_payouts.html' // NEW
+                'payouts': 'admin_payouts.html',
+                'notifications': 'admin_notifications.html' // NEW
             };
             const adminFile = adminFiles[adminRoute] || 'admin.html';
             res.sendFile(path.join(__dirname, 'public', adminFile));

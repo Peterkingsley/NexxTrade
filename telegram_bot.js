@@ -573,6 +573,12 @@ bot.on('callback_query', async (callbackQuery) => {
         if (data === 'refer_earn') {
             return handleReferralInfo(chatId, telegramUser.username, 'link');
         }
+        
+        // NEW: Handle callback for setting referral name
+        if (data === 'set_referral_name') {
+            userRegistrationState[chatId] = { stage: 'awaiting_referral_code' };
+            return bot.sendMessage(chatId, "Please enter your desired referral username. It can only contain letters and numbers (e.g., kingslayer21).");
+        }
 
         if (data === 'referral_stats') {
             return handleReferralInfo(chatId, telegramUser.username, 'stats');
@@ -701,4 +707,3 @@ module.exports = {
     setupWebhook,
     userRegistrationState
 };
-
