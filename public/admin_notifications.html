@@ -187,7 +187,9 @@
             const specificUserContainer = document.getElementById('specificUserContainer');
             targetAudience.addEventListener('change', function() {
                 if (this.value === 'specific') {
-                    specificUserContainer.classList.remove('hidden');
+                    // specificUserContainer.classList.remove('hidden');
+                    specificUserContainer.style.display = 'block';
+                    
                 } else {
                     specificUserContainer.classList.add('hidden');
                 }
