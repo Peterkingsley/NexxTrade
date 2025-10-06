@@ -27,11 +27,16 @@
         body {
             background: var(--bg);
             color: var(--text);
-            font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, "Helvetica Neue", Arial, sans-serif;
-            overflow-x: hidden;
+            font-family: 'Inter', sans-serif; /* A font similar to the original site */
         }
 
-        /* Reusable card style */
+        /* Style for the sidebar */
+        .sidebar {
+            background: var(--bg-2);
+            border-right: 1px solid var(--line);
+        }
+
+        /* Style for dashboard cards */
         .card {
             background: var(--bg-2);
             border: 1px solid var(--line);
@@ -39,477 +44,297 @@
             box-shadow: var(--shadow);
         }
 
-        /* Input field styling */
-        .input-field {
-            width: 100%;
-            padding: 12px 16px;
-            border-radius: 12px;
-            background: #0d1219;
-            border: 1px solid var(--line);
-            color: var(--text);
-            transition: border-color 0.2s ease;
-        }
-
-        .input-field:focus {
-            outline: none;
-            border-color: var(--accent);
-        }
-
-        /* Button styles */
-        .btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: .6rem;
-            padding: .9rem 1.4rem;
-            border-radius: 999px;
-            border: 1px solid transparent;
-            cursor: pointer;
-            transition: .2s ease;
-            white-space: nowrap;
-            font-weight: 600;
-        }
-
-        .btn-primary {
-            background: var(--accent);
-            color: #04140a;
-        }
-
-        .btn-primary:hover {
-            filter: brightness(1.1);
-            transform: translateY(-1px);
-        }
-
-        .btn-ghost {
-            background: transparent;
-            border-color: var(--line);
-            color: var(--text);
-        }
-
-        .btn-ghost:hover {
-            background: #0f151d;
-        }
-
-        /* Utility for spacing and layout */
-        .container {
-            width: 100%;
-            max-width: 1200px;
-            margin-inline: auto;
-            padding-inline: 20px;
-        }
-
-        /* Custom styles for admin panel tabs */
-        .tab-btn {
-            padding: 12px 20px;
-            border-bottom: 2px solid transparent;
-            color: var(--muted);
-            font-weight: 500;
-            cursor: pointer;
-            transition: color 0.2s, border-color 0.2s;
-        }
-
-        .tab-btn:hover {
-            color: var(--text);
-        }
-
-        .tab-btn.active {
-            color: var(--accent);
-            border-color: var(--accent);
-        }
-
-        /* Table styling for a more admin-like feel */
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.9rem;
-        }
-
-        th, td {
-            padding: 12px;
-            text-align: left;
+        .card-header {
             border-bottom: 1px solid var(--line);
         }
 
-        th {
-            color: var(--muted);
+        /* Table styles */
+        .table-custom {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .table-custom th, .table-custom td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid var(--line);
+        }
+        .table-custom thead th {
+            background-color: var(--bg);
             font-weight: 600;
-            background: #0d1219;
+        }
+        .table-custom tbody tr:hover {
+            background-color: #121a23;
         }
 
-        /* Message box styling */
-        .message-box {
-            padding: 16px;
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            font-weight: 500;
-            margin-top: 1rem;
-            margin-bottom: 1rem;
-        }
-
-        .message-box.success {
-            background-color: rgba(42, 214, 120, 0.1);
-            color: var(--accent);
-            border: 1px solid rgba(42, 214, 120, 0.2);
-        }
-
-        .message-box.error {
-            background-color: rgba(255, 93, 93, 0.1);
-            color: var(--danger);
-            border: 1px solid rgba(255, 93, 93, 0.2);
-        }
-
-        /* Styles for the brand logo from index.html */
-        .brand {
-            display: flex;
-            align-items: center;
-            gap: .6rem;
-        }
-
-        .logo {
-            width: 44px;
-            height: auto;
-            border-radius: 8px;
-            display: block;
-        }
-
-        /* Login-specific styles */
-        .login-container {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            padding: 1rem;
-        }
-
-        /* Responsive-specific styles for mobile */
-        @media (max-width: 768px) {
-            /* General mobile padding */
-            .container {
-                padding-inline: 16px;
-            }
-
-            /* Mobile-friendly header */
-            .admin-header {
-                flex-direction: column;
-                align-items: flex-start;
-            }
-
-            /* Responsive tab navigation */
-            .tab-nav {
-                flex-wrap: wrap;
-                justify-content: center;
-                border-bottom: none;
-                gap: 8px;
-            }
-            .tab-nav .tab-btn {
-                flex: 1 1 auto;
-                border-bottom: 2px solid transparent; /* Keep for active state */
-                border-radius: 999px;
-                padding: 8px 16px;
-            }
-            .tab-nav .tab-btn.active {
-                background-color: var(--line);
-            }
-
-            /* Mobile-friendly table overflow */
-            .card table {
-                display: block;
-                width: 100%;
-                white-space: nowrap;
-                overflow-x: auto;
-            }
-        }
+        /* Green and Red text for PNL */
+        .text-win { color: var(--accent); }
+        .text-loss { color: var(--danger); }
+        .text-neutral { color: var(--muted); }
     </style>
 </head>
-<body class="p-4 md:p-8">
-    <div id="admin-panel" class="container space-y-8">
-        <div class="card p-4 md:p-6 flex justify-between items-center admin-header">
-            <div class="flex items-center gap-4">
-                <a class="brand" href="/" aria-label="NexxTrade home">
-                    <img src="/images/Nexxtrade (1).svg" alt="NexxTrade Logo" class="logo">
-                    <h1 class="text-xl md:text-2xl font-bold">NexxTrade Admin Panel</h1>
+<body class="flex">
+    <!-- Sidebar -->
+    <aside id="sidebar" class="sidebar w-64 min-h-screen p-4">
+        <div class="sidebar-header flex items-center justify-center">
+            <h1 class="text-xl font-bold">Admin Panel</h1>
+        </div>
+        <ul class="mt-6">
+            <li class="mb-2 rounded hover:shadow hover:bg-slate-700">
+                <a href="/admin/dashboard" class="flex items-center p-2 text-base font-normal">
+                    <i data-lucide="layout-dashboard" class="w-6 h-6 text-gray-400"></i>
+                    <span class="ml-3">Dashboard</span>
                 </a>
+            </li>
+            <li class="mb-2 rounded hover:shadow hover:bg-slate-700">
+                <a href="/admin/blogs" class="flex items-center p-2 text-base font-normal">
+                    <i data-lucide="newspaper" class="w-6 h-6 text-gray-400"></i>
+                    <span class="ml-3">Blogs</span>
+                </a>
+            </li>
+            <li class="mb-2 rounded hover:shadow hover:bg-slate-700">
+                <a href="/admin/performance" class="flex items-center p-2 text-base font-normal">
+                    <i data-lucide="bar-chart-2" class="w-6 h-6 text-gray-400"></i>
+                    <span class="ml-3">Performance</span>
+                </a>
+            </li>
+            <li class="mb-2 rounded hover:shadow hover:bg-slate-700">
+                <a href="/admin/pricing" class="flex items-center p-2 text-base font-normal">
+                    <i data-lucide="tag" class="w-6 h-6 text-gray-400"></i>
+                    <span class="ml-3">Pricing Plans</span>
+                </a>
+            </li>
+            <li class="mb-2 rounded hover:shadow hover:bg-slate-700">
+                <a href="/admin/payouts" class="flex items-center p-2 text-base font-normal">
+                     <i data-lucide="dollar-sign" class="w-6 h-6 text-gray-400"></i>
+                    <span class="ml-3">Payouts</span>
+                </a>
+            </li>
+            <!-- NEW NOTIFICATION LINK ADDED HERE -->
+            <li class="mb-2 rounded hover:shadow hover:bg-slate-700">
+                <a href="/admin/notifications" class="flex items-center p-2 text-base font-normal">
+                    <i data-lucide="bell" class="w-6 h-6 text-gray-400"></i>
+                    <span class="ml-3">Notifications</span>
+                </a>
+            </li>
+            <li class="mb-2 rounded hover:shadow hover:bg-slate-700">
+                <a href="/admin/roles" class="flex items-center p-2 text-base font-normal">
+                    <i data-lucide="users" class="w-6 h-6 text-gray-400"></i>
+                    <span class="ml-3">Roles & Permissions</span>
+                </a>
+            </li>
+            <!-- Logout Button -->
+            <li class="mb-2 rounded hover:shadow hover:bg-slate-700">
+                 <button id="logout-button" class="w-full flex items-center p-2 text-base font-normal">
+                     <i data-lucide="log-out" class="w-6 h-6 text-gray-400"></i>
+                     <span class="ml-3">Logout</span>
+                 </button>
+            </li>
+        </ul>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 p-10">
+        <h1 class="text-3xl font-bold mb-8">Admin Dashboard</h1>
+
+        <!-- Stats Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <!-- Total Active Users Card -->
+            <div class="card p-5">
+                <h2 class="text-sm font-medium text-muted mb-2">Total Active Users</h2>
+                <p id="total-active-users" class="text-3xl font-bold">Loading...</p>
             </div>
-            <a href="/admin" id="logout-btn" class="btn btn-ghost">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
-                Log Out
-            </a>
+            <!-- User Acquisition: Web -->
+            <div class="card p-5">
+                <h2 class="text-sm font-medium text-muted mb-2">Web Registrations (Active)</h2>
+                <p id="web-registrations" class="text-3xl font-bold">Loading...</p>
+            </div>
+            <!-- User Acquisition: Bot -->
+            <div class="card p-5">
+                <h2 class="text-sm font-medium text-muted mb-2">Bot Registrations (Active)</h2>
+                <p id="bot-registrations" class="text-3xl font-bold">Loading...</p>
+            </div>
+            <!-- User Acquisition: Referral -->
+            <div class="card p-5">
+                <h2 class="text-sm font-medium text-muted mb-2">Referral Signups (Active)</h2>
+                <p id="referral-signups" class="text-3xl font-bold">Loading...</p>
+            </div>
         </div>
 
-        <div class="flex flex-wrap border-b border-line gap-2 tab-nav">
-            <a href="/admin/dashboard" class="tab-btn active">Dashboard</a>
-            <a href="/admin/blogs" class="tab-btn">Manage Blogs</a>
-            <a href="/admin/performance" class="tab-btn">Performance</a>
-            <a href="/admin/pricing" class="tab-btn">Update Pricing</a>
-            <a href="/admin/roles" class="tab-btn">Delegate Roles</a>
-        </div>
-
-        <div class="space-y-8">
-            <h2 class="text-2xl font-semibold">Dashboard Overview</h2>
-
-            <!-- Main Stats -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <!-- Total Active Users -->
-                <div class="md:col-span-3 card p-6 flex flex-col items-center justify-center text-center space-y-2 bg-gradient-to-br from-green-900/30 to-bg-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                    <div class="text-5xl font-extrabold" id="total-active-users-stat">...</div>
-                    <p class="text-muted text-lg">Total Active Users</p>
+        <!-- Tables for Recent Data -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- Recent Users -->
+            <div class="card">
+                <div class="card-header p-4">
+                    <h2 class="text-lg font-semibold">Recent Users</h2>
                 </div>
-            </div>
-
-            <!-- Active Users by Package -->
-            <div class="card p-6">
-                <h3 class="text-xl font-semibold mb-4">Active Users by Package</h3>
-                <div id="active-users-per-package-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <div class="p-4 border border-dashed border-line rounded-lg text-center text-muted">Loading package data...</div>
-                </div>
-            </div>
-
-            <!-- User Acquisition -->
-            <div class="card p-6">
-                <h3 class="text-xl font-semibold mb-4">User Acquisition Source</h3>
-                <div id="user-acquisition-container" class="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
-                     <div class="p-4 border border-dashed border-line rounded-lg text-center text-muted">Loading acquisition data...</div>
-                </div>
-            </div>
-
-            <div class="card p-6">
-                <h3 class="text-xl font-semibold mb-4 flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                    All Registered Users
-                </h3>
                 <div class="overflow-x-auto">
-                    <table>
+                    <table class="table-custom" id="users-table">
                         <thead>
                             <tr>
+                                <th>Name</th>
                                 <th>Email</th>
-                                <th>Telegram Handle</th>
-                                <th>Registered On</th>
-                                <th>Subscription Expires</th>
+                                <th>Telegram</th>
+                                <th>Plan</th>
                                 <th>Status</th>
                             </tr>
                         </thead>
-                        <tbody id="users-table">
-                            <tr><td colspan="5" class="text-muted text-center py-4">Loading user data...</td></tr>
+                        <tbody id="users-table-body">
+                            <!-- Data will be populated by JavaScript -->
                         </tbody>
                     </table>
                 </div>
             </div>
 
-            <div class="card p-6">
-                <h3 class="text-xl font-semibold mb-4 flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent-2"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m2 15 5 2 8-5 5 2"/></svg>
-                    Recent Blog Posts
-                </h3>
+            <!-- Recent Blog Posts -->
+            <div class="card">
+                <div class="card-header p-4">
+                    <h2 class="text-lg font-semibold">Recent Blog Posts</h2>
+                </div>
                 <div class="overflow-x-auto">
-                    <table>
+                    <table class="table-custom" id="blogs-table">
                         <thead>
                             <tr>
                                 <th>Title</th>
                                 <th>Author</th>
-                                <th>Published Date</th>
-                                <th>Status</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="blogs-table">
-                            <tr><td colspan="5" class="text-muted text-center py-4">Loading blog posts...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-                <div class="flex justify-end mt-4">
-                    <a href="/admin/blogs" class="btn btn-ghost text-sm">View All Blogs</a>
-                </div>
-            </div>
-
-            <div class="card p-6">
-                <h3 class="text-xl font-semibold mb-4 flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 1 0 0 7h5a3.5 3.5 0 1 1 0 7H6"/></svg>
-                    Recent Performance Signals
-                </h3>
-                <div class="overflow-x-auto">
-                    <table>
-                        <thead>
-                            <tr>
                                 <th>Date</th>
-                                <th>Pair</th>
-                                <th>Entry</th>
-                                <th>Exit</th>
-                                <th>P/L %</th>
-                                <th>Leverage</th>
-                                <th>Result</th>
+                                <th>Status</th>
                             </tr>
                         </thead>
-                        <tbody id="signals-table">
-                            <tr><td colspan="7" class="text-muted text-center py-4">Loading signals...</td></tr>
+                        <tbody id="blogs-table-body">
+                            <!-- Data will be populated by JavaScript -->
                         </tbody>
                     </table>
-                </div>
-                <div class="flex justify-end mt-4">
-                    <a href="/admin/performance" class="btn btn-ghost text-sm">View All Signals</a>
                 </div>
             </div>
         </div>
-    </div>
+
+        <!-- Recent Signals Table -->
+        <div class="card mt-8">
+            <div class="card-header p-4">
+                <h2 class="text-lg font-semibold">Recent Performance Signals</h2>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="table-custom" id="signals-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Pair</th>
+                            <th>Entry</th>
+                            <th>Exit</th>
+                            <th>PNL (%)</th>
+                            <th>Leverage</th>
+                            <th>Result</th>
+                        </tr>
+                    </thead>
+                    <tbody id="signals-table-body">
+                        <!-- Data will be populated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
     <script>
-        // Check for authentication on page load
-        if (sessionStorage.getItem('isAdminLoggedIn') !== 'true') {
-            window.location.href = '/admin';
-        }
-
-        // Logout function
-        const logout = () => {
-            sessionStorage.removeItem('isAdminLoggedIn');
-            window.location.href = '/admin';
-        };
-
-        document.getElementById('logout-btn').addEventListener('click', (e) => {
-            e.preventDefault();
-            logout();
-        });
-
         document.addEventListener('DOMContentLoaded', () => {
+            // Initialize Lucide icons
             lucide.createIcons();
-            const API_BASE_URL = 'https://nexxtrade.onrender.com/api';
-
-            // Function to format date to YYYY-MM-DD
-            function formatDate(dateString) {
-                if (!dateString) return 'N/A';
-                const date = new Date(dateString);
-                return date.toISOString().split('T')[0];
-            }
-
-            // Function to check subscription status
-            function getSubscriptionStatus(status, expirationDate) {
-                 if (status === 'active') {
-                    const now = new Date();
-                    const expiration = new Date(expirationDate);
-                    return expiration > now ? '<span class="text-accent">Active</span>' : '<span class="text-danger">Expired</span>';
-                }
-                return `<span class="text-muted">${status || 'pending'}</span>`;
-            }
             
-            // --- NEW: Function to fetch and render the new dashboard stats ---
-            const fetchDashboardStats = async () => {
-                const totalActiveUsersEl = document.getElementById('total-active-users-stat');
-                const packageContainer = document.getElementById('active-users-per-package-container');
-                const acquisitionContainer = document.getElementById('user-acquisition-container');
+            // Check for user session
+            const user = JSON.parse(sessionStorage.getItem('nexxTradeAdmin'));
+            if (!user) {
+                window.location.href = '/admin'; // Redirect to login if not authenticated
+                return;
+            }
 
+            // Logout functionality
+            document.getElementById('logout-button').addEventListener('click', () => {
+                sessionStorage.removeItem('nexxTradeAdmin');
+                window.location.href = '/admin';
+            });
+
+            // Function to format dates
+            const formatDate = (dateString) => {
+                if (!dateString) return 'N/A';
+                const options = { year: 'numeric', month: 'short', day: 'numeric' };
+                return new Date(dateString).toLocaleDateString(undefined, options);
+            };
+
+            // Fetch dashboard stats
+            const fetchDashboardStats = async () => {
                 try {
-                    const response = await fetch(`${API_BASE_URL}/dashboard-stats`);
-                    if (!response.ok) throw new Error('Failed to fetch dashboard stats');
+                    const response = await fetch('/api/dashboard-stats');
+                    if (!response.ok) throw new Error('Failed to fetch stats');
                     const stats = await response.json();
 
-                    // 1. Populate Total Active Users
-                    totalActiveUsersEl.textContent = stats.totalActiveUsers;
-                    
-                    // 2. Populate Active Users by Package
-                    packageContainer.innerHTML = ''; // Clear loading message
-                    if (stats.activeUsersPerPackage.length > 0) {
-                        stats.activeUsersPerPackage.forEach(pkg => {
-                            const card = document.createElement('div');
-                            card.className = 'p-4 border border-line rounded-lg';
-                            card.innerHTML = `
-                                <div class="text-2xl font-bold">${pkg.active_users}</div>
-                                <p class="text-muted">${pkg.plan_name}</p>
-                            `;
-                            packageContainer.appendChild(card);
-                        });
-                    } else {
-                        packageContainer.innerHTML = '<p class="text-muted col-span-full text-center">No active users on any package.</p>';
-                    }
-
-                    // 3. Populate User Acquisition Sources
-                    acquisitionContainer.innerHTML = ''; // Clear loading message
-                    const sources = [
-                        { label: 'Web Signups', data: stats.userAcquisition.web },
-                        { label: 'Bot Signups', data: stats.userAcquisition.bot },
-                        { label: 'Referred Users', data: stats.userAcquisition.referred }
-                    ];
-
-                    sources.forEach(source => {
-                        const card = document.createElement('div');
-                        card.className = 'p-4 border border-line rounded-lg';
-                        card.innerHTML = `
-                            <div>
-                                <span class="text-2xl font-bold">${source.data.active}</span>
-                                <span class="text-muted">/ ${source.data.total}</span>
-                            </div>
-                            <p class="text-muted">${source.label}</p>
-                        `;
-                        acquisitionContainer.appendChild(card);
-                    });
-
-
+                    document.getElementById('total-active-users').textContent = stats.totalActiveUsers || 0;
+                    document.getElementById('web-registrations').textContent = stats.userAcquisition.web.active || 0;
+                    document.getElementById('bot-registrations').textContent = stats.userAcquisition.bot.active || 0;
+                    document.getElementById('referral-signups').textContent = stats.userAcquisition.referred.active || 0;
                 } catch (error) {
                     console.error('Error fetching dashboard stats:', error);
-                    totalActiveUsersEl.textContent = 'Error';
-                    packageContainer.innerHTML = '<p class="text-danger text-center col-span-full">Could not load package data.</p>';
-                    acquisitionContainer.innerHTML = '<p class="text-danger text-center col-span-full">Could not load acquisition data.</p>';
+                    // Display error message in cards
+                    document.getElementById('total-active-users').textContent = 'Error';
+                    document.getElementById('web-registrations').textContent = 'Error';
+                    document.getElementById('bot-registrations').textContent = 'Error';
+                    document.getElementById('referral-signups').textContent = 'Error';
                 }
             };
 
-
-            // --- MODIFIED: This function now only handles the lower tables ---
+            // Fetch data for the tables
             const fetchTableData = async () => {
                 try {
-                    // Fetch and populate all registered users table
-                    const usersResponse = await fetch(`${API_BASE_URL}/users`);
-                    const users = await usersResponse.json();
-                    const usersTableBody = document.getElementById('users-table');
-                    usersTableBody.innerHTML = '';
-                    if (users.length === 0) {
-                        usersTableBody.innerHTML = `<tr><td colspan="5" class="text-muted text-center py-4">No registered users found.</td></tr>`;
-                    } else {
-                        users.forEach(user => {
-                            const row = document.createElement('tr');
+                    const [usersRes, blogsRes, signalsRes] = await Promise.all([
+                        fetch('/api/users?limit=5'),
+                        fetch('/api/blogs?limit=5'),
+                        fetch('/api/performances?limit=5')
+                    ]);
+
+                    // Populate recent users table
+                    if (usersRes.ok) {
+                        const users = await usersRes.json();
+                        const usersTableBody = document.getElementById('users-table-body');
+                        usersTableBody.innerHTML = ''; // Clear existing
+                        users.slice(0, 5).forEach(user => {
+                            const row = usersTableBody.insertRow();
+                            const statusClass = user.subscription_status === 'active' ? 'text-win' : (user.subscription_status === 'pending' ? 'text-accent-2' : 'text-danger');
                             row.innerHTML = `
+                                <td>${user.full_name}</td>
                                 <td>${user.email}</td>
-                                <td>${user.telegram_handle}</td>
-                                <td>${formatDate(user.registration_date)}</td>
-                                <td>${user.subscription_expiration ? formatDate(user.subscription_expiration) : 'N/A'}</td>
-                                <td>${getSubscriptionStatus(user.subscription_status, user.subscription_expiration)}</td>
+                                <td>${user.telegram_handle || 'N/A'}</td>
+                                <td>${user.plan_name || 'N/A'}</td>
+                                <td class="${statusClass}">${user.subscription_status}</td>
                             `;
-                            usersTableBody.appendChild(row);
                         });
                     }
-
-                    // Fetch and populate recent blog posts table (limit to 5)
-                    const blogsResponse = await fetch(`${API_BASE_URL}/blogs`);
-                    const blogs = await blogsResponse.json();
-                    const blogsTableBody = document.getElementById('blogs-table');
-                    blogsTableBody.innerHTML = '';
-                    const recentBlogs = blogs.slice(0, 5);
-                    if (recentBlogs.length === 0) {
-                        blogsTableBody.innerHTML = `<tr><td colspan="5" class="text-muted text-center py-4">No recent blog posts.</td></tr>`;
-                    } else {
-                        recentBlogs.forEach(post => {
-                            const row = document.createElement('tr');
+                    
+                    // Populate recent blogs table
+                    if (blogsRes.ok) {
+                        const blogs = await blogsRes.json();
+                        const blogsTableBody = document.getElementById('blogs-table-body');
+                        blogsTableBody.innerHTML = ''; // Clear existing
+                        blogs.slice(0, 5).forEach(blog => {
+                            const row = blogsTableBody.insertRow();
                             row.innerHTML = `
-                                <td>${post.title}</td>
-                                <td>${post.author}</td>
-                                <td>${formatDate(post.published_date)}</td>
-                                <td>${post.status}</td>
-                                <td><a href="/admin/blogs" class="text-muted hover:text-text p-1">Edit</a></td>
+                                <td>${blog.title}</td>
+                                <td>${blog.author}</td>
+                                <td>${formatDate(blog.published_date)}</td>
+                                <td>${blog.status}</td>
                             `;
-                            blogsTableBody.appendChild(row);
                         });
                     }
 
-                    // Fetch and populate recent signals table (limit to 5)
-                    const signalsResponse = await fetch(`${API_BASE_URL}/performances`);
-                    const signals = await signalsResponse.json();
-                    const signalsTableBody = document.getElementById('signals-table');
-                    signalsTableBody.innerHTML = '';
-                    const recentSignals = signals.slice(0, 5);
-                    if (recentSignals.length === 0) {
-                        signalsTableBody.innerHTML = `<tr><td colspan="7" class="text-muted text-center py-4">No recent signals.</td></tr>`;
-                    } else {
-                        recentSignals.forEach(signal => {
-                            const row = document.createElement('tr');
-                            const pnlClass = parseFloat(signal.pnl_percent) > 0 ? 'text-accent' : 'text-danger';
+                    // Populate recent signals table
+                    if (signalsRes.ok) {
+                        const signals = await signalsRes.json();
+                        const signalsTableBody = document.getElementById('signals-table-body');
+                        signalsTableBody.innerHTML = ''; // Clear existing
+                        signals.slice(0, 5).forEach(signal => {
+                            const row = signalsTableBody.insertRow();
+                            const pnlValue = parseFloat(signal.pnl_percent.replace('%', ''));
+                            let pnlClass = 'text-neutral';
+                            if (pnlValue > 0) pnlClass = 'text-win';
+                            if (pnlValue < 0) pnlClass = 'text-loss';
+
                             row.innerHTML = `
                                 <td>${formatDate(signal.date)}</td>
                                 <td>${signal.pair}</td>
@@ -538,4 +363,3 @@
     </script>
 </body>
 </html>
-
