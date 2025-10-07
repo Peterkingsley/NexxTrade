@@ -271,13 +271,15 @@ const handleReferralInfo = async (chatId, telegramUsername, type) => {
                 const message = `
 🔗 *Your Personal Referral Links*
 
-*For Website Sign-ups:*
-Share this link for users who prefer to register on the website.
-\`${websiteLink}\`
+*Earn upto $40 per sign up*
 
 *For Direct Bot Sign-ups:*
 Share this link to bring users directly to this Telegram bot.
 \`${botLink}\`
+
+*For Website Sign-ups:*
+Share this link for users who prefer to register on the website.
+\`${websiteLink}\`
                 `;
                 const opts = {
                     parse_mode: 'Markdown',
