@@ -1279,10 +1279,10 @@ app.put('/api/payouts/:id', async (req, res) => {
 });
 
 
-// --- NEW: NOTIFICATION ROUTE (ENHANCED FOR IMAGES) ---
+// --- UPDATED: NOTIFICATION ROUTE TO HANDLE BASE64 IMAGE UPLOADS ---
 app.post('/api/notifications/send', async (req, res) => {
     try {
-        const { message, target, commands, telegramHandles, imageUrls } = req.body;
+        const { message, target, commands, telegramHandles, images } = req.body;
 
         if (!message || !target) {
             return res.status(400).json({ message: 'Message and target audience are required.' });
@@ -1344,21 +1344,27 @@ app.post('/api/notifications/send', async (req, res) => {
                 setTimeout(async () => {
                     try {
                         if (user.telegram_chat_id) {
-                            const hasImages = imageUrls && imageUrls.length > 0;
+                            const hasImages = images && images.length > 0;
 
                             if (!hasImages) {
                                 await bot.sendMessage(user.telegram_chat_id, message, messageOptions);
-                            } else if (imageUrls.length === 1) {
-                                await bot.sendPhoto(user.telegram_chat_id, imageUrls[0], {
+                            } else if (images.length === 1) {
+                                // Convert Base64 to Buffer for a single image
+                                const buffer = Buffer.from(images[0].replace(/^data:image\/\w+;base64,/, ""), 'base64');
+                                await bot.sendPhoto(user.telegram_chat_id, buffer, {
                                     caption: message,
                                     ...messageOptions
                                 });
                             } else {
-                                const mediaGroup = imageUrls.slice(0, 10).map((url, i) => ({
-                                    type: 'photo',
-                                    media: url,
-                                    caption: i === 0 ? message : undefined 
-                                }));
+                                // Convert multiple Base64 strings to Buffers for a media group
+                                const mediaGroup = images.slice(0, 10).map((base64Image, i) => {
+                                    const buffer = Buffer.from(base64Image.replace(/^data:image\/\w+;base64,/, ""), 'base64');
+                                    return {
+                                        type: 'photo',
+                                        media: buffer,
+                                        caption: i === 0 ? message : undefined 
+                                    };
+                                });
                                 await bot.sendMediaGroup(user.telegram_chat_id, mediaGroup);
                                 if (messageOptions.reply_markup) {
                                     await bot.sendMessage(user.telegram_chat_id, "Choose an option:", messageOptions);
@@ -1443,3 +1449,4 @@ app.listen(port, async () => {
   console.log(`Server is running on http://localhost:${port}`);
   await setupWebhook();
 });
+
