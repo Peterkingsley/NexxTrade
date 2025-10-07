@@ -90,6 +90,20 @@
                                 <textarea id="message" name="message" rows="8" class="shadow-sm appearance-none border rounded w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Type your notification message here..." required></textarea>
                             </div>
 
+                            <!-- Image URLs Input -->
+                            <div class="mb-6">
+                                <label for="imageUrlInput" class="block text-gray-700 text-sm font-bold mb-2">Image URLs (Optional)</label>
+                                <div class="flex items-center gap-2">
+                                    <input type="url" id="imageUrlInput" class="shadow-sm appearance-none border rounded w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="https://example.com/image.jpg">
+                                    <button type="button" id="addImageButton" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-4 rounded-lg transition duration-300">
+                                        Add
+                                    </button>
+                                </div>
+                                <div id="imageUrlsPreview" class="mt-3 flex flex-wrap gap-2">
+                                    <!-- Image URL tags will be added here -->
+                                </div>
+                            </div>
+
                             <!-- Target Audience -->
                             <div class="mb-6">
                                 <label for="targetAudience" class="block text-gray-700 text-sm font-bold mb-2">Target Audience</label>
@@ -147,6 +161,7 @@
             checkAuth();
             setupUI();
             setupMultiUserInput();
+            setupImageUrlInput(); // Added for image URL functionality
             setupFormSubmission();
         });
 
@@ -187,10 +202,55 @@
             const specificUserContainer = document.getElementById('specificUserContainer');
             targetAudience.addEventListener('change', function() {
                 if (this.value === 'specific') {
-                    // specificUserContainer.classList.remove('hidden');
-                    specificUserContainer.style.display = 'block';
+                    specificUserContainer.classList.remove('hidden');
                 } else {
                     specificUserContainer.classList.add('hidden');
+                }
+            });
+        }
+
+        // --- NEW FUNCTION: Handles adding and removing image URLs ---
+        function setupImageUrlInput() {
+            const addButton = document.getElementById('addImageButton');
+            const input = document.getElementById('imageUrlInput');
+            const previewContainer = document.getElementById('imageUrlsPreview');
+
+            const addImageUrlTag = (url) => {
+                if (!url.trim() || !url.startsWith('http')) {
+                    input.value = '';
+                    return; // Basic validation for URL format
+                }
+
+                const tag = document.createElement('div');
+                tag.className = 'image-url-tag bg-gray-200 text-gray-800 text-xs font-medium px-2.5 py-1.5 rounded flex items-center gap-2 max-w-xs';
+                
+                const tagImg = document.createElement('img');
+                tagImg.src = url;
+                tagImg.className = 'w-8 h-8 object-cover rounded flex-shrink-0';
+                tagImg.onerror = () => { tag.remove(); alert('Invalid image URL.'); }; // Remove tag if image fails to load
+
+                const tagText = document.createElement('span');
+                tagText.className = 'image-url-text truncate';
+                tagText.textContent = url;
+                
+                const removeBtn = document.createElement('span');
+                removeBtn.className = 'cursor-pointer font-bold';
+                removeBtn.innerHTML = '&times;';
+                removeBtn.onclick = () => tag.remove();
+                
+                tag.appendChild(tagImg);
+                tag.appendChild(tagText);
+                tag.appendChild(removeBtn);
+                
+                previewContainer.appendChild(tag);
+                input.value = '';
+            };
+
+            addButton.addEventListener('click', () => addImageUrlTag(input.value));
+            input.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    addImageUrlTag(input.value);
                 }
             });
         }
@@ -251,7 +311,6 @@
                 const target = document.getElementById('targetAudience').value;
                 const telegramHandleInput = document.getElementById('telegramHandleInput');
 
-                // If a handle is typed but not submitted via "Enter", add it as a tag before validating.
                 if (target === 'specific' && telegramHandleInput.value.trim() !== '') {
                     addTag(telegramHandleInput.value.trim());
                     telegramHandleInput.value = '';
@@ -260,17 +319,19 @@
                 const message = document.getElementById('message').value;
                 const telegramHandles = Array.from(document.querySelectorAll('.user-tag-text')).map(tag => tag.textContent);
                 const commands = Array.from(document.querySelectorAll('input[name="embedCommand"]:checked')).map(cb => cb.value);
+                // MODIFIED: Collect image URLs
+                const imageUrls = Array.from(document.querySelectorAll('.image-url-text')).map(tag => tag.textContent);
 
                 if (target === 'specific' && telegramHandles.length === 0) {
                     displayStatus('Please enter at least one Telegram handle.', 'error');
                     return;
                 }
                 
-                // FIX: Construct the payload more cleanly.
                 const payload = {
                     message,
                     target,
-                    commands
+                    commands,
+                    imageUrls // MODIFIED: Add imageUrls to the payload
                 };
 
                 if (target === 'specific') {
@@ -295,6 +356,8 @@
                         form.reset(); 
                         document.getElementById('specificUserContainer').classList.add('hidden');
                         document.querySelectorAll('.user-tag').forEach(tag => tag.remove());
+                        // MODIFIED: Clear image previews on success
+                        document.querySelectorAll('.image-url-tag').forEach(tag => tag.remove());
                     } else {
                         throw new Error(result.message || 'An unknown error occurred.');
                     }
@@ -326,4 +389,3 @@
     </script>
 </body>
 </html>
-

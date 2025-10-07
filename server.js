@@ -1279,13 +1279,11 @@ app.put('/api/payouts/:id', async (req, res) => {
 });
 
 
-// --- NEW: NOTIFICATION ROUTE (CORRECTED) ---
+// --- NEW: NOTIFICATION ROUTE (ENHANCED FOR IMAGES) ---
 app.post('/api/notifications/send', async (req, res) => {
     try {
-        // FIX: Destructure 'telegramHandles' (plural array) and 'commands' (plural array)
-        const { message, target, commands, telegramHandles } = req.body;
+        const { message, target, commands, telegramHandles, imageUrls } = req.body;
 
-        // Basic validation
         if (!message || !target) {
             return res.status(400).json({ message: 'Message and target audience are required.' });
         }
@@ -1293,7 +1291,6 @@ app.post('/api/notifications/send', async (req, res) => {
         let query = '';
         const params = [];
 
-        // Build the database query based on the selected target
         switch (target) {
             case 'all':
                 query = `SELECT telegram_chat_id FROM users WHERE telegram_chat_id IS NOT NULL AND registration_source = 'bot'`;
@@ -1305,13 +1302,10 @@ app.post('/api/notifications/send', async (req, res) => {
                 query = `SELECT telegram_chat_id FROM users WHERE telegram_chat_id IS NOT NULL AND registration_source = 'bot' AND subscription_status = 'pending'`;
                 break;
             case 'specific':
-                // FIX: Check for the existence and length of the 'telegramHandles' array
                 if (!telegramHandles || telegramHandles.length === 0) {
                     return res.status(400).json({ message: 'At least one Telegram handle is required for specific users.' });
                 }
-                // FIX: Use a query that can accept an array of usernames for more efficient database lookup
                 query = `SELECT telegram_chat_id FROM users WHERE telegram_handle = ANY($1::text[])`;
-                // Ensure all handles are formatted correctly with an '@' prefix
                 params.push(telegramHandles.map(h => h.startsWith('@') ? h : '@' + h));
                 break;
             default:
@@ -1324,9 +1318,7 @@ app.post('/api/notifications/send', async (req, res) => {
             return res.status(404).json({ message: 'No users found for the selected criteria.' });
         }
 
-        // Prepare message options, including the command button if selected
         const messageOptions = {};
-        // FIX: Handle an array of 'commands' to create multiple buttons
         if (commands && commands.length > 0) {
             const commandMap = {
                 '/start': { text: 'Go to Main Menu', callback_data: 'main_menu' },
@@ -1334,20 +1326,16 @@ app.post('/api/notifications/send', async (req, res) => {
                 '/myreferral': { text: '🔗 Get My Referral Link', callback_data: 'refer_earn' },
                 '/referralstats': { text: '📈 View My Stats', callback_data: 'referral_stats' },
                 '/requestpayout': { text: '💰 Request Payout', callback_data: 'request_payout' }
-                 // Note: /setreferral, /faq, /support are not in the map, so they won't create buttons unless added here.
             };
-            // Map the array of command strings to an array of button objects
-            const buttons = commands.map(command => commandMap[command]).filter(Boolean); // .filter(Boolean) removes any undefined values if a command isn't in the map
+            const buttons = commands.map(command => commandMap[command]).filter(Boolean);
             
             if (buttons.length > 0) {
                 messageOptions.reply_markup = {
-                    // Place all buttons in a single row in the keyboard
                     inline_keyboard: [buttons]
                 };
             }
         }
 
-        // --- Asynchronously send messages with a delay to avoid rate limiting ---
         let successCount = 0;
         let errorCount = 0;
         
@@ -1356,7 +1344,26 @@ app.post('/api/notifications/send', async (req, res) => {
                 setTimeout(async () => {
                     try {
                         if (user.telegram_chat_id) {
-                            await bot.sendMessage(user.telegram_chat_id, message, messageOptions);
+                            const hasImages = imageUrls && imageUrls.length > 0;
+
+                            if (!hasImages) {
+                                await bot.sendMessage(user.telegram_chat_id, message, messageOptions);
+                            } else if (imageUrls.length === 1) {
+                                await bot.sendPhoto(user.telegram_chat_id, imageUrls[0], {
+                                    caption: message,
+                                    ...messageOptions
+                                });
+                            } else {
+                                const mediaGroup = imageUrls.slice(0, 10).map((url, i) => ({
+                                    type: 'photo',
+                                    media: url,
+                                    caption: i === 0 ? message : undefined 
+                                }));
+                                await bot.sendMediaGroup(user.telegram_chat_id, mediaGroup);
+                                if (messageOptions.reply_markup) {
+                                    await bot.sendMessage(user.telegram_chat_id, "Choose an option:", messageOptions);
+                                }
+                            }
                             successCount++;
                         }
                     } catch (err) {
@@ -1364,11 +1371,10 @@ app.post('/api/notifications/send', async (req, res) => {
                         errorCount++;
                     }
                     resolve();
-                }, index * 50); // 50ms delay between each message (20 messages per second)
+                }, index * 100);
             });
         });
 
-        // Wait for all messages to be sent
         await Promise.all(sendPromises);
 
         console.log(`Notification batch completed. Successful: ${successCount}, Failed: ${errorCount}`);
