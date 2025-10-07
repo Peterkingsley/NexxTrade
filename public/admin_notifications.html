@@ -22,6 +22,25 @@
             border: none;
             box-shadow: none;
         }
+        .image-preview-item {
+            position: relative;
+        }
+        .image-preview-remove {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            cursor: pointer;
+            line-height: 20px;
+        }
     </style>
 </head>
 <body class="bg-gray-100 font-sans">
@@ -90,17 +109,15 @@
                                 <textarea id="message" name="message" rows="8" class="shadow-sm appearance-none border rounded w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Type your notification message here..." required></textarea>
                             </div>
 
-                            <!-- Image URLs Input -->
+                            <!-- Image Upload Section -->
                             <div class="mb-6">
-                                <label for="imageUrlInput" class="block text-gray-700 text-sm font-bold mb-2">Image URLs (Optional)</label>
-                                <div class="flex items-center gap-2">
-                                    <input type="url" id="imageUrlInput" class="shadow-sm appearance-none border rounded w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="https://example.com/image.jpg">
-                                    <button type="button" id="addImageButton" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-4 rounded-lg transition duration-300">
-                                        Add
-                                    </button>
-                                </div>
-                                <div id="imageUrlsPreview" class="mt-3 flex flex-wrap gap-2">
-                                    <!-- Image URL tags will be added here -->
+                                <label class="block text-gray-700 text-sm font-bold mb-2">Upload Images (Optional)</label>
+                                <label for="imageUpload" class="cursor-pointer inline-block bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-4 rounded-lg transition duration-300">
+                                    <i class="fas fa-upload mr-2"></i> Choose Files
+                                </label>
+                                <input type="file" id="imageUpload" class="hidden" multiple accept="image/jpeg, image/png, image/gif">
+                                <div id="imagePreviewContainer" class="mt-3 flex flex-wrap gap-4">
+                                    <!-- Image previews will be added here -->
                                 </div>
                             </div>
 
@@ -139,7 +156,6 @@
                                 </div>
                             </div>
 
-
                             <!-- Submit Button -->
                             <div class="flex items-center justify-end">
                                 <button type="submit" id="sendButton" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg focus:outline-none focus:shadow-outline transition duration-300 w-full sm:w-auto">
@@ -157,11 +173,10 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // --- Authentication and UI Setup ---
             checkAuth();
             setupUI();
             setupMultiUserInput();
-            setupImageUrlInput(); // Added for image URL functionality
+            setupImageUpload(); // Changed from setupImageUrlInput
             setupFormSubmission();
         });
 
@@ -177,27 +192,20 @@
         }
 
         function setupUI() {
-            // --- Responsive Sidebar Toggle ---
             const menuButton = document.getElementById('menu-button');
             const sidebar = document.getElementById('sidebar');
             const overlay = document.getElementById('overlay');
-
             const toggleSidebar = () => {
                 sidebar.classList.toggle('-translate-x-full');
                 overlay.classList.toggle('hidden');
             };
-
             menuButton.addEventListener('click', toggleSidebar);
             overlay.addEventListener('click', toggleSidebar);
-            
-            // --- Logout ---
             document.getElementById('logoutButton').addEventListener('click', () => {
                 sessionStorage.removeItem('isAdminLoggedIn');
                 sessionStorage.removeItem('user');
                 window.location.href = '/admin'; 
             });
-            
-            // --- Show/Hide Specific User Input ---
             const targetAudience = document.getElementById('targetAudience');
             const specificUserContainer = document.getElementById('specificUserContainer');
             targetAudience.addEventListener('change', function() {
@@ -209,87 +217,73 @@
             });
         }
 
-        // --- NEW FUNCTION: Handles adding and removing image URLs ---
-        function setupImageUrlInput() {
-            const addButton = document.getElementById('addImageButton');
-            const input = document.getElementById('imageUrlInput');
-            const previewContainer = document.getElementById('imageUrlsPreview');
+        // --- NEW FUNCTION: Handles file selection, reading, and previewing ---
+        function setupImageUpload() {
+            const fileInput = document.getElementById('imageUpload');
+            const previewContainer = document.getElementById('imagePreviewContainer');
 
-            const addImageUrlTag = (url) => {
-                if (!url.trim() || !url.startsWith('http')) {
-                    input.value = '';
-                    return; // Basic validation for URL format
-                }
+            fileInput.addEventListener('change', event => {
+                previewContainer.innerHTML = ''; // Clear existing previews
+                const files = event.target.files;
 
-                const tag = document.createElement('div');
-                tag.className = 'image-url-tag bg-gray-200 text-gray-800 text-xs font-medium px-2.5 py-1.5 rounded flex items-center gap-2 max-w-xs';
-                
-                const tagImg = document.createElement('img');
-                tagImg.src = url;
-                tagImg.className = 'w-8 h-8 object-cover rounded flex-shrink-0';
-                tagImg.onerror = () => { tag.remove(); alert('Invalid image URL.'); }; // Remove tag if image fails to load
+                for (const file of files) {
+                    if (!file.type.startsWith('image/')) continue;
 
-                const tagText = document.createElement('span');
-                tagText.className = 'image-url-text truncate';
-                tagText.textContent = url;
-                
-                const removeBtn = document.createElement('span');
-                removeBtn.className = 'cursor-pointer font-bold';
-                removeBtn.innerHTML = '&times;';
-                removeBtn.onclick = () => tag.remove();
-                
-                tag.appendChild(tagImg);
-                tag.appendChild(tagText);
-                tag.appendChild(removeBtn);
-                
-                previewContainer.appendChild(tag);
-                input.value = '';
-            };
+                    const reader = new FileReader();
+                    reader.onload = e => {
+                        const previewWrapper = document.createElement('div');
+                        previewWrapper.className = 'image-preview-item';
+                        
+                        const img = document.createElement('img');
+                        img.src = e.target.result;
+                        img.className = 'w-24 h-24 object-cover rounded-lg shadow-md';
+                        // Store base64 string on the element for later retrieval
+                        img.dataset.base64 = e.target.result;
 
-            addButton.addEventListener('click', () => addImageUrlTag(input.value));
-            input.addEventListener('keydown', (event) => {
-                if (event.key === 'Enter') {
-                    event.preventDefault();
-                    addImageUrlTag(input.value);
+                        const removeBtn = document.createElement('div');
+                        removeBtn.className = 'image-preview-remove';
+                        removeBtn.innerHTML = '&times;';
+                        removeBtn.onclick = () => {
+                            previewWrapper.remove();
+                            // Note: This doesn't remove it from the file input's FileList,
+                            // but since we collect data from the previews, it works.
+                        };
+
+                        previewWrapper.appendChild(img);
+                        previewWrapper.appendChild(removeBtn);
+                        previewContainer.appendChild(previewWrapper);
+                    };
+                    reader.readAsDataURL(file);
                 }
             });
         }
         
-        // --- Shared function to create a user tag ---
         function addTag(username) {
             const container = document.getElementById('telegramHandlesContainer');
             const input = document.getElementById('telegramHandleInput');
             if (!username || !container || !input) return;
-
             const existingTags = Array.from(container.querySelectorAll('.user-tag-text')).map(t => t.textContent);
             if (existingTags.includes(username)) {
                 input.value = '';
                 return;
             }
-            
             const tag = document.createElement('span');
             tag.className = 'user-tag bg-blue-100 text-blue-800 text-sm font-medium px-2.5 py-1 rounded';
-            
             const tagText = document.createElement('span');
             tagText.className = 'user-tag-text';
             tagText.textContent = username;
-            
             const removeBtn = document.createElement('span');
             removeBtn.className = 'user-tag-remove';
             removeBtn.innerHTML = '&times;';
             removeBtn.onclick = () => tag.remove();
-            
             tag.appendChild(tagText);
             tag.appendChild(removeBtn);
-            
             container.insertBefore(tag, input);
         }
 
-        // --- Logic for multi-user input ---
         function setupMultiUserInput() {
             const input = document.getElementById('telegramHandleInput');
             if (!input) return;
-
             input.addEventListener('keydown', function(event) {
                 if (event.key === 'Enter' && input.value.trim() !== '') {
                     event.preventDefault();
@@ -300,7 +294,6 @@
         }
         
         function setupFormSubmission() {
-            // --- Form Submission Logic ---
             const form = document.getElementById('notificationForm');
             const sendButton = document.getElementById('sendButton');
             const statusMessage = document.getElementById('statusMessage');
@@ -310,7 +303,6 @@
                 
                 const target = document.getElementById('targetAudience').value;
                 const telegramHandleInput = document.getElementById('telegramHandleInput');
-
                 if (target === 'specific' && telegramHandleInput.value.trim() !== '') {
                     addTag(telegramHandleInput.value.trim());
                     telegramHandleInput.value = '';
@@ -319,8 +311,9 @@
                 const message = document.getElementById('message').value;
                 const telegramHandles = Array.from(document.querySelectorAll('.user-tag-text')).map(tag => tag.textContent);
                 const commands = Array.from(document.querySelectorAll('input[name="embedCommand"]:checked')).map(cb => cb.value);
-                // MODIFIED: Collect image URLs
-                const imageUrls = Array.from(document.querySelectorAll('.image-url-text')).map(tag => tag.textContent);
+                
+                // MODIFIED: Collect Base64 image data from the previews
+                const images = Array.from(document.querySelectorAll('#imagePreviewContainer img')).map(img => img.dataset.base64);
 
                 if (target === 'specific' && telegramHandles.length === 0) {
                     displayStatus('Please enter at least one Telegram handle.', 'error');
@@ -331,7 +324,7 @@
                     message,
                     target,
                     commands,
-                    imageUrls // MODIFIED: Add imageUrls to the payload
+                    images // MODIFIED: Send 'images' array instead of 'imageUrls'
                 };
 
                 if (target === 'specific') {
@@ -348,16 +341,15 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(payload)
                     });
-
                     const result = await response.json();
-
                     if (response.ok) {
                         displayStatus(result.message, 'success');
                         form.reset(); 
                         document.getElementById('specificUserContainer').classList.add('hidden');
                         document.querySelectorAll('.user-tag').forEach(tag => tag.remove());
-                        // MODIFIED: Clear image previews on success
-                        document.querySelectorAll('.image-url-tag').forEach(tag => tag.remove());
+                        // MODIFIED: Clear image previews and file input
+                        document.getElementById('imagePreviewContainer').innerHTML = '';
+                        document.getElementById('imageUpload').value = '';
                     } else {
                         throw new Error(result.message || 'An unknown error occurred.');
                     }
@@ -389,3 +381,4 @@
     </script>
 </body>
 </html>
+
