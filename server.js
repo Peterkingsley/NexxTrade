@@ -1552,6 +1552,7 @@ app.get('/*', (req, res) => {
                 'pricing': 'admin_pricing.html',
                 'roles': 'admin_roles.html',
                 'payouts': 'admin_payouts.html',
+                'affiliates': 'admin_affiliates.html', // NEW
                 'notifications': 'admin_notifications.html' // NEW
             };
             const adminFile = adminFiles[adminRoute] || 'admin.html';
