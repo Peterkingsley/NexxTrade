@@ -490,13 +490,29 @@ app.post('/api/login', async (req, res) => {
 // =============================================================================
 
 // Get all affiliates
+// server.js - Corrected Code
 app.get('/api/admin/affiliates', async (req, res) => {
     try {
-        const { rows } = await pool.query(`
+        // Get the search query from the URL, if it exists
+        const { search } = req.query;
+
+        // Start with the base query
+        let query = `
             SELECT u.id, u.telegram_handle, a.is_active, a.basic_commission_rate, a.pro_commission_rate, a.elite_commission_rate
             FROM users u
             LEFT JOIN affiliates a ON u.id = a.user_id
-        `);
+        `;
+        const params = [];
+
+        if (search) {
+            // If a search term is provided, add a WHERE clause
+            // Use ILIKE for a case-insensitive search
+            query += ' WHERE u.telegram_handle ILIKE $1';
+            // Use '%' for partial matching (e.g., "user" matches "@user123")
+            params.push(`%${search}%`);
+        }
+
+        const { rows } = await pool.query(query, params);
         res.json(rows);
     } catch (err) {
         console.error('Error fetching affiliates:', err);
