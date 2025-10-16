@@ -14,6 +14,12 @@
         <div class="w-full md:w-4/5 bg-gray-100">
             <div class="container bg-white rounded-lg shadow-lg p-5 lg:p-10 my-10">
                 <h1 class="text-2xl font-bold mb-6">Manage Affiliates</h1>
+                <div class="mb-6">
+    <div class="flex">
+        <input type="text" id="search-input" placeholder="Search by Telegram handle..." class="w-full px-3 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+        <button id="search-button" class="bg-blue-500 text-white font-bold py-2 px-4 rounded-r-md hover:bg-blue-700">Search</button>
+    </div>
+</div>
 
                 <div class="mt-8">
                     <h2 class="text-xl font-semibold mb-4">Affiliate Users</h2>
@@ -102,23 +108,40 @@
         </div>
     </div>
 
-    <script>
+<script>
         document.addEventListener('DOMContentLoaded', function() {
             const tableBody = document.getElementById('affiliates-table-body');
             const modal = document.getElementById('edit-affiliate-modal');
             const closeModalBtn = document.getElementById('close-modal');
             const saveChangesBtn = document.getElementById('save-affiliate-changes');
+            
+            // New elements for search
+            const searchInput = document.getElementById('search-input');
+            const searchButton = document.getElementById('search-button');
 
-            function fetchAffiliates() {
-                fetch('/api/admin/affiliates')
+            // Modified fetchAffiliates to handle search queries
+            function fetchAffiliates(searchQuery = '') {
+                // Base URL for the API endpoint
+                let url = '/api/admin/affiliates';
+
+                // If a search query is provided, append it to the URL
+                if (searchQuery) {
+                    url += `?search=${encodeURIComponent(searchQuery)}`;
+                }
+                
+                fetch(url)
                     .then(response => response.json())
                     .then(data => {
                         tableBody.innerHTML = '';
+                        if (data.length === 0) {
+                            tableBody.innerHTML = `<tr><td colspan="6" class="text-center py-4">No affiliates found.</td></tr>`;
+                            return;
+                        }
                         data.forEach(affiliate => {
                             const row = `
                                 <tr>
                                     <td class="text-left py-3 px-4">${affiliate.telegram_handle}</td>
-                                    <td class="text-left py-3 px-4">${affiliate.is_active ? 'Active' : 'Inactive'}</td>
+                                    <td class="text-left py-3 px-4">${affiliate.is_active ? '<span class="bg-green-200 text-green-800 py-1 px-3 rounded-full text-xs">Active</span>' : '<span class="bg-red-200 text-red-800 py-1 px-3 rounded-full text-xs">Inactive</span>'}</td>
                                     <td class="text-left py-3 px-4">${affiliate.basic_commission_rate || 'N/A'}</td>
                                     <td class="text-left py-3 px-4">${affiliate.pro_commission_rate || 'N/A'}</td>
                                     <td class="text-left py-3 px-4">${affiliate.elite_commission_rate || 'N/A'}</td>
@@ -130,8 +153,26 @@
                             tableBody.innerHTML += row;
                         });
                     })
-                    .catch(error => console.error('Error fetching affiliates:', error));
+                    .catch(error => {
+                        console.error('Error fetching affiliates:', error);
+                        tableBody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-red-500">Failed to load data.</td></tr>`;
+                    });
             }
+
+            // Event listener for the search button
+            searchButton.addEventListener('click', function() {
+                const query = searchInput.value.trim();
+                fetchAffiliates(query);
+            });
+
+            // Optional: Allow searching by pressing "Enter" in the input field
+            searchInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    const query = searchInput.value.trim();
+                    fetchAffiliates(query);
+                }
+            });
+
 
             window.openEditModal = function(id, isActive, basicRate, proRate, eliteRate) {
                 document.getElementById('edit-user-id').value = id;
@@ -172,7 +213,7 @@
                     if (data) {
                         Swal.fire('Success!', 'Affiliate settings updated successfully.', 'success');
                         modal.classList.add('hidden');
-                        fetchAffiliates();
+                        fetchAffiliates(searchInput.value.trim()); // Re-fetch with current search to maintain view
                     } else {
                         Swal.fire('Error!', 'Failed to update affiliate settings.', 'error');
                     }
@@ -183,6 +224,7 @@
                 });
             });
 
+            // Initial fetch to load all affiliates
             fetchAffiliates();
         });
     </script>
