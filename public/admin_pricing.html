@@ -239,20 +239,20 @@
         const pricingTableBody = document.getElementById('pricingTableBody');
         const pricingMessageBox = document.getElementById('pricingMessageBox');
 
-        document.addEventListener('DOMContentLoaded', () => {
-            // CORRECTED: Use localStorage to match other admin pages
-            const user = JSON.parse(localStorage.getItem('nexxTradeAdmin'));
-            if (!user) {
-                window.location.href = '/admin/login';
-                return;
-            }
-            fetchPricingPlans();
-        });
-        
-        document.getElementById('logoutBtn').addEventListener('click', (e) => {
+        // Check for authentication on page load
+        if (sessionStorage.getItem('isAdminLoggedIn') !== 'true') {
+            window.location.href = '/admin';
+        }
+
+        // Logout function
+        const logout = () => {
+            sessionStorage.removeItem('isAdminLoggedIn');
+            window.location.href = '/admin';
+        };
+
+        document.getElementById('logout-btn').addEventListener('click', (e) => {
             e.preventDefault();
-            localStorage.removeItem('nexxTradeAdmin');
-            window.location.href = '/admin/login';
+            logout();
         });
 
         // Function to display messages
