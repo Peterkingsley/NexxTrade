@@ -28,6 +28,16 @@
     admin_notes text
  );
 
+ -- 4. NEW: Create the 'affiliates' table for the new commission structure
+ CREATE TABLE public.affiliates (
+    user_id INTEGER PRIMARY KEY REFERENCES public.users(id) ON DELETE CASCADE,
+    is_active BOOLEAN DEFAULT false,
+    basic_commission_rate NUMERIC DEFAULT 0.25,
+    pro_commission_rate NUMERIC DEFAULT 0.30,
+    elite_commission_rate NUMERIC DEFAULT 0.35,
+    total_sales_for_bonus INTEGER DEFAULT 0
+ );
+
 */
 
 // Import required modules
@@ -85,8 +95,19 @@ connectToDatabase();
 // =============================================================================
 
 // Route to handle vanity referral URLs like /@username
-app.get('/@:referralCode', (req, res) => {
+app.get('/@:referralCode', async (req, res) => {
     const { referralCode } = req.params;
+    try {
+        // Find the referrer to log the click
+        const referrerResult = await pool.query('SELECT id FROM users WHERE referral_code = $1', [referralCode]);
+        if (referrerResult.rows.length > 0) {
+            const referrerId = referrerResult.rows[0].id;
+            // Log the click
+            await pool.query('INSERT INTO referral_clicks (referrer_id) VALUES ($1)', [referrerId]);
+        }
+    } catch (err) {
+        console.error('Error logging referral click:', err);
+    }
     // Redirect to the registration/join page with the referral code as a query parameter
     res.redirect(`/join?ref=${referralCode}`);
 });
@@ -140,10 +161,14 @@ app.get('/api/users/referral-stats/:telegramUsername', async (req, res) => {
         const user = userResult.rows[0];
         const userId = user.id;
 
-        // Get total number of successful referrals
+        // Get total number of successful referrals (signups)
         const referralsCountResult = await pool.query('SELECT COUNT(*) FROM referrals WHERE referrer_id = $1', [userId]);
         const totalReferrals = parseInt(referralsCountResult.rows[0].count, 10);
-        
+
+        // Get total number of clicks
+        const clicksCountResult = await pool.query('SELECT COUNT(*) FROM referral_clicks WHERE referrer_id = $1', [userId]);
+        const totalClicks = parseInt(clicksCountResult.rows[0].count, 10);
+
         // Get total amount paid out
         const payoutsResult = await pool.query(
             "SELECT COALESCE(SUM(amount), 0) as total_payouts FROM payouts WHERE user_id = $1 AND status = 'completed'",
@@ -154,7 +179,8 @@ app.get('/api/users/referral-stats/:telegramUsername', async (req, res) => {
         const availableBalance = totalEarnings - totalPayouts;
 
         res.status(200).json({
-            totalReferrals,
+            totalClicks, // New
+            totalSignups: totalReferrals, // Renamed for clarity
             totalEarnings: totalEarnings.toFixed(2),
             totalPayouts: totalPayouts.toFixed(2),
             availableBalance: availableBalance.toFixed(2),
@@ -455,6 +481,51 @@ app.post('/api/login', async (req, res) => {
     }
 });
 
+// =============================================================================
+// --- NEW: AFFILIATE MANAGEMENT ROUTES (ADMIN) ---
+// =============================================================================
+
+// Get all affiliates
+app.get('/api/admin/affiliates', async (req, res) => {
+    try {
+        const { rows } = await pool.query(`
+            SELECT u.id, u.telegram_handle, a.is_active, a.basic_commission_rate, a.pro_commission_rate, a.elite_commission_rate
+            FROM users u
+            LEFT JOIN affiliates a ON u.id = a.user_id
+        `);
+        res.json(rows);
+    } catch (err) {
+        console.error('Error fetching affiliates:', err);
+        res.status(500).send('Server Error');
+    }
+});
+
+// Create or update an affiliate's settings
+app.post('/api/admin/affiliates', async (req, res) => {
+    const { user_id, is_active, basic_commission_rate, pro_commission_rate, elite_commission_rate } = req.body;
+
+    if (!user_id) {
+        return res.status(400).json({ message: 'User ID is required.' });
+    }
+
+    try {
+        const { rows } = await pool.query(
+            `INSERT INTO affiliates (user_id, is_active, basic_commission_rate, pro_commission_rate, elite_commission_rate)
+             VALUES ($1, $2, $3, $4, $5)
+             ON CONFLICT (user_id) DO UPDATE SET
+                is_active = EXCLUDED.is_active,
+                basic_commission_rate = EXCLUDED.basic_commission_rate,
+                pro_commission_rate = EXCLUDED.pro_commission_rate,
+                elite_commission_rate = EXCLUDED.elite_commission_rate
+             RETURNING *`,
+            [user_id, is_active, basic_commission_rate, pro_commission_rate, elite_commission_rate]
+        );
+        res.status(201).json(rows[0]);
+    } catch (err) {
+        console.error('Error creating/updating affiliate:', err);
+        res.status(500).send('Server Error');
+    }
+});
 
 // API Routes for Performance Signals
 // Based on the 'performancesignals' table from your SQL dump.
@@ -1013,49 +1084,98 @@ app.post('/api/payments/nowpayments/webhook', async (req, res) => {
                     [newExpiration.toISOString().split('T')[0], user.id]
                 );
                 
-                // --- START: REFERRAL COMMISSION & NOTIFICATION LOGIC ---
-                if (user.referred_by) {
-                    const commissionAmount = parseFloat(price_amount) * 0.10; // Calculate 10% commission
-                    const referrerId = user.referred_by;
-                    
-                    const client = await pool.connect();
-                    try {
-                        await client.query('BEGIN');
-                        // Log the referral transaction
-                        await client.query(
-                            'INSERT INTO referrals (referrer_id, referred_user_id, commission_amount) VALUES ($1, $2, $3)',
-                            [referrerId, user.id, commissionAmount]
-                        );
-                        // Update the referrer's total earnings
-                        const updatedReferrerResult = await client.query(
-                            'UPDATE users SET total_referral_earnings = total_referral_earnings + $1 WHERE id = $2 RETURNING total_referral_earnings, telegram_chat_id',
-                            [commissionAmount, referrerId]
-                        );
-                        await client.query('COMMIT');
-                        console.log(`Successfully awarded $${commissionAmount.toFixed(2)} commission to user ID ${referrerId}.`);
+// --- START: REFERRAL COMMISSION & NOTIFICATION LOGIC ---
+if (user.referred_by) {
+    const referrerId = user.referred_by;
+    const client = await pool.connect();
 
-                        // Send notification if chat ID is available
-                        if (updatedReferrerResult.rows.length > 0) {
-                            const referrer = updatedReferrerResult.rows[0];
-                            if (referrer.telegram_chat_id) {
-                                const newTotalEarnings = parseFloat(referrer.total_referral_earnings);
-                                // Fetch their total payouts to calculate available balance for the message
-                                const payoutsResult = await pool.query("SELECT COALESCE(SUM(amount), 0) as total_payouts FROM payouts WHERE user_id = $1 AND status = 'completed'", [referrerId]);
-                                const newAvailableBalance = newTotalEarnings - parseFloat(payoutsResult.rows[0].total_payouts);
+    try {
+        // Check if the referrer is an active affiliate with custom rates
+        const affiliateResult = await client.query('SELECT * FROM affiliates WHERE user_id = $1 AND is_active = true', [referrerId]);
 
-                                const notificationMessage = `🎉 Congratulations! A new user has subscribed using your referral link. You've just earned $${commissionAmount.toFixed(2)}!\n\nYour new available balance is $${newAvailableBalance.toFixed(2)}.`;
-                                bot.sendMessage(referrer.telegram_chat_id, notificationMessage).catch(err => console.error("Failed to send referral notification:", err));
-                            }
-                        }
+        let commissionRate = 0.10; // Default 10% commission
+        if (affiliateResult.rows.length > 0) {
+            const affiliate = affiliateResult.rows[0];
+            const planName = user.plan_name.toLowerCase();
 
-                    } catch (e) {
-                        await client.query('ROLLBACK');
-                        console.error('Failed to process referral commission:', e);
-                    } finally {
-                        client.release();
-                    }
+            // Use the custom commission rate based on the plan name
+            if (planName.includes('basic')) {
+                commissionRate = parseFloat(affiliate.basic_commission_rate);
+            } else if (planName.includes('pro')) {
+                commissionRate = parseFloat(affiliate.pro_commission_rate);
+            } else if (planName.includes('elite')) {
+                commissionRate = parseFloat(affiliate.elite_commission_rate);
+            }
+        }
+
+        const commissionAmount = parseFloat(price_amount) * commissionRate;
+
+        await client.query('BEGIN');
+        // Log the referral transaction
+        await client.query(
+            'INSERT INTO referrals (referrer_id, referred_user_id, commission_amount) VALUES ($1, $2, $3)',
+            [referrerId, user.id, commissionAmount]
+        );
+        // Update the referrer's total earnings
+        const updatedReferrerResult = await client.query(
+            'UPDATE users SET total_referral_earnings = total_referral_earnings + $1 WHERE id = $2 RETURNING total_referral_earnings, telegram_chat_id',
+            [commissionAmount, referrerId]
+        );
+
+        // --- NEW: BONUS PAYOUT LOGIC ---
+        // Increment the sales count for the bonus
+        const salesUpdateResult = await client.query(
+            'UPDATE affiliates SET total_sales_for_bonus = total_sales_for_bonus + 1 WHERE user_id = $1 RETURNING total_sales_for_bonus',
+            [referrerId]
+        );
+        
+        if (salesUpdateResult.rows.length > 0) {
+            const newSalesCount = salesUpdateResult.rows[0].total_sales_for_bonus;
+            if (newSalesCount % 15 === 0) {
+                // Award the $100 bonus
+                await client.query(
+                    'UPDATE users SET total_referral_earnings = total_referral_earnings + 100 WHERE id = $1',
+                    [referrerId]
+                );
+                // Reset the sales counter for the next bonus
+                await client.query(
+                    'UPDATE affiliates SET total_sales_for_bonus = 0 WHERE user_id = $1',
+                    [referrerId]
+                );
+            }
+        }
+
+        await client.query('COMMIT');
+        console.log(`Successfully awarded $${commissionAmount.toFixed(2)} commission to user ID ${referrerId}.`);
+
+        // Send notification if chat ID is available
+        if (updatedReferrerResult.rows.length > 0) {
+            const referrer = updatedReferrerResult.rows[0];
+            if (referrer.telegram_chat_id) {
+                const newTotalEarnings = parseFloat(referrer.total_referral_earnings);
+                // Fetch their total payouts to calculate available balance for the message
+                const payoutsResult = await pool.query("SELECT COALESCE(SUM(amount), 0) as total_payouts FROM payouts WHERE user_id = $1 AND status = 'completed'", [referrerId]);
+                const newAvailableBalance = newTotalEarnings - parseFloat(payoutsResult.rows[0].total_payouts);
+
+                let notificationMessage = `🎉 Congratulations! A new user has subscribed using your referral link. You've just earned $${commissionAmount.toFixed(2)}!\n\nYour new available balance is $${newAvailableBalance.toFixed(2)}.`;
+                
+                // Add bonus notification if applicable
+                if (salesUpdateResult.rows.length > 0 && salesUpdateResult.rows[0].total_sales_for_bonus === 0) {
+                    notificationMessage += `\n\n💰 BONUS ALERT! You've made 15 sales and earned a $100 bonus!`;
                 }
-                // --- END: REFERRAL COMMISSION & NOTIFICATION LOGIC ---
+                
+                bot.sendMessage(referrer.telegram_chat_id, notificationMessage).catch(err => console.error("Failed to send referral notification:", err));
+            }
+        }
+
+    } catch (e) {
+        await client.query('ROLLBACK');
+        console.error('Failed to process referral commission:', e);
+    } finally {
+        client.release();
+    }
+}
+// --- END: REFERRAL COMMISSION & NOTIFICATION LOGIC ---
 
 
                 // === DELIVERY LOGIC ===
@@ -1449,4 +1569,3 @@ app.listen(port, async () => {
   console.log(`Server is running on http://localhost:${port}`);
   await setupWebhook();
 });
-
