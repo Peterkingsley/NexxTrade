@@ -38,6 +38,10 @@
     total_sales_for_bonus INTEGER DEFAULT 0
  );
 
+ -- 5. NEW: Add a default commission rate to pricing plans
+ ALTER TABLE public.pricingplans
+ ADD COLUMN commission_rate NUMERIC(5,2) DEFAULT 0.10;
+
 */
 
 // Import required modules
@@ -1084,98 +1088,99 @@ app.post('/api/payments/nowpayments/webhook', async (req, res) => {
                     [newExpiration.toISOString().split('T')[0], user.id]
                 );
                 
-// --- START: REFERRAL COMMISSION & NOTIFICATION LOGIC ---
-if (user.referred_by) {
-    const referrerId = user.referred_by;
-    const client = await pool.connect();
-
-    try {
-        // Check if the referrer is an active affiliate with custom rates
-        const affiliateResult = await client.query('SELECT * FROM affiliates WHERE user_id = $1 AND is_active = true', [referrerId]);
-
-        let commissionRate = 0.10; // Default 10% commission
-        if (affiliateResult.rows.length > 0) {
-            const affiliate = affiliateResult.rows[0];
-            const planName = user.plan_name.toLowerCase();
-
-            // Use the custom commission rate based on the plan name
-            if (planName.includes('basic')) {
-                commissionRate = parseFloat(affiliate.basic_commission_rate);
-            } else if (planName.includes('pro')) {
-                commissionRate = parseFloat(affiliate.pro_commission_rate);
-            } else if (planName.includes('elite')) {
-                commissionRate = parseFloat(affiliate.elite_commission_rate);
-            }
-        }
-
-        const commissionAmount = parseFloat(price_amount) * commissionRate;
-
-        await client.query('BEGIN');
-        // Log the referral transaction
-        await client.query(
-            'INSERT INTO referrals (referrer_id, referred_user_id, commission_amount) VALUES ($1, $2, $3)',
-            [referrerId, user.id, commissionAmount]
-        );
-        // Update the referrer's total earnings
-        const updatedReferrerResult = await client.query(
-            'UPDATE users SET total_referral_earnings = total_referral_earnings + $1 WHERE id = $2 RETURNING total_referral_earnings, telegram_chat_id',
-            [commissionAmount, referrerId]
-        );
-
-        // --- NEW: BONUS PAYOUT LOGIC ---
-        // Increment the sales count for the bonus
-        const salesUpdateResult = await client.query(
-            'UPDATE affiliates SET total_sales_for_bonus = total_sales_for_bonus + 1 WHERE user_id = $1 RETURNING total_sales_for_bonus',
-            [referrerId]
-        );
-        
-        if (salesUpdateResult.rows.length > 0) {
-            const newSalesCount = salesUpdateResult.rows[0].total_sales_for_bonus;
-            if (newSalesCount % 15 === 0) {
-                // Award the $100 bonus
-                await client.query(
-                    'UPDATE users SET total_referral_earnings = total_referral_earnings + 100 WHERE id = $1',
-                    [referrerId]
-                );
-                // Reset the sales counter for the next bonus
-                await client.query(
-                    'UPDATE affiliates SET total_sales_for_bonus = 0 WHERE user_id = $1',
-                    [referrerId]
-                );
-            }
-        }
-
-        await client.query('COMMIT');
-        console.log(`Successfully awarded $${commissionAmount.toFixed(2)} commission to user ID ${referrerId}.`);
-
-        // Send notification if chat ID is available
-        if (updatedReferrerResult.rows.length > 0) {
-            const referrer = updatedReferrerResult.rows[0];
-            if (referrer.telegram_chat_id) {
-                const newTotalEarnings = parseFloat(referrer.total_referral_earnings);
-                // Fetch their total payouts to calculate available balance for the message
-                const payoutsResult = await pool.query("SELECT COALESCE(SUM(amount), 0) as total_payouts FROM payouts WHERE user_id = $1 AND status = 'completed'", [referrerId]);
-                const newAvailableBalance = newTotalEarnings - parseFloat(payoutsResult.rows[0].total_payouts);
-
-                let notificationMessage = `🎉 Congratulations! A new user has subscribed using your referral link. You've just earned $${commissionAmount.toFixed(2)}!\n\nYour new available balance is $${newAvailableBalance.toFixed(2)}.`;
+                // --- START: REFERRAL COMMISSION & NOTIFICATION LOGIC ---
+                if (user.referred_by) {
+                    const referrerId = user.referred_by;
+                    const client = await pool.connect();
                 
-                // Add bonus notification if applicable
-                if (salesUpdateResult.rows.length > 0 && salesUpdateResult.rows[0].total_sales_for_bonus === 0) {
-                    notificationMessage += `\n\n💰 BONUS ALERT! You've made 15 sales and earned a $100 bonus!`;
+                    try {
+                        // Check if the referrer is an active affiliate with custom rates
+                        const affiliateResult = await client.query('SELECT * FROM affiliates WHERE user_id = $1 AND is_active = true', [referrerId]);
+                
+                        let commissionRate = parseFloat(plan.commission_rate) || 0.10; // Default to plan's rate or 10%
+                
+                        if (affiliateResult.rows.length > 0) {
+                            const affiliate = affiliateResult.rows[0];
+                            const planName = user.plan_name.toLowerCase();
+                
+                            // Use the custom affiliate commission rate based on the plan name if it's higher
+                            if (planName.includes('basic') && parseFloat(affiliate.basic_commission_rate) > commissionRate) {
+                                commissionRate = parseFloat(affiliate.basic_commission_rate);
+                            } else if (planName.includes('pro') && parseFloat(affiliate.pro_commission_rate) > commissionRate) {
+                                commissionRate = parseFloat(affiliate.pro_commission_rate);
+                            } else if (planName.includes('elite') && parseFloat(affiliate.elite_commission_rate) > commissionRate) {
+                                commissionRate = parseFloat(affiliate.elite_commission_rate);
+                            }
+                        }
+                
+                        const commissionAmount = parseFloat(price_amount) * commissionRate;
+                
+                        await client.query('BEGIN');
+                        // Log the referral transaction
+                        await client.query(
+                            'INSERT INTO referrals (referrer_id, referred_user_id, commission_amount) VALUES ($1, $2, $3)',
+                            [referrerId, user.id, commissionAmount]
+                        );
+                        // Update the referrer's total earnings
+                        const updatedReferrerResult = await client.query(
+                            'UPDATE users SET total_referral_earnings = total_referral_earnings + $1 WHERE id = $2 RETURNING total_referral_earnings, telegram_chat_id',
+                            [commissionAmount, referrerId]
+                        );
+                
+                        // --- NEW: BONUS PAYOUT LOGIC ---
+                        // Increment the sales count for the bonus
+                        const salesUpdateResult = await client.query(
+                            'UPDATE affiliates SET total_sales_for_bonus = total_sales_for_bonus + 1 WHERE user_id = $1 RETURNING total_sales_for_bonus',
+                            [referrerId]
+                        );
+                        
+                        if (salesUpdateResult.rows.length > 0) {
+                            const newSalesCount = salesUpdateResult.rows[0].total_sales_for_bonus;
+                            if (newSalesCount % 15 === 0) {
+                                // Award the $100 bonus
+                                await client.query(
+                                    'UPDATE users SET total_referral_earnings = total_referral_earnings + 100 WHERE id = $1',
+                                    [referrerId]
+                                );
+                                // Reset the sales counter for the next bonus
+                                await client.query(
+                                    'UPDATE affiliates SET total_sales_for_bonus = 0 WHERE user_id = $1',
+                                    [referrerId]
+                                );
+                            }
+                        }
+                
+                        await client.query('COMMIT');
+                        console.log(`Successfully awarded $${commissionAmount.toFixed(2)} commission to user ID ${referrerId}.`);
+                
+                        // Send notification if chat ID is available
+                        if (updatedReferrerResult.rows.length > 0) {
+                            const referrer = updatedReferrerResult.rows[0];
+                            if (referrer.telegram_chat_id) {
+                                const newTotalEarnings = parseFloat(referrer.total_referral_earnings);
+                                // Fetch their total payouts to calculate available balance for the message
+                                const payoutsResult = await pool.query("SELECT COALESCE(SUM(amount), 0) as total_payouts FROM payouts WHERE user_id = $1 AND status = 'completed'", [referrerId]);
+                                const newAvailableBalance = newTotalEarnings - parseFloat(payoutsResult.rows[0].total_payouts);
+                
+                                let notificationMessage = `🎉 Congratulations! A new user has subscribed using your referral link. You've just earned $${commissionAmount.toFixed(2)}!\n\nYour new available balance is $${newAvailableBalance.toFixed(2)}.`;
+                                
+                                // Add bonus notification if applicable
+                                if (salesUpdateResult.rows.length > 0 && salesUpdateResult.rows[0].total_sales_for_bonus === 0) {
+                                    notificationMessage += `\n\n💰 BONUS ALERT! You've made 15 sales and earned a $100 bonus!`;
+                                }
+                                
+                                bot.sendMessage(referrer.telegram_chat_id, notificationMessage).catch(err => console.error("Failed to send referral notification:", err));
+                            }
+                        }
+                
+                    } catch (e) {
+                        await client.query('ROLLBACK');
+                        console.error('Failed to process referral commission:', e);
+                    } finally {
+                        client.release();
+                    }
                 }
-                
-                bot.sendMessage(referrer.telegram_chat_id, notificationMessage).catch(err => console.error("Failed to send referral notification:", err));
-            }
-        }
-
-    } catch (e) {
-        await client.query('ROLLBACK');
-        console.error('Failed to process referral commission:', e);
-    } finally {
-        client.release();
-    }
-}
-// --- END: REFERRAL COMMISSION & NOTIFICATION LOGIC ---
+                // --- END: REFERRAL COMMISSION & NOTIFICATION LOGIC ---
 
 
                 // === DELIVERY LOGIC ===
