@@ -240,7 +240,7 @@
         const pricingMessageBox = document.getElementById('pricingMessageBox');
 
         document.addEventListener('DOMContentLoaded', () => {
-             // Check for user session
+            // CORRECTED: Use localStorage to match other admin pages
             const user = JSON.parse(localStorage.getItem('nexxTradeAdmin'));
             if (!user) {
                 window.location.href = '/admin/login';
@@ -309,7 +309,7 @@
                 document.getElementById('plan-features').value = Array.isArray(plan.features) ? plan.features.join('\n') : '';
                 document.getElementById('plan-best-value').checked = plan.is_best_value;
                 document.getElementById('plan-telegram-group-id').value = plan.telegram_group_id;
-                document.getElementById('plan-commission-rate').value = plan.commission_rate; // <-- POPULATE NEW FIELD
+                document.getElementById('plan-commission-rate').value = plan.commission_rate;
 
                 savePricingBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Update Plan';
                 cancelEditBtn.classList.remove('hidden');
@@ -332,7 +332,7 @@
                 features: document.getElementById('plan-features').value.split('\n').filter(f => f.trim() !== ''),
                 is_best_value: document.getElementById('plan-best-value').checked,
                 telegram_group_id: document.getElementById('plan-telegram-group-id').value,
-                commission_rate: parseFloat(document.getElementById('plan-commission-rate').value) // <-- GET VALUE FROM NEW FIELD
+                commission_rate: parseFloat(document.getElementById('plan-commission-rate').value)
             };
 
             const url = id ? `${API_BASE_URL}/api/pricing/${id}` : `${API_BASE_URL}/api/pricing`;
@@ -378,6 +378,10 @@
                 showMessage(pricingMessageBox, 'Error deleting pricing plan.', 'error');
             }
         };
+        
+        // Define these functions in the global scope so they can be called from the HTML
+        window.editPlan = editPlan;
+        window.deletePlan = deletePlan;
 
         addPricingForm.addEventListener('submit', addUpdatePlan);
         cancelEditBtn.addEventListener('click', () => {
