@@ -1420,6 +1420,40 @@ app.post('/api/users/finalize-registration', async (req, res) => {
     }
 });
 
+// =================================================================
+// --- NEW: LINK EXISTING TELEGRAM USER ID ---
+// =================================================================
+
+app.post('/api/users/link-telegram-id', async (req, res) => {
+    const { telegram_handle, telegram_user_id } = req.body;
+
+    if (!telegram_handle || !telegram_user_id) {
+        return res.status(400).json({ message: 'Missing Telegram handle or user ID.' });
+    }
+
+    try {
+        // We only update the user if the handle matches AND the user_id is currently empty.
+        // This prevents existing linked accounts from being overwritten.
+        const { rowCount } = await pool.query(
+            `UPDATE users 
+             SET telegram_user_id = $1 
+             WHERE telegram_handle = $2 AND telegram_user_id IS NULL`,
+            [telegram_user_id, '@' + telegram_handle]
+        );
+
+        if (rowCount > 0) {
+            console.log(`Successfully linked telegram_user_id ${telegram_user_id} for user @${telegram_handle}`);
+            res.status(200).json({ message: 'Account linked successfully!' });
+        } else {
+            // This can happen if the user was not found or was already linked.
+            console.log(`No user found to link for @${telegram_handle}, or they were already linked.`);
+            res.status(200).json({ message: 'Account already linked or user not found.' }); // Send 200 to avoid bot error logs
+        }
+    } catch (err) {
+        console.error('Error linking Telegram user ID:', err);
+        res.status(500).json({ message: 'Server error during account linking.' });
+    }
+});
 
 // NEW ENDPOINT: Verify Telegram user and redeem token
 app.post('/api/users/verify-telegram', async (req, res) => {
