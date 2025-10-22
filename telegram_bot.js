@@ -97,7 +97,11 @@ Please choose from the options below to get started
 
 bot.onText(/\/start(?: (.+))?/, (msg, match) => {
     const chatId = msg.chat.id;
+    silentlyLinkTelegramId(msg.from);
     const referralCode = match[1]; // This will capture the referral code from /start [referral_code]
+    // --- NEW: SILENTLY LINK USER ID ON /start ---
+    silentlyLinkTelegramId(msg.from);
+    // --- END NEW ---
 
     // Clear any previous registration state for this user
     userRegistrationState[chatId] = {}; // Reset the state object
@@ -113,28 +117,35 @@ bot.onText(/\/start(?: (.+))?/, (msg, match) => {
 bot.onText(/\/getsignals/, (msg) => {
     const chatId = msg.chat.id;
     // This function shows the subscription plans, starting the registration flow.
+    // --- NEW: SILENTLY LINK USER ID ---
+    silentlyLinkTelegramId(msg.from);
+    // --- END NEW ---
     showSubscriptionPlans(chatId, 'Choose your plan to continue');
 });
 
 // --- REFERRAL COMMANDS ---
 bot.onText(/\/setreferral/, (msg) => {
     const chatId = msg.chat.id;
+    silentlyLinkTelegramId(msg.from);
     userRegistrationState[chatId] = { stage: 'awaiting_referral_code' };
     bot.sendMessage(chatId, "Please enter your desired referral username. It can only contain letters and numbers (e.g., kingslayer21).");
 });
 
 bot.onText(/\/myreferral/, (msg) => {
     const chatId = msg.chat.id;
+    silentlyLinkTelegramId(msg.from);
     handleReferralInfo(chatId, msg.from.username, 'link');
 });
 
 bot.onText(/\/referralstats/, (msg) => {
     const chatId = msg.chat.id;
+    silentlyLinkTelegramId(msg.from);
     handleReferralInfo(chatId, msg.from.username, 'stats');
 });
 
 bot.onText(/\/requestpayout/, async (msg) => {
     const chatId = msg.chat.id;
+    silentlyLinkTelegramId(msg.from);
     const telegramUsername = msg.from.username;
 
     if (!telegramUsername) {
@@ -169,6 +180,7 @@ bot.onText(/\/requestpayout/, async (msg) => {
 
 bot.onText(/\/faq/, (msg) => {
     const chatId = msg.chat.id;
+    silentlyLinkTelegramId(msg.from);
     // The FAQ link will point to the main page's FAQ section.
     const faqUrl = `${serverUrl}/#faq`;
     const opts = {
@@ -183,6 +195,7 @@ bot.onText(/\/faq/, (msg) => {
 
 bot.onText(/\/support/, (msg) => {
     const chatId = msg.chat.id;
+    silentlyLinkTelegramId(msg.from);
     bot.sendMessage(chatId, '☎Customer Support: @NexxTrade_Support.');
 });
 
@@ -339,10 +352,45 @@ const createLinkMenu = (chatId, text, url) => {
     bot.sendMessage(chatId, text, opts);
 };
 
+// =================================================================
+// --- NEW: SILENTLY LINK USER ID HELPER ---
+// =================================================================
+
+/**
+ * Silently sends a user's Telegram ID and Handle to the server
+ * to link their account in the database. This is "fire-and-forget".
+ */
+const silentlyLinkTelegramId = async (telegramUser) => {
+    // We can only link an account if we have both the user's ID and a public @username
+    if (!telegramUser || !telegramUser.id || !telegramUser.username) {
+        return;
+    }
+
+    try {
+        // We don't wait (await) for this call.
+        // It just runs in the background.
+        fetch(`${serverUrl}/api/users/link-telegram-id`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                telegram_handle: telegramUser.username,
+                telegram_user_id: telegramUser.id
+            })
+        }).catch(err => {
+            // If it fails, we just log it. No need to bother the user.
+            console.error(`Silent link failed for @${telegramUser.username}:`, err.message);
+        });
+
+    } catch (err) {
+        console.error(`Silent link threw an error for @${telegramUser.username}:`, err.message);
+    }
+};
+
 
 // --- Main Message Handler for collecting user input ---
 bot.on('message', async (msg) => {
     const chatId = msg.chat.id;
+    silentlyLinkTelegramId(msg.from);
     const state = userRegistrationState[chatId];
 
     // Ignore commands (handled by onText) and messages from users not in a registration flow.
@@ -562,9 +610,11 @@ bot.on('callback_query', async (callbackQuery) => {
             return bot.answerCallbackQuery(callbackQuery.id, { text: "Error processing request." });
         }
         const chatId = msg.chat.id;
+        silentlyLinkTelegramId(msg.from);
         const data = callbackQuery.data;
         const telegramUser = callbackQuery.from;
         bot.answerCallbackQuery(callbackQuery.id);
+        silentlyLinkTelegramId(telegramUser);
 
         if (data === 'pricing' || data === 'join_vip' || data === 'back_to_plans' || data === 'get_signals_now') {
             if(data === 'back_to_plans' && userRegistrationState[chatId]) delete userRegistrationState[chatId];
