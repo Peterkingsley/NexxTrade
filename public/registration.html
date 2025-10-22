@@ -393,6 +393,17 @@
 
         cryptoCheckoutForm.addEventListener('submit', async (e) => {
             e.preventDefault();
+
+            cryptoCheckoutForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    // 🚀 TEMP REDIRECT TO TELEGRAM BOT
+    window.location.href = "https://t.me/YourBotName"; // replace with your bot link
+    return; // <-- this stops the rest of the original payment flow
+
+    // // 🔁 When restoring normal flow, just comment the 2 lines above and un-comment this next line:
+    // (continue with the payment logic below)
+
             if (!selectedPlanKey || !selectedNetwork) {
                 showMessage('crypto-message-box', 'Please select a plan and a payment network.');
                 return;
@@ -560,4 +571,3 @@
   </script>
 </body>
 </html>
-
