@@ -460,8 +460,9 @@ bot.on('message', async (msg) => {
                         plan_id: state.planId,
                         pay_currency: state.network,
                         whatsapp_number: state.whatsapp,
-                        referral_code: state.referralCode // Pass the referral code if it exists
-                    }),
+                        referral_code: state.referralCode, // Pass the referral code if it exists
+                        telegram_user_id: state.telegramUserId // <-- ADD THIS LINE
+                 }),
                 });
                 
                 if (paymentResponse.status === 409) { 
@@ -625,7 +626,7 @@ bot.on('callback_query', async (callbackQuery) => {
             const telegramHandle = telegramUser.username ? `@${telegramUser.username}` : `user_${telegramUser.id}`;
             // Preserve referral code if it exists
             const existingState = userRegistrationState[chatId] || {};
-            userRegistrationState[chatId] = { ...existingState, planId, telegramHandle, stage: 'awaiting_payment_method' };
+            userRegistrationState[chatId] = { ...existingState, planId, telegramHandle, telegramUserId: telegramUser.id, stage: 'awaiting_payment_method' };
 
             const paymentKeyboard = {
                 reply_markup: {

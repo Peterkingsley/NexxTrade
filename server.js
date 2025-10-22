@@ -51,6 +51,7 @@ const { Pool } = require('pg');
 const path = require('path');
 const bcrypt = require('bcrypt'); // Import bcrypt for password hashing
 const crypto = require('crypto'); // Import crypto for generating unique tokens
+const cron = require('node-cron'); // Import the cron job library
 const app = express();
 // Load environment variables from .env file
 require('dotenv').config();
@@ -93,6 +94,102 @@ async function connectToDatabase() {
 
 // Call the function to test the database connection on server start
 connectToDatabase();
+
+// =============================================================================
+// --- NEW: AUTOMATED SUBSCRIPTION MANAGER ---
+// =============================================================================
+
+/**
+ * This function checks for expired subscriptions, kicks users from groups,
+ * and notifies them.
+ */
+async function manageExpiredSubscriptions() {
+    console.log('Running scheduled job: Checking for expired subscriptions...');
+    const client = await pool.connect();
+    try {
+        // Get all users who are 'active' but their expiration date is in the past
+        // We also need the telegram_group_id from the pricingplans table
+        const query = `
+            SELECT 
+                u.id, 
+                u.telegram_handle, 
+                u.telegram_user_id,
+                u.telegram_chat_id,
+                u.plan_name,
+                p.telegram_group_id
+            FROM users u
+            JOIN pricingplans p ON u.plan_name = p.plan_name
+            WHERE 
+                u.subscription_status = 'active' 
+                AND u.subscription_expiration < NOW()
+                AND u.telegram_user_id IS NOT NULL
+                AND p.telegram_group_id IS NOT NULL;
+        `;
+        const { rows: expiredUsers } = await client.query(query);
+
+        if (expiredUsers.length === 0) {
+            console.log('Subscription job: No expired users found.');
+            client.release();
+            return;
+        }
+
+        console.log(`Subscription job: Found ${expiredUsers.length} expired user(s).`);
+
+        // Process each expired user
+        for (const user of expiredUsers) {
+            try {
+                // 1. Kick user from the Telegram group
+                // We use telegram_group_id and telegram_user_id
+                await bot.kickChatMember(user.telegram_group_id, user.telegram_user_id);
+                console.log(`Successfully kicked ${user.telegram_handle} (ID: ${user.telegram_user_id}) from group ${user.telegram_group_id}.`);
+
+                // 2. Send a notification to the user's private chat
+                if (user.telegram_chat_id) {
+                    const renewalMessage = `Hi ${user.telegram_handle}, your subscription for the ${user.plan_name} plan has expired, and you have been removed from the VIP group. \n\nTo regain access, please start a new subscription.`;
+                    const renewalOptions = {
+                        reply_markup: {
+                            inline_keyboard: [
+                                [{ text: 'Renew My Subscription', callback_data: 'join_vip' }]
+                            ]
+                        }
+                    };
+                    await bot.sendMessage(user.telegram_chat_id, renewalMessage, renewalOptions);
+                }
+
+                // 3. Update the user's status in the database to 'expired'
+                await client.query(
+                    "UPDATE users SET subscription_status = 'expired' WHERE id = $1",
+                    [user.id]
+                );
+
+            } catch (err) {
+                console.error(`Failed to process expired user ${user.id} (${user.telegram_handle}):`, err.message);
+                // If the user was already gone, blocked the bot, or was not a member,
+                // we still mark them as expired to avoid retrying.
+                if (err.message.includes('user not found') || err.message.includes('bot was blocked') || err.message.includes('user is not a member')) {
+                    await client.query(
+                        "UPDATE users SET subscription_status = 'expired' WHERE id = $1",
+                        [user.id]
+                    );
+                }
+            }
+        }
+    } catch (err) {
+        console.error('Error during subscription management job:', err);
+    } finally {
+        client.release();
+    }
+}
+
+// Schedule the job to run once every day at 3:00 AM
+// (Uses 'minute hour day-of-month month day-of-week' format)
+cron.schedule('0 3 * * *', () => {
+    manageExpiredSubscriptions();
+});
+
+console.log('Scheduled subscription manager (cron job) to run daily at 3:00 AM.');
+
+//
 
 // =============================================================================
 // --- REFERRAL SYSTEM ROUTES ---
@@ -972,7 +1069,7 @@ app.post('/api/payments/create-from-web', async (req, res) => {
 // === Flow 2: User starts payment from the Telegram Bot ===
 app.post('/api/payments/create-from-bot', async (req, res) => {
     try {
-        const { telegram_handle, chat_id, plan_id, pay_currency, whatsapp_number, referral_code } = req.body;
+        const { telegram_handle, chat_id, plan_id, pay_currency, whatsapp_number, referral_code, telegram_user_id } = req.body;
         if (!telegram_handle || !chat_id || !plan_id || !pay_currency || !whatsapp_number) {
             return res.status(400).json({ message: 'Missing required fields from bot.' });
         }
@@ -1003,8 +1100,8 @@ app.post('/api/payments/create-from-bot', async (req, res) => {
                 return res.status(409).json({ message: `You already have an active subscription for the ${plan.plan_name} plan.` });
             }
             await pool.query(
-                `UPDATE users SET whatsapp_number = $1, order_id = $2, subscription_status = 'pending', last_payment_attempt = NOW(), payment_attempts = payment_attempts + 1, telegram_chat_id = $3, registration_source = 'bot', referred_by = $4 WHERE id = $5`,
-                [whatsapp_number, order_id, chat_id, referrerId, userRecord.id]
+                `UPDATE users SET whatsapp_number = $1, order_id = $2, subscription_status = 'pending', last_payment_attempt = NOW(), payment_attempts = payment_attempts + 1, telegram_chat_id = $3, registration_source = 'bot', referred_by = $4, telegram_user_id = $6 WHERE id = $5`,
+                [whatsapp_number, order_id, chat_id, referrerId, userRecord.id, telegram_user_id]
             );
         } else {
             const temp_fullname = `User ${telegram_handle}`;
@@ -1021,9 +1118,9 @@ app.post('/api/payments/create-from-bot', async (req, res) => {
 
             const registrationDate = new Date().toISOString().split('T')[0];
             await pool.query(
-                `INSERT INTO users (full_name, email, telegram_handle, plan_name, subscription_status, registration_date, order_id, payment_attempts, last_payment_attempt, telegram_chat_id, registration_source, whatsapp_number, referred_by)
-                 VALUES ($1, $2, $3, $4, 'pending', $5, $6, 1, NOW(), $7, 'bot', $8, $9)`,
-                [temp_fullname, temp_email, telegram_handle, plan.plan_name, registrationDate, order_id, chat_id, whatsapp_number, referrerId]
+                `INSERT INTO users (full_name, email, telegram_handle, plan_name, subscription_status, registration_date, order_id, payment_attempts, last_payment_attempt, telegram_chat_id, registration_source, whatsapp_number, telegram_user_id, referred_by)
+                VALUES ($1, $2, $3, $4, 'pending', $5, $6, 1, NOW(), $7, 'bot', $8, $9, $10)`,
+                [temp_fullname, temp_email, telegram_handle, plan.plan_name, registrationDate, order_id, chat_id, whatsapp_number, telegram_user_id, referrerId]
             );
         }
 
