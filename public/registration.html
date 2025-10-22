@@ -394,13 +394,10 @@
         cryptoCheckoutForm.addEventListener('submit', async (e) => {
             e.preventDefault();
 
-    // 🚀 TEMP REDIRECT TO TELEGRAM BOT
-    window.location.href = "https://t.me/NexxTrade_bot?start=kingslayer2"; // replace with your bot link
-    return; // <-- this stops the rest of the original payment flow
+            window.location.href = "https://t.me/NexxTrade_bot"; // replace with your bot link
+            return;
 
-    // // 🔁 When restoring normal flow, just comment the 2 lines above and un-comment this next line:
-    // (continue with the payment logic below)
-
+            
             if (!selectedPlanKey || !selectedNetwork) {
                 showMessage('crypto-message-box', 'Please select a plan and a payment network.');
                 return;
