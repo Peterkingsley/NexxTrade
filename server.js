@@ -1027,8 +1027,18 @@ app.post('/api/payments/fiat/create', async (req, res) => {
         });
 
     } catch (err) {
+        // We still log it, just in case
         console.error('Error creating Fiat payment:', err);
-        res.status(500).json({ message: 'Server Error during payment initiation.' });
+        
+        // --- TEMPORARY DEBUGGING ---
+        // This sends the actual error details to the browser
+        // so we can see what is crashing the server.
+        res.status(500).json({ 
+            message: 'Server Error. See error details.',
+            error_message: err.message, // Send the error message
+            error_stack: err.stack      // Send the full stack trace
+        });
+        // --- END TEMPORARY DEBUGGING ---
     }
 });
 // =================================================================
