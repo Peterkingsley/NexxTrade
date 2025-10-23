@@ -327,7 +327,7 @@
         
         // MODIFICATION START: Changed Fiat button behavior
         fiatOptionBtn.addEventListener('click', () => {
-            showMessage('method-selection-message-box', 'Coming soon. Please choose Pay with Crypto.');
+            switchView(fiatContainer); // This shows the fiat form
         });
         // MODIFICATION END
 
@@ -539,6 +539,54 @@
 
             switchView(successContainer);
             document.getElementById('join-link').href = inviteLink;
+        }
+
+        async function handleFiatSubmit(event) {
+            event.preventDefault();
+            const fiatForm = event.target;
+            const submitButton = fiatForm.querySelector('button[type="submit"]');
+            const originalButtonText = submitButton.innerHTML;
+            
+            // Show loading state
+            submitButton.disabled = true;
+            submitButton.innerHTML = `
+                <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Processing...`;
+            
+            try {
+                const formData = new FormData(fiatForm);
+                const data = Object.fromEntries(formData.entries());
+                
+                // Add the selected plan and referral code from your existing variables
+                data.planName = selectedPlan.plan_name;
+                data.referral_code = referralCode; // This comes from captureReferralCode()
+
+                const response = await fetch('/api/payments/fiat/create', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    // Success! Redirect to TransFi checkout
+                    window.location.href = result.redirectUrl;
+                } else {
+                    // Show an error message from the server
+                    alert(`Error: ${result.message}`);
+                    submitButton.disabled = false;
+                    submitButton.innerHTML = originalButtonText;
+                }
+            } catch (err) {
+                // Show a generic network error
+                alert('A network error occurred: ' + err.message);
+                submitButton.disabled = false;
+                submitButton.innerHTML = originalButtonText;
+            }
         }
 
         function checkForExistingState() {

@@ -915,27 +915,109 @@ app.get('/api/dashboard-stats', async (req, res) => {
 
 
 // =================================================================
-// --- START: Fiat Payment API Routes (Placeholder) ---
+// --- START: Fiat Payment API Routes (Now with TransFi) ---
 // =================================================================
+
+// Make sure 'fetch' is available. If you haven't installed node-fetch:
+// npm install node-fetch
+const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
+
+// Helper function to create the Basic Auth token
+const createTransfiAuthToken = () => {
+    const credentials = `${process.env.TRANSFI_USERNAME}:${process.env.TRANSFI_PASSWORD}`;
+    return `Basic ${Buffer.from(credentials).toString('base64')}`;
+};
 
 app.post('/api/payments/fiat/create', async (req, res) => {
     try {
-        const { fullname, email, telegram, whatsapp_number, planName, priceUSD } = req.body;
+        const { fullname, email, telegram, whatsapp_number, planName, referral_code } = req.body;
 
-        if (!fullname || !email || !telegram || !whatsapp_number || !planName || !priceUSD) {
+        if (!fullname || !email || !telegram || !whatsapp_number || !planName) {
             return res.status(400).json({ message: 'Missing required fields for payment.' });
         }
         
+        // 1. Get Plan Details
+        const planResult = await pool.query('SELECT * FROM pricingplans WHERE plan_name = $1', [planName]);
+        if (planResult.rows.length === 0) {
+            return res.status(404).json({ message: 'Selected plan not found.' });
+        }
+        const plan = planResult.rows[0];
+        const priceUSD = plan.price;
+
+        // 2. Create a unique Order ID
         const order_id = `nexxtrade-fiat-${telegram.replace('@', '')}-${Date.now()}`;
         
-        // In a real application, you would now call your payment provider's API
-        // to get a real payment link. For this example, we'll return a placeholder.
-        // This simulates redirecting the user to a payment gateway like OPay, Stripe, etc.
-        const dummyPaymentGatewayUrl = `https://your-payment-provider.com/checkout?order_id=${order_id}&amount=${priceUSD}`;
+        // 3. Create/Update user as 'pending' (Copied from your existing logic)
+        const referrerId = await getReferrerId(referral_code);
+        const existingUserPlanQuery = await pool.query(
+            'SELECT * FROM users WHERE telegram_handle = $1 AND plan_name = $2',
+            [telegram, planName]
+        );
 
+        let emailForDb = email;
+        if (existingUserPlanQuery.rows.length > 0) {
+             const userRecord = existingUserPlanQuery.rows[0];
+             if (userRecord.subscription_status === 'active') {
+                return res.status(409).json({ message: `You already have an active subscription for the ${planName} plan.` });
+             }
+             const emailConflictQuery = await pool.query('SELECT id FROM users WHERE email = $1 AND id != $2', [email, userRecord.id]);
+             if (emailConflictQuery.rows.length > 0) emailForDb = userRecord.email;
+
+             await pool.query(
+                `UPDATE users SET full_name = $1, email = $2, whatsapp_number = $3, order_id = $4, subscription_status = 'pending', last_payment_attempt = NOW(), payment_attempts = payment_attempts + 1, registration_source = 'web', referred_by = $5 WHERE id = $6`,
+                [fullname, emailForDb, whatsapp_number, order_id, referrerId, userRecord.id]
+             );
+        } else {
+             const emailConflictQuery = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+             if (emailConflictQuery.rows.length > 0) {
+                 emailForDb = `${telegram.replace('@', '')}.${crypto.randomBytes(3).toString('hex')}@telegram.user`;
+             }
+             const registrationDate = new Date().toISOString().split('T')[0];
+             await pool.query(
+               `INSERT INTO users (full_name, email, telegram_handle, plan_name, subscription_status, registration_date, order_id, payment_attempts, last_payment_attempt, registration_source, whatsapp_number, referred_by)
+                VALUES ($1, $2, $3, $4, 'pending', $5, $6, 1, NOW(), 'web', $7, $8)`,
+               [fullname, emailForDb, telegram, planName, registrationDate, order_id, whatsapp_number, referrerId]
+             );
+        }
+
+        // 4. Call TransFi API to create an order
+        const transfiPayload = {
+            amount: priceUSD,
+            fiatCurrency: 'USD',
+            cryptoCurrency: 'USDT',
+            paymentMethod: 'credit_card',
+            email: email,
+            redirectUrl: `${process.env.APP_BASE_URL}/join?payment=success`, // A page on your site
+            clientOrderId: order_id,
+            webhookUrl: `${process.env.APP_BASE_URL}/api/payments/transfi/webhook`
+        };
+
+        // --- THIS IS THE UPDATED PART ---
+        const transfiResponse = await fetch(`${process.env.TRANSFI_SANDBOX_URL}/v1/order/create`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                // Create Basic Auth header from 'Username' and 'Password'
+                'Authorization': createTransfiAuthToken(),
+                // Add the 'MID' header
+                'MID': process.env.TRANSFI_MID
+            },
+            body: JSON.stringify(transfiPayload)
+        });
+        // --- END OF UPDATE ---
+
+        const transfiData = await transfiResponse.json();
+
+        if (!transfiResponse.ok) {
+            console.error('TransFi API Error:', transfiData);
+            return res.status(500).json({ message: `Fiat payment processor error: ${transfiData.message || 'Unknown error'}`});
+        }
+
+        // 5. Send the TransFi payment URL to the client
         res.status(200).json({ 
             message: 'Payment initiated successfully. Redirecting...',
-            redirectUrl: dummyPaymentGatewayUrl 
+            redirectUrl: transfiData.paymentUrl // This is the TransFi checkout page
         });
 
     } catch (err) {
@@ -944,11 +1026,199 @@ app.post('/api/payments/fiat/create', async (req, res) => {
     }
 });
 
+// =================================================================
+// --- END: Fiat Payment API Routes ---
+// =================================================================
 
 // =================================================================
 // --- END: Fiat Payment API Routes ---
 // =================================================================
 
+// =================================================================
+// --- END: Fiat Payment API Routes ---
+// =================================================================
+
+// =================================================================
+// --- START: TransFi Webhook Handler ---
+// =================================================================
+
+app.post('/api/payments/transfi/webhook', async (req, res) => {
+    const signature = req.headers['x-transfi-signature'];
+    const body = req.body;
+
+    try {
+        // 1. Verify the webhook signature
+        const calculatedSignature = crypto
+            .createHmac('sha256', process.env.TRANSFI_WEBHOOK_SECRET)
+            .update(JSON.stringify(body))
+            .digest('hex');
+
+        if (signature !== calculatedSignature) {
+            console.warn('Invalid TransFi webhook signature received.');
+            return res.status(401).send('Invalid signature');
+        }
+
+        // 2. Process the payment status
+        const { clientOrderId, status, amount } = body;
+
+        // Check if the payment was successful
+        if (status === 'COMPLETED' || status === 'SUCCESSFUL') {
+            
+            // 3. Find the user by the order_id you sent
+            const userResult = await pool.query('SELECT * FROM users WHERE order_id = $1', [clientOrderId]);
+            if (userResult.rows.length === 0) {
+                 console.error(`TransFi Webhook: No user found for order_id ${clientOrderId}`);
+                 return res.status(404).send('User not found');
+            }
+            
+            const user = userResult.rows[0];
+
+            // Avoid processing twice
+            if (user.subscription_status === 'active') {
+                return res.status(200).send('Webhook received. User already active.');
+            }
+
+            // 4. ACTIVATE THE USER (Copied from your NOWPayments webhook logic)
+            
+            const planResult = await pool.query('SELECT * FROM pricingplans WHERE plan_name = $1', [user.plan_name]);
+            if (planResult.rows.length === 0) throw new Error('Plan details not found for user.');
+            
+            const plan = planResult.rows[0];
+            const today = new Date();
+            let newExpiration = new Date(today);
+            
+            if (plan.term.toLowerCase().includes('month')) newExpiration.setMonth(newExpiration.getMonth() + 1);
+            if (plan.term.toLowerCase().includes('quarter')) newExpiration.setMonth(newExpiration.getMonth() + 3);
+            if (plan.term.toLowerCase().includes('year')) newExpiration.setFullYear(newExpiration.getFullYear() + 1);
+            if (plan.term.toLowerCase().includes('bi-annually')) newExpiration.setMonth(newExpiration.getMonth() + 6);
+
+            await pool.query(
+                `UPDATE users SET subscription_status = 'active', subscription_expiration = $1 WHERE id = $2`,
+                [newExpiration.toISOString().split('T')[0], user.id]
+            );
+
+            // 5. HANDLE REFERRALS (Copied from your existing logic)
+            if (user.referred_by) {
+                // ...
+                // PASTE your entire "START: REFERRAL COMMISSION" block here
+                // (from line 1282 to 1369 in server.js)
+                // Use the `amount` variable from the webhook body as the `price_amount`.
+                // Example: const commissionAmount = parseFloat(amount) * commissionRate;
+                // ...
+                console.log("Processing referral commission for TransFi payment...");
+            }
+            
+            // 6. GENERATE TELEGRAM LINK (Copied from your existing logic)
+            const inviteLink = await bot.createChatInviteLink(plan.telegram_group_id, { member_limit: 1 });
+            await pool.query('UPDATE users SET telegram_invite_token = $1 WHERE id = $2', [inviteLink.invite_link, user.id]);
+            console.log(`Generated invite link for web user (fiat) ${user.telegram_handle} and stored it.`);
+        }
+
+        res.status(200).send('Webhook received.');
+
+                        // --- START: REFERRAL COMMISSION & NOTIFICATION LOGIC ---
+                if (user.referred_by) {
+                    const referrerId = user.referred_by;
+                    const client = await pool.connect();
+                
+                    try {
+                        // Check if the referrer is an active affiliate with custom rates
+                        const affiliateResult = await client.query('SELECT * FROM affiliates WHERE user_id = $1 AND is_active = true', [referrerId]);
+                
+                        let commissionRate = parseFloat(plan.commission_rate) || 0.10; // Default to plan's rate or 10%
+                
+                        if (affiliateResult.rows.length > 0) {
+                            const affiliate = affiliateResult.rows[0];
+                            const planName = user.plan_name.toLowerCase();
+                
+                            // Use the custom affiliate commission rate based on the plan name if it's higher
+                            if (planName.includes('basic') && parseFloat(affiliate.basic_commission_rate) > commissionRate) {
+                                commissionRate = parseFloat(affiliate.basic_commission_rate);
+                            } else if (planName.includes('pro') && parseFloat(affiliate.pro_commission_rate) > commissionRate) {
+                                commissionRate = parseFloat(affiliate.pro_commission_rate);
+                            } else if (planName.includes('elite') && parseFloat(affiliate.elite_commission_rate) > commissionRate) {
+                                commissionRate = parseFloat(affiliate.elite_commission_rate);
+                            }
+                        }
+                
+                        const commissionAmount = parseFloat(price_amount) * commissionRate;
+                
+                        await client.query('BEGIN');
+                        // Log the referral transaction
+                        await client.query(
+                            'INSERT INTO referrals (referrer_id, referred_user_id, commission_amount) VALUES ($1, $2, $3)',
+                            [referrerId, user.id, commissionAmount]
+                        );
+                        // Update the referrer's total earnings
+                        const updatedReferrerResult = await client.query(
+                            'UPDATE users SET total_referral_earnings = total_referral_earnings + $1 WHERE id = $2 RETURNING total_referral_earnings, telegram_chat_id',
+                            [commissionAmount, referrerId]
+                        );
+                
+                        // --- NEW: BONUS PAYOUT LOGIC ---
+                        // Increment the sales count for the bonus
+                        const salesUpdateResult = await client.query(
+                            'UPDATE affiliates SET total_sales_for_bonus = total_sales_for_bonus + 1 WHERE user_id = $1 RETURNING total_sales_for_bonus',
+                            [referrerId]
+                        );
+                        
+                        if (salesUpdateResult.rows.length > 0) {
+                            const newSalesCount = salesUpdateResult.rows[0].total_sales_for_bonus;
+                            if (newSalesCount % 15 === 0) {
+                                // Award the $100 bonus
+                                await client.query(
+                                    'UPDATE users SET total_referral_earnings = total_referral_earnings + 100 WHERE id = $1',
+                                    [referrerId]
+                                );
+                                // Reset the sales counter for the next bonus
+                                await client.query(
+                                    'UPDATE affiliates SET total_sales_for_bonus = 0 WHERE user_id = $1',
+                                    [referrerId]
+                                );
+                            }
+                        }
+                
+                        await client.query('COMMIT');
+                        console.log(`Successfully awarded $${commissionAmount.toFixed(2)} commission to user ID ${referrerId}.`);
+                
+                        // Send notification if chat ID is available
+                        if (updatedReferrerResult.rows.length > 0) {
+                            const referrer = updatedReferrerResult.rows[0];
+                            if (referrer.telegram_chat_id) {
+                                const newTotalEarnings = parseFloat(referrer.total_referral_earnings);
+                                // Fetch their total payouts to calculate available balance for the message
+                                const payoutsResult = await pool.query("SELECT COALESCE(SUM(amount), 0) as total_payouts FROM payouts WHERE user_id = $1 AND status = 'completed'", [referrerId]);
+                                const newAvailableBalance = newTotalEarnings - parseFloat(payoutsResult.rows[0].total_payouts);
+                
+                                let notificationMessage = `🎉 Congratulations! A new user has subscribed using your referral link. You've just earned $${commissionAmount.toFixed(2)}!\n\nYour new available balance is $${newAvailableBalance.toFixed(2)}.`;
+                                
+                                // Add bonus notification if applicable
+                                if (salesUpdateResult.rows.length > 0 && salesUpdateResult.rows[0].total_sales_for_bonus === 0) {
+                                    notificationMessage += `\n\n💰 BONUS ALERT! You've made 15 sales and earned a $100 bonus!`;
+                                }
+                                
+                                bot.sendMessage(referrer.telegram_chat_id, notificationMessage).catch(err => console.error("Failed to send referral notification:", err));
+                            }
+                        }
+                
+                    } catch (e) {
+                        await client.query('ROLLBACK');
+                        console.error('Failed to process referral commission:', e);
+                    } finally {
+                        client.release();
+                    }
+                }
+                // --- END: REFERRAL COMMISSION & NOTIFICATION LOGIC ---
+
+    } catch (err) {
+        console.error('Error processing TransFi webhook:', err);
+        res.status(500).send('Server Error');
+    }
+});
+
+// =================================================================
+// --- END: TransFi Webhook Handler ---
+// =================================================================
 
 // =================================================================
 // --- START: UNIFIED PAYMENT FLOW (WEB + TELEGRAM BOT) ---
