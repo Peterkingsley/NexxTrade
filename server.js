@@ -981,18 +981,36 @@ app.post('/api/payments/fiat/create', async (req, res) => {
         }
 
         // 4. Call TransFi API to create an order
-        const transfiPayload = {
-            amount: priceUSD,
-            fiatCurrency: 'USD',
-            cryptoCurrency: 'USDT',
-            paymentMethod: 'credit_card',
-            email: email,
-            redirectUrl: `${process.env.APP_BASE_URL}/join?payment=success`,
-            clientOrderId: order_id,
-            webhookUrl: `${process.env.APP_BASE_URL}/api/payments/transfi/webhook`
-        };
+        
+        // --- *** NEW PAYLOAD BASED ON YOUR DOCUMENTATION *** ---
+        const nameParts = fullname.split(' ');
+        const firstName = nameParts.shift() || 'User'; // Get first name
+        const lastName = nameParts.join(' ') || 'Name'; // Get the rest as last name
 
-        // NEW (This is the correct endpoint for a deposit)
+        if (!process.env.TRANSFI_WITHDRAWAL_WALLET_ADDRESS) {
+            throw new Error("Server configuration error: Missing TRANSFI_WITHDRAWAL_WALLET_ADDRESS in .env");
+        }
+
+        const transfiPayload = {
+            firstName: firstName,
+            lastName: lastName,
+            email: email,
+            country: "US", // Hardcoded for sandbox, TransFi requires this
+            amount: priceUSD,
+            currency: "USD", // Renamed from fiatCurrency
+            paymentType: "credit_card", // Renamed from paymentMethod
+            purposeCode: "other", // Hardcoded for sandbox
+            redirectUrl: `${process.env.APP_BASE_URL}/join?payment=success`,
+            type: "individual", // Hardcoded as per docs
+            partnerContext: {}, // Added as per docs
+            partnerId: order_id, // Renamed from clientOrderId to match docs
+            withdrawDetails: {
+                cryptoTicker: "USDT",
+                walletAddress: process.env.TRANSFI_WITHDRAWAL_WALLET_ADDRESS
+            }
+        };
+        // --- *** END OF NEW PAYLOAD *** ---
+
         const transfiResponse = await fetch(`${process.env.TRANSFI_SANDBOX_URL}/v2/orders/deposit`, {
             method: 'POST',
             headers: {
@@ -1005,21 +1023,14 @@ app.post('/api/payments/fiat/create', async (req, res) => {
         });
         
         // --- *** NEW ERROR HANDLING BLOCK *** ---
-        // This stops the crash by checking if the response is valid *before* trying to parse it.
         if (!transfiResponse.ok) {
-            // Get the raw error text from TransFi instead of assuming JSON
             const errorText = await transfiResponse.text();
-            
-            // Log the real error to your server console
             console.error('TransFi API Error - Status:', transfiResponse.status, transfiResponse.statusText);
             console.error('TransFi API Response Body:', errorText);
-            
-            // Send a clear error message to the user on the website
             return res.status(500).json({ message: `Fiat payment processor error: ${errorText || 'Received an invalid response from TransFi.'}`});
         }
         // --- *** END OF NEW BLOCK *** ---
 
-        // This line is now safe to run
         const transfiData = await transfiResponse.json();
 
         // 5. Send the TransFi payment URL to the client
@@ -1043,9 +1054,6 @@ app.post('/api/payments/fiat/create', async (req, res) => {
         // --- END TEMPORARY DEBUGGING ---
     }
 });
-// =================================================================
-// --- END: Fiat Payment API Routes ---
-// =================================================================
 
 // =================================================================
 // --- END: Fiat Payment API Routes ---
