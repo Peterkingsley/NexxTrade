@@ -999,7 +999,7 @@ app.post('/api/payments/fiat/create', async (req, res) => {
             country: "US", // Hardcoded for sandbox, TransFi requires this
             amount: priceUSD,
             currency: "USD", // Renamed from fiatCurrency
-            paymentType: "credit_card", // Renamed from paymentMethod
+            paymentType: "card", // Renamed from paymentMethod
             purposeCode: "other", // Hardcoded for sandbox
             purposeCodeReason: "Subscription for NexxTrade services",
             redirectUrl: `${process.env.APP_BASE_URL}/join?payment=success`,
