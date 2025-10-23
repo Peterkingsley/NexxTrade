@@ -991,7 +991,7 @@ app.post('/api/payments/fiat/create', async (req, res) => {
             webhookUrl: `${process.env.APP_BASE_URL}/api/payments/transfi/webhook`
         };
 
-        const transfiResponse = await fetch(`${process.env.TRANSFI_SANDBOX_URL}/v1/order/create`, {
+        const transfiResponse = await fetch(`${process.env.TRANSFI_SANDBOX_URL}/v2/orders/deposit`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
