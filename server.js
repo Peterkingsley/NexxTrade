@@ -918,8 +918,7 @@ app.get('/api/dashboard-stats', async (req, res) => {
 // --- START: Fiat Payment API Routes (Now with TransFi) ---
 // =================================================================
 
-// Make sure 'fetch' is available. If you haven't installed node-fetch:
-// npm install node-fetch
+// Make sure 'fetch' is available.
 const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
 
 // Helper function to create the Basic Auth token
@@ -947,7 +946,7 @@ app.post('/api/payments/fiat/create', async (req, res) => {
         // 2. Create a unique Order ID
         const order_id = `nexxtrade-fiat-${telegram.replace('@', '')}-${Date.now()}`;
         
-        // 3. Create/Update user as 'pending' (Copied from your existing logic)
+        // 3. Create/Update user as 'pending' (Your existing logic)
         const referrerId = await getReferrerId(referral_code);
         const existingUserPlanQuery = await pool.query(
             'SELECT * FROM users WHERE telegram_handle = $1 AND plan_name = $2',
@@ -987,37 +986,44 @@ app.post('/api/payments/fiat/create', async (req, res) => {
             cryptoCurrency: 'USDT',
             paymentMethod: 'credit_card',
             email: email,
-            redirectUrl: `${process.env.APP_BASE_URL}/join?payment=success`, // A page on your site
+            redirectUrl: `${process.env.APP_BASE_URL}/join?payment=success`,
             clientOrderId: order_id,
             webhookUrl: `${process.env.APP_BASE_URL}/api/payments/transfi/webhook`
         };
 
-        // --- THIS IS THE UPDATED PART ---
         const transfiResponse = await fetch(`${process.env.TRANSFI_SANDBOX_URL}/v1/order/create`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json',
-                // Create Basic Auth header from 'Username' and 'Password'
                 'Authorization': createTransfiAuthToken(),
-                // Add the 'MID' header
                 'MID': process.env.TRANSFI_MID
             },
             body: JSON.stringify(transfiPayload)
         });
-        // --- END OF UPDATE ---
-
-        const transfiData = await transfiResponse.json();
-
+        
+        // --- *** NEW ERROR HANDLING BLOCK *** ---
+        // This stops the crash by checking if the response is valid *before* trying to parse it.
         if (!transfiResponse.ok) {
-            console.error('TransFi API Error:', transfiData);
-            return res.status(500).json({ message: `Fiat payment processor error: ${transfiData.message || 'Unknown error'}`});
+            // Get the raw error text from TransFi instead of assuming JSON
+            const errorText = await transfiResponse.text();
+            
+            // Log the real error to your server console
+            console.error('TransFi API Error - Status:', transfiResponse.status, transfiResponse.statusText);
+            console.error('TransFi API Response Body:', errorText);
+            
+            // Send a clear error message to the user on the website
+            return res.status(500).json({ message: `Fiat payment processor error: ${errorText || 'Received an invalid response from TransFi.'}`});
         }
+        // --- *** END OF NEW BLOCK *** ---
+
+        // This line is now safe to run
+        const transfiData = await transfiResponse.json();
 
         // 5. Send the TransFi payment URL to the client
         res.status(200).json({ 
             message: 'Payment initiated successfully. Redirecting...',
-            redirectUrl: transfiData.paymentUrl // This is the TransFi checkout page
+            redirectUrl: transfiData.paymentUrl 
         });
 
     } catch (err) {
@@ -1025,11 +1031,6 @@ app.post('/api/payments/fiat/create', async (req, res) => {
         res.status(500).json({ message: 'Server Error during payment initiation.' });
     }
 });
-
-// =================================================================
-// --- END: Fiat Payment API Routes ---
-// =================================================================
-
 // =================================================================
 // --- END: Fiat Payment API Routes ---
 // =================================================================
