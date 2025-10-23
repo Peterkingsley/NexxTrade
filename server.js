@@ -922,9 +922,10 @@ app.get('/api/dashboard-stats', async (req, res) => {
 const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
 
 // Helper function to create the Basic Auth token
+// NEW
 const createTransfiAuthToken = () => {
-    // Auth format is username: (with a blank password)
-    const credentials = `${process.env.TRANSFI_USERNAME}:`;
+    // Auth format is username:password (the password is the 'merchant_secret')
+    const credentials = `${process.env.TRANSFI_USERNAME}:${process.env.TRANSFI_PASSWORD}`;
     return `Basic ${Buffer.from(credentials).toString('base64')}`;
 };
 
