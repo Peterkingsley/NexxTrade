@@ -1006,7 +1006,7 @@ app.post('/api/payments/fiat/create', async (req, res) => {
             type: "individual", // Hardcoded as per docs
             partnerContext: {}, // Added as per docs
             partnerId: order_id, // Renamed from clientOrderId to match docs
-            invoiceId: `IN-${order_id}`, // <-- ADD THIS LINE
+            //invoiceId: `IN-${order_id}`, // <-- ADD THIS LINE
             withdrawDetails: {
                 cryptoTicker: "USDT",
                 walletAddress: process.env.TRANSFI_WITHDRAWAL_WALLET_ADDRESS
