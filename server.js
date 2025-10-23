@@ -923,7 +923,8 @@ const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch
 
 // Helper function to create the Basic Auth token
 const createTransfiAuthToken = () => {
-    const credentials = `${process.env.TRANSFI_USERNAME}:${process.env.TRANSFI_PASSWORD}`;
+    // Auth format is username: (with a blank password)
+    const credentials = `${process.env.TRANSFI_USERNAME}:`;
     return `Basic ${Buffer.from(credentials).toString('base64')}`;
 };
 
@@ -991,6 +992,7 @@ app.post('/api/payments/fiat/create', async (req, res) => {
             webhookUrl: `${process.env.APP_BASE_URL}/api/payments/transfi/webhook`
         };
 
+        // NEW (This is the correct endpoint for a deposit)
         const transfiResponse = await fetch(`${process.env.TRANSFI_SANDBOX_URL}/v2/orders/deposit`, {
             method: 'POST',
             headers: {
