@@ -1001,6 +1001,7 @@ app.post('/api/payments/fiat/create', async (req, res) => {
             currency: "USD", // Renamed from fiatCurrency
             paymentType: "credit_card", // Renamed from paymentMethod
             purposeCode: "other", // Hardcoded for sandbox
+            purposeCodeReason: "Subscription for NexxTrade services",
             redirectUrl: `${process.env.APP_BASE_URL}/join?payment=success`,
             type: "individual", // Hardcoded as per docs
             partnerContext: {}, // Added as per docs
