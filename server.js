@@ -982,7 +982,7 @@ app.post('/api/payments/fiat/create', async (req, res) => {
 
         // 4. Call TransFi API to create an order
         
-        // --- *** NEW PAYLOAD BASED ON YOUR DOCUMENTATION *** ---
+        // --- *** THIS IS THE CORRECT PAYLOAD FROM YOUR DOCS *** ---
         const nameParts = fullname.split(' ');
         const firstName = nameParts.shift() || 'User'; // Get first name
         const lastName = nameParts.join(' ') || 'Name'; // Get the rest as last name
@@ -1009,7 +1009,7 @@ app.post('/api/payments/fiat/create', async (req, res) => {
                 walletAddress: process.env.TRANSFI_WITHDRAWAL_WALLET_ADDRESS
             }
         };
-        // --- *** END OF NEW PAYLOAD *** ---
+        // --- *** END OF CORRECT PAYLOAD *** ---
 
         const transfiResponse = await fetch(`${process.env.TRANSFI_SANDBOX_URL}/v2/orders/deposit`, {
             method: 'POST',
@@ -1022,15 +1022,14 @@ app.post('/api/payments/fiat/create', async (req, res) => {
             body: JSON.stringify(transfiPayload)
         });
         
-        // --- *** NEW ERROR HANDLING BLOCK *** ---
+        // --- Error handling (no changes needed) ---
         if (!transfiResponse.ok) {
             const errorText = await transfiResponse.text();
             console.error('TransFi API Error - Status:', transfiResponse.status, transfiResponse.statusText);
             console.error('TransFi API Response Body:', errorText);
             return res.status(500).json({ message: `Fiat payment processor error: ${errorText || 'Received an invalid response from TransFi.'}`});
         }
-        // --- *** END OF NEW BLOCK *** ---
-
+        
         const transfiData = await transfiResponse.json();
 
         // 5. Send the TransFi payment URL to the client
@@ -1040,24 +1039,15 @@ app.post('/api/payments/fiat/create', async (req, res) => {
         });
 
     } catch (err) {
-        // We still log it, just in case
+        // --- Temporary debugging (no changes needed) ---
         console.error('Error creating Fiat payment:', err);
-        
-        // --- TEMPORARY DEBUGGING ---
-        // This sends the actual error details to the browser
-        // so we can see what is crashing the server.
         res.status(500).json({ 
             message: 'Server Error. See error details.',
-            error_message: err.message, // Send the error message
-            error_stack: err.stack      // Send the full stack trace
+            error_message: err.message, 
+            error_stack: err.stack      
         });
-        // --- END TEMPORARY DEBUGGING ---
     }
 });
-
-// =================================================================
-// --- END: Fiat Payment API Routes ---
-// =================================================================
 
 // =================================================================
 // --- START: TransFi Webhook Handler ---
