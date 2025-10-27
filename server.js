@@ -138,12 +138,11 @@ async function manageExpiredSubscriptions() {
         // Process each expired user
         for (const user of expiredUsers) {
             try {
-                // 1. Kick user from the Telegram group
-                // We use telegram_group_id and telegram_user_id
+                // 1. Attempt to kick user from the Telegram group
                 await bot.kickChatMember(user.telegram_group_id, user.telegram_user_id);
                 console.log(`Successfully kicked ${user.telegram_handle} (ID: ${user.telegram_user_id}) from group ${user.telegram_group_id}.`);
 
-                // 2. Send a notification to the user's private chat
+                // 2. Attempt to send a notification to the user's private chat
                 if (user.telegram_chat_id) {
                     const renewalMessage = `Hi ${user.telegram_handle}, your subscription for the ${user.plan_name} plan has expired, and you have been removed from the VIP group. \n\nTo regain access, please start a new subscription.`;
                     const renewalOptions = {
@@ -156,21 +155,21 @@ async function manageExpiredSubscriptions() {
                     await bot.sendMessage(user.telegram_chat_id, renewalMessage, renewalOptions);
                 }
 
-                // 3. Update the user's status in the database to 'expired'
-                await client.query(
-                    "UPDATE users SET subscription_status = 'expired' WHERE id = $1",
-                    [user.id]
-                );
-
             } catch (err) {
-                console.error(`Failed to process expired user ${user.id} (${user.telegram_handle}):`, err.message);
-                // If the user was already gone, blocked the bot, or was not a member,
-                // we still mark them as expired to avoid retrying.
-                if (err.message.includes('user not found') || err.message.includes('bot was blocked') || err.message.includes('user is not a member')) {
+                // If Telegram actions fail, just log the error and continue.
+                // The database update in the 'finally' block will still run.
+                console.error(`Failed to process Telegram actions for user ${user.id} (${user.telegram_handle}):`, err.message);
+            
+            } finally {
+                // 3. ALWAYS update the database status to 'expired'
+                // This block runs whether the 'try' succeeded or failed.
+                try {
                     await client.query(
                         "UPDATE users SET subscription_status = 'expired' WHERE id = $1",
                         [user.id]
                     );
+                } catch (dbErr) {
+                    console.error(`CRITICAL: Failed to update database for expired user ${user.id}:`, dbErr.message);
                 }
             }
         }
@@ -187,7 +186,7 @@ cron.schedule('0 3 * * *', () => {
     manageExpiredSubscriptions();
 });
 
-console.log('Scheduled subscription manager (cron job) to run daily at 3:00 AM.');
+console.log('Scheduled subscription manager (cron job) to run daily at 10:30 AM.');
 
 //
 
@@ -999,7 +998,7 @@ app.post('/api/payments/fiat/create', async (req, res) => {
             country: "US", // Hardcoded for sandbox, TransFi requires this
             amount: priceUSD,
             currency: "USD", // Renamed from fiatCurrency
-            paymentType: "card", // Renamed from paymentMethod
+            paymentType: "bank_transfer", // Renamed from paymentMethod
             purposeCode: "expense_or_medical_reimbursement", // Hardcoded for sandbox
             purposeCodeReason: "Subscription for NexxTrade services",
             redirectUrl: `${process.env.APP_BASE_URL}/join?payment=success`,
