@@ -213,6 +213,19 @@
                 background-color: var(--line);
             }
 
+            /* --- ADD THESE NEW STYLES --- */
+        .btn-sm {
+            padding: .5rem 1rem;
+            font-size: 0.875rem;
+        }
+
+        .filter-btn.active {
+            background: var(--line);
+            color: var(--text);
+            border-color: var(--line);
+        }
+        /* --- END OF NEW STYLES --- */
+
             /* Mobile-friendly table overflow */
             .card table {
                 display: block;
@@ -383,6 +396,13 @@
             lucide.createIcons();
             const API_BASE_URL = 'https://nexxtrade.onrender.com/api';
 
+            // --- NEW: Global variable to store all users ---
+            let allUsers = []; 
+            
+            // --- NEW: Cache table and filter elements ---
+            const usersTableBody = document.getElementById('users-table');
+            const filterButtonContainer = document.getElementById('user-filter-buttons');
+
             // Function to format date to YYYY-MM-DD
             function formatDate(dateString) {
                 if (!dateString) return 'N/A';
@@ -390,17 +410,82 @@
                 return date.toISOString().split('T')[0];
             }
 
-            // Function to check subscription status
-            function getSubscriptionStatus(status, expirationDate) {
-                 if (status === 'active') {
+            // --- NEW: Helper function to get raw status as a string ---
+            function calculateUserStatus(user) {
+                const status = user.subscription_status;
+                const expirationDate = user.subscription_expiration;
+
+                if (status === 'active') {
+                    if (!expirationDate) {
+                        return 'active'; // Assume active if no expiration date is set
+                    }
                     const now = new Date();
                     const expiration = new Date(expirationDate);
-                    return expiration > now ? '<span class="text-accent">Active</span>' : '<span class="text-danger">Expired</span>';
+                    return expiration > now ? 'active' : 'expired';
                 }
-                return `<span class="text-muted">${status || 'pending'}</span>`;
+                return status || 'pending'; // Default to 'pending' if status is null/undefined
+            }
+
+            // --- MODIFIED: Function to get HTML status string ---
+            function getSubscriptionStatus(user) {
+                const status = calculateUserStatus(user);
+                switch (status) {
+                    case 'active':
+                        return '<span class="text-accent">Active</span>';
+                    case 'expired':
+                        return '<span class="text-danger">Expired</span>';
+                    case 'pending':
+                    default:
+                        return `<span class="text-muted">${status}</span>`;
+                }
             }
             
-            // --- NEW: Function to fetch and render the new dashboard stats ---
+            // --- NEW: Function to render the users table based on a provided list ---
+            const renderUsersTable = (usersToRender) => {
+                usersTableBody.innerHTML = ''; // Clear the table
+                
+                if (usersToRender.length === 0) {
+                    usersTableBody.innerHTML = `<tr><td colspan="5" class="text-muted text-center py-4">No users match this filter.</td></tr>`;
+                    return;
+                }
+
+                usersToRender.forEach(user => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${user.email}</td>
+                        <td>${user.telegram_handle || 'N/A'}</td>
+                        <td>${formatDate(user.registration_date)}</td>
+                        <td>${user.subscription_expiration ? formatDate(user.subscription_expiration) : 'N/A'}</td>
+                        <td>${getSubscriptionStatus(user)}</td>
+                    `;
+                    usersTableBody.appendChild(row);
+                });
+            };
+
+            // --- NEW: Event listener for filter buttons ---
+            filterButtonContainer.addEventListener('click', (e) => {
+                const targetButton = e.target.closest('.filter-btn');
+                if (!targetButton) return; // Ignore clicks outside buttons
+
+                // Update active button style
+                filterButtonContainer.querySelectorAll('.filter-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                targetButton.classList.add('active');
+
+                const filter = targetButton.dataset.filter;
+                
+                let filteredUsers = [];
+                if (filter === 'all') {
+                    filteredUsers = allUsers;
+                } else {
+                    filteredUsers = allUsers.filter(user => calculateUserStatus(user) === filter);
+                }
+                
+                renderUsersTable(filteredUsers);
+            });
+            
+            // --- This function is unchanged ---
             const fetchDashboardStats = async () => {
                 const totalActiveUsersEl = document.getElementById('total-active-users-stat');
                 const packageContainer = document.getElementById('active-users-per-package-container');
@@ -411,11 +496,9 @@
                     if (!response.ok) throw new Error('Failed to fetch dashboard stats');
                     const stats = await response.json();
 
-                    // 1. Populate Total Active Users
                     totalActiveUsersEl.textContent = stats.totalActiveUsers;
                     
-                    // 2. Populate Active Users by Package
-                    packageContainer.innerHTML = ''; // Clear loading message
+                    packageContainer.innerHTML = ''; 
                     if (stats.activeUsersPerPackage.length > 0) {
                         stats.activeUsersPerPackage.forEach(pkg => {
                             const card = document.createElement('div');
@@ -430,8 +513,7 @@
                         packageContainer.innerHTML = '<p class="text-muted col-span-full text-center">No active users on any package.</p>';
                     }
 
-                    // 3. Populate User Acquisition Sources
-                    acquisitionContainer.innerHTML = ''; // Clear loading message
+                    acquisitionContainer.innerHTML = ''; 
                     const sources = [
                         { label: 'Web Signups', data: stats.userAcquisition.web },
                         { label: 'Bot Signups', data: stats.userAcquisition.bot },
@@ -450,8 +532,6 @@
                         `;
                         acquisitionContainer.appendChild(card);
                     });
-
-
                 } catch (error) {
                     console.error('Error fetching dashboard stats:', error);
                     totalActiveUsersEl.textContent = 'Error';
@@ -461,29 +541,13 @@
             };
 
 
-            // --- MODIFIED: This function now only handles the lower tables ---
+            // --- MODIFIED: This function now populates `allUsers` and calls `renderUsersTable` ---
             const fetchTableData = async () => {
                 try {
                     // Fetch and populate all registered users table
                     const usersResponse = await fetch(`${API_BASE_URL}/users`);
-                    const users = await usersResponse.json();
-                    const usersTableBody = document.getElementById('users-table');
-                    usersTableBody.innerHTML = '';
-                    if (users.length === 0) {
-                        usersTableBody.innerHTML = `<tr><td colspan="5" class="text-muted text-center py-4">No registered users found.</td></tr>`;
-                    } else {
-                        users.forEach(user => {
-                            const row = document.createElement('tr');
-                            row.innerHTML = `
-                                <td>${user.email}</td>
-                                <td>${user.telegram_handle}</td>
-                                <td>${formatDate(user.registration_date)}</td>
-                                <td>${user.subscription_expiration ? formatDate(user.subscription_expiration) : 'N/A'}</td>
-                                <td>${getSubscriptionStatus(user.subscription_status, user.subscription_expiration)}</td>
-                            `;
-                            usersTableBody.appendChild(row);
-                        });
-                    }
+                    allUsers = await usersResponse.json(); // <-- Store users globally
+                    renderUsersTable(allUsers); // <-- Initial render with all users
 
                     // Fetch and populate recent blog posts table (limit to 5)
                     const blogsResponse = await fetch(`${API_BASE_URL}/blogs`);
@@ -497,7 +561,7 @@
                         recentBlogs.forEach(post => {
                             const row = document.createElement('tr');
                             row.innerHTML = `
-                                <td>${post.title}</td>
+                                D<td>${post.title}</td>
                                 <td>${post.author}</td>
                                 <td>${formatDate(post.published_date)}</td>
                                 <td>${post.status}</td>
@@ -534,7 +598,7 @@
                     lucide.createIcons();
                 } catch (error) {
                     console.error('Error fetching table data:', error);
-                    document.getElementById('users-table').innerHTML = `<tr><td colspan="5" class="text-danger text-center py-4">Failed to load user data.</td></tr>`;
+                    usersTableBody.innerHTML = `<tr><td colspan="5" class="text-danger text-center py-4">Failed to load user data.</td></tr>`;
                     document.getElementById('blogs-table').innerHTML = `<tr><td colspan="5" class="text-danger text-center py-4">Failed to load blog data.</td></tr>`;
                     document.getElementById('signals-table').innerHTML = `<tr><td colspan="7" class="text-danger text-center py-4">Failed to load signal data.</td></tr>`;
                 }
