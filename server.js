@@ -186,7 +186,7 @@ cron.schedule('0 3 * * *', () => {
     manageExpiredSubscriptions();
 });
 
-console.log('Scheduled subscription manager (cron job) to run daily at 10:30 AM.');
+console.log('Scheduled subscription manager (cron job) to run daily at 2:55 AM.');
 
 //
 
