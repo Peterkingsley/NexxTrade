@@ -78,11 +78,24 @@
     .hero h1{font-size:clamp(1.9rem, 4vw, 3rem);line-height:1.1;margin:0 0 10px}
     .hero p{font-size:clamp(1rem, 1.4vw, 1.15rem);color:var(--muted);margin:0 0 24px}
     .hero .cta{display:flex;gap:12px;flex-wrap:wrap}
-    .hero-panel{aspect-ratio:16/10;background:linear-gradient(180deg,#0f151d,#0b141b);border:1px solid var(--line);border-radius:var(--radius-lg);position:relative;overflow:hidden}
+    .hero-panel{aspect-ratio:20/17;object-fit:cover;object-position:center;position:relative;z-index:1}
     .scan{position:absolute;inset:0;background:repeating-linear-gradient( to bottom, rgba(42,214,120,.05) 0 2px, transparent 2px 4px);animation:scan 8s linear infinite;mix-blend:overlay}
     @keyframes scan{0%{transform:translateY(-30%)}100%{transform:translateY(30%)}}
     .spark{position:absolute;width:120px;height:120px;border-radius:50%;filter:blur(40px);background:radial-gradient(circle, rgba(42,214,120,.35), rgba(42,214,120,0));top:20%;left:15%}
     .spark2{top:60%;left:auto;right:10%;background:radial-gradient(circle, rgba(240,199,94,.25), rgba(240,199,94,0))}
+
+    /* Add this animation */
+@keyframes revolve {
+  0%   { transform: rotate(0deg) translateX(40px) rotate(0deg); }
+  100% { transform: rotate(360deg) translateX(40px) rotate(-360deg); }
+}
+
+/* Apply it to your globe */
+.hero-panel {
+  animation: spin 20s linear infinite;
+  transform-style: preserve-3d;
+}
+
 
     /* Social proof bar */
     .proof{border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:#0d1219}
@@ -399,25 +412,8 @@
         <div style="margin-top:14px" class="muted">Transparent results. Risk-first.
         </div>
       </div>
-      <div class="hero-panel reveal" aria-hidden="true">
-        <div class="scan"></div>
-        <div class="spark"></div>
-        <div class="spark spark2"></div>
-        <svg viewBox="0 0 600 360" width="100%" height="100%" style="position:absolute;inset:0;opacity:.7">
-          <g fill="none" stroke="#2ad678" stroke-width="2">
-            <line x1="50" y1="220" x2="50" y2="140"/>
-            <rect x="40" y="160" width="20" height="40" fill="rgba(42,214,120,.35)"/>
-            <line x1="120" y1="200" x2="120" y2="110"/>
-            <rect x="110" y="130" width="20" height="50" fill="rgba(42,214,120,.25)"/>
-            <line x1="190" y1="250" x2="190" y2="170"/>
-            <rect x="180" y="190" width="20" height="40" fill="rgba(255,93,93,.25)" stroke="#ff5d5d"/>
-            <line x1="260" y1="210" x2="260" y2="120"/>
-            <rect x="250" y="140" width="20" height="48" fill="rgba(42,214,120,.25)"/>
-            <polyline points="50,180 120,140 190,200 260,160 330,130 400,170 470,120 540,150" stroke="#8ef7bf" fill="none"/>
-          </g>
-        </svg>
-      </div>
-    </div>
+
+        <img src="./images/NexxTrade (4).png" alt="NexxTrade Logo" class="hero-panel reveal" aria-hidden="true">
   </section>
 
   <div class="proof">
