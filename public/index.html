@@ -287,6 +287,78 @@
     .sticky-cta .inner{display:flex;gap:10px;justify-content:space-between;align-items:center;background:#0e151e;border:1px solid var(--line);padding:10px 12px;border-radius:14px;box-shadow:var(--shadow)}
     .sticky-cta .price{font-weight:800}
 
+    /* --- NEW TESTIMONIAL STYLES --- */
+.testimonials {
+  padding-bottom: 80px; /* Add extra space for rotated cards */
+}
+
+.t-wall {
+  grid-template-columns: repeat(3, 1fr);
+  align-items: center;
+  gap: 0; /* Remove gap, we will use transforms */
+}
+
+.quote {
+  position: relative; /* Needed for z-index */
+  transition: transform 0.3s ease, z-index 0.3s ease;
+  will-change: transform;
+}
+
+/* The "magic" to tilt and overlap cards */
+.t-wall .quote:nth-child(1) {
+  transform: rotate(-5deg) translateX(10px);
+  z-index: 1;
+}
+.t-wall .quote:nth-child(2) {
+  transform: rotate(2deg) translateY(-15px);
+  z-index: 2; /* This one is on top */
+  /* Optional: make the middle one a different color */
+  background: #101720; 
+}
+.t-wall .quote:nth-child(3) {
+  transform: rotate(4deg) translateX(-10px);
+  z-index: 1;
+}
+
+/* Pop-out effect on hover */
+.t-wall .quote:hover {
+  transform: rotate(0deg) scale(1.05) translateY(-5px);
+  z-index: 10;
+}
+
+/* New author/avatar styles */
+.quote-author {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.quote-author .avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #04140a; /* Dark text for green bg */
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+.quote-author strong {
+  display: block;
+  color: var(--text);
+  font-weight: 600;
+}
+.quote-author .subtle {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+/* --- END NEW TESTIMONIAL STYLES --- */
+
     /* Responsive */
     @media (max-width: 980px){
       /* General layout */
@@ -626,24 +698,46 @@
     <p class="center subtle" style="margin-top:12px">Payments: Fiat & Crypto supported • Instant invite after payment</p>
   </section>
 
-  <section class="testimonials container">
-    <h2 class="center reveal">What Members Say</h2>
-    <div class="grid t-grid">
-      <article class="card quote reveal">
-        <p>“I’ve subscribed to many signal channels, never seen this kind of accuracy.”</p>
-        <div class="subtle">— Ahmed O.</div>
-      </article>
-      <article class="card quote reveal">
-        <p>“God go bless you for me Idan, you’re the best.”</p>
-        <div class="subtle">— Ifeoluwa A.</div>
-      </article>
-      <article class="card quote reveal">
-        <p>“After that your lesson on proper positioning sizing, risk management and psychology, my whole trading game changed.  I’m still in shock. Thanks Dr. Crypto.”</p>
-        <div class="subtle">— Grace K.</div>
-      </article>
-    </div>
-  </section>
-
+<section class="testimonials container">
+  <h2 class="center reveal">What Members Say</h2>
+  
+  <div class="grid t-wall"> 
+    
+    <article class="card quote reveal">
+      <p>“I’ve subscribed to many signal channels, never seen this kind of accuracy.”</p>
+      <div class="quote-author">
+        <div class="avatar">AO</div>
+        <div>
+          <strong>Ahmed O.</strong>
+          <span class="subtle">NexxTrader</span>
+        </div>
+      </div>
+    </article>
+    
+    <article class="card quote reveal">
+      <p>“God go bless you for me Idan, you’re the best.”</p>
+      <div class="quote-author">
+        <div class="avatar">IA</div>
+        <div>
+          <strong>Ifeoluwa A.</strong>
+          <span class="subtle">NexxTrader</span>
+        </div>
+      </div>
+    </article>
+    
+    <article class="card quote reveal">
+      <p>“After that your lesson on proper positioning sizing, risk management and psychology, my whole trading game changed. I’m still in shock. Thanks Dr. Crypto.”</p>
+      <div class="quote-author">
+        <div class="avatar">GK</div>
+        <div>
+          <strong>Grace K.</strong>
+          <span class="subtle">NexxTrader</span>
+        </div>
+      </div>
+    </article>
+    
+  </div>
+</section>
   <section class="blog-section container reveal">
     <div class="content card">
       <div class="cta-panel">
