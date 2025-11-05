@@ -126,6 +126,35 @@
         grid-template-columns: 1fr;
       }
     }
+
+
+    /* New CSS to achieve the unique background effect */
+  #stats-hero-wrapper {
+    /* *** KEY STEP: REPLACE THIS WITH YOUR ACTUAL BACKGROUND IMAGE URL *** */
+    /* This example uses a placeholder gradient. The screenshot uses a blue/purple abstract pattern. */
+    background-image: url('./images/back.jpeg');
+    /* UNCOMMENT THE LINE BELOW and use your image path to achieve the pattern */
+    /* background-image: url('./images/your-dna-pattern.svg'); */
+    background-size: cover;
+    background-position: center;
+    border: none; 
+    box-shadow: var(--shadow);
+  }
+
+  /* Styling the cards inside the wrapper to contrast with the background */
+  #stats-hero-wrapper .card {
+    /* Makes the cards slightly transparent and applies a blur for a modern glass-like effect */
+    background: rgba(255, 255, 255, 0.1); 
+    backdrop-filter: blur(4px); 
+    border: 1px solid rgba(255, 255, 255, 0.15); 
+    /* Ensure text contrast for the dark theme */
+    color: var(--text);
+  }
+
+  #stats-hero-wrapper .card p.text-muted {
+    /* Lighter muted color for labels */
+    color: rgba(255, 255, 255, 0.7); 
+  }
   </style>
 </head>
 <body class="antialiased">
@@ -151,56 +180,53 @@
 
   <main class="container py-8 md:py-12">
     <div class="space-y-12">
-      <div class="text-center">
+      <!-- <div class="text-center">
         <a href="/" class="btn btn-ghost mb-4">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
           Back to Home
-        </a>
+        </a> 
         <h1 class="text-4xl md:text-5xl font-extrabold tracking-tight">Performance Dashboard</h1>
         <p class="mt-4 max-w-2xl mx-auto text-lg text-muted">Full transparency into our trading signals and results.</p>
-      </div>
+      </div>  -->
 
-      <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div class="card p-5">
-          <p class="text-sm font-medium text-muted">Win Rate</p>
-          <p class="mt-1 text-3xl font-bold tracking-tight" id="stats-win-rate">...%</p>
-        </div>
-        <div class="card p-5">
-          <p class="text-sm font-medium text-muted">Cumulative ROI</p>
-          <p class="mt-1 text-3xl font-bold tracking-tight" id="stats-cum-roi">...%</p>
-        </div>
-        <div class="card p-5">
-          <p class="text-sm font-medium text-muted">Total Signals</p>
-          <p class="mt-1 text-3xl font-bold tracking-tight" id="stats-total-signals">...</p>
-        </div>
-        <div class="card p-5">
-          <p class="text-sm font-medium text-muted">Most Traded Pair</p>
-          <p class="mt-1 text-3xl font-bold tracking-tight" id="stats-most-traded">...</p>
-        </div>
-      </section>
+      <div id="stats-hero-wrapper" class="p-6 md:p-8 rounded-xl relative overflow-hidden mb-8">
+        
+        <h2 class="text-2xl font-semibold mb-1 z-20 relative">Trading Performance Overview</h2>
+        <p class="text-sm text-muted mb-6 z-20 relative">Full transparency into our trading signals and results.</p>
 
-      <section class="grid grid-cols-1 gap-6">
-        <div class="card p-5 flex flex-col justify-center">
-          <h3 class="text-lg font-semibold mb-4">Signal Breakdown</h3>
-          <div class="space-y-4">
-            <div class="flex items-center justify-between">
-              <span class="text-muted">Winning Trades</span>
-              <span class="font-bold text-lg gain" id="stats-wins">...</span>
-            </div>
-            <div class="w-full bg-slate-700 rounded-full h-2.5">
-              <div class="bg-green-500 h-2.5 rounded-full" id="wins-progress-bar" style="width: 0%"></div>
-            </div>
-
-            <div class="flex items-center justify-between">
-              <span class="text-muted">Losing Trades</span>
-              <span class="font-bold text-lg loss" id="stats-losses">...</span>
-            </div>
-            <div class="w-full bg-slate-700 rounded-full h-2.5">
-              <div class="bg-red-500 h-2.5 rounded-full" id="losses-progress-bar" style="width: 0%"></div>
-            </div>
+        <section class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-6 gap-4 md:gap-6 relative z-10">
+          <div class="card p-4 md:p-5">
+            <p class="text-xs sm:text-sm font-medium text-muted truncate">Win Rate</p>
+            <p class="mt-1 text-2xl md:text-3xl font-bold tracking-tight gain" id="stats-win-rate">...%</p>
           </div>
-        </div>
-      </section>
+          
+          <div class="card p-4 md:p-5">
+            <p class="text-xs sm:text-sm font-medium text-muted truncate">Cumulative ROI</p>
+            <p class="mt-1 text-2xl md:text-3xl font-bold tracking-tight gain" id="stats-cum-roi">...%</p>
+          </div>
+          
+          <div class="card p-4 md:p-5">
+            <p class="text-xs sm:text-sm font-medium text-muted truncate">Total Signals</p>
+            <p class="mt-1 text-2xl md:text-3xl font-bold tracking-tight" id="stats-total-signals">...</p>
+          </div>
+          
+          <div class="card p-4 md:p-5">
+            <p class="text-xs sm:text-sm font-medium text-muted truncate">Winning Trades</p>
+            <p class="mt-1 text-2xl md:text-3xl font-bold tracking-tight gain" id="stats-wins">...</p>
+          </div>
+
+          <div class="card p-4 md:p-5">
+            <p class="text-xs sm:text-sm font-medium text-muted truncate">Losing Trades</p>
+            <p class="mt-1 text-2xl md:text-3xl font-bold tracking-tight loss" id="stats-losses">...</p>
+          </div>
+          
+          <div class="card p-4 md:p-5">
+            <p class="text-xs sm:text-sm font-medium text-muted truncate">Most Traded Pair</p>
+            <p class="mt-1 text-2xl md:text-3xl font-bold tracking-tight" id="stats-most-traded">...</p>
+          </div>
+        </section>
+      </div> 
+      <section class="grid grid-cols-1 lg:grid-cols-5 gap-6">
       
       <section class="grid grid-cols-1 lg:grid-cols-5 gap-6">
         <div class="lg:col-span-3 card overflow-hidden">
@@ -478,33 +504,37 @@
         }
     });
 
-    // --- Data Fetching and Rendering ---
-    const fetchSignalStats = async () => {
-        try {
-            const response = await fetch(`${API_BASE_URL}/performances/stats`);
-            if (!response.ok) throw new Error('Failed to fetch stats');
-            const stats = await response.json();
+// MODIFIED: fetchSignalStats to update the new 6 cards
+const fetchSignalStats = async () => {
+    try {
+        // KEEPING YOUR EXISTING API CALL
+        const response = await fetch(`${API_BASE_URL}/performances/stats`); 
+        if (!response.ok) throw new Error('Failed to fetch stats');
+        const stats = await response.json();
 
-            document.getElementById('stats-win-rate').textContent = `${stats.winRate}%`;
-            document.getElementById('stats-cum-roi').textContent = `${stats.cumulativeROI}%`;
-            document.getElementById('stats-total-signals').textContent = stats.totalSignals;
-            document.getElementById('stats-most-traded').textContent = stats.mostTradedPair;
-            document.getElementById('stats-wins').textContent = stats.wins;
-            document.getElementById('stats-losses').textContent = stats.losses;
-            
-            const winsPercentage = (stats.wins / stats.totalSignals) * 100;
-            const lossesPercentage = (stats.losses / stats.totalSignals) * 100;
-            document.getElementById('wins-progress-bar').style.width = `${winsPercentage}%`;
-            document.getElementById('losses-progress-bar').style.width = `${lossesPercentage}%`;
-
-        } catch (error) {
-            console.error('Error fetching signal stats:', error);
-            const errorText = 'N/A';
-            ['stats-win-rate', 'stats-cum-roi', 'stats-total-signals', 'stats-most-traded', 'stats-wins', 'stats-losses'].forEach(id => {
-              if(document.getElementById(id)) document.getElementById(id).textContent = errorText;
-            });
-        }
-    };
+        // Card 1: Win Rate
+        document.getElementById('stats-win-rate').textContent = `${stats.winRate}%`;
+        // Card 2: Cumulative ROI
+        document.getElementById('stats-cum-roi').textContent = `${stats.cumulativeROI}%`;
+        // Card 3: Total Signals
+        document.getElementById('stats-total-signals').textContent = stats.totalSignals;
+        // Card 4: Winning Trades
+        document.getElementById('stats-wins').textContent = stats.wins;
+        // Card 5: Losing Trades
+        document.getElementById('stats-losses').textContent = stats.losses;
+        // NEW CARD: Most Traded Pair
+        document.getElementById('stats-most-traded').textContent = stats.mostTradedPair; 
+        
+    } catch (error) {
+        console.error('Error fetching signal stats:', error);
+        const errorText = 'N/A';
+        // Updated list of IDs to clear on error (added 'stats-most-traded')
+        ['stats-win-rate', 'stats-cum-roi', 'stats-total-signals', 'stats-wins', 'stats-losses', 'stats-most-traded'].forEach(id => {
+          if(document.getElementById(id)) document.getElementById(id).textContent = errorText;
+        });
+    }
+};
+// END MODIFIED fetchSignalStats
 
     const fetchSignals = async () => {
         try {
