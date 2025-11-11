@@ -86,13 +86,13 @@
 
     /* Add this animation */
 @keyframes revolve {
-  0%   { transform: rotate(0deg) translateX(40px) rotate(0deg); }
-  100% { transform: rotate(360deg) translateX(40px) rotate(-360deg); }
+  0%   { transform: rotate(0deg) translateX(45px) rotate(0deg); }
+  100% { transform: rotate(360deg) translateX(45px) rotate(-360deg); }
 }
 
 /* Apply it to your globe */
 .hero-panel {
-  animation: spin 20s linear infinite;
+  animation: revolve 20s linear infinite;
   transform-style: preserve-3d;
 }
 
@@ -564,7 +564,7 @@
           <img src="./images/add-friend.png" alt="" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         </div>
         <h4>Create Account</h4>
-        <p class="muted">30 seconds to sign up with your email and Telegram @handle.</p>
+        <p class="muted">30 seconds to sign up with your email and Telegram handle.</p>
       </div>
       <div class="card step reveal">
         <div class="icon">
