@@ -4,29 +4,30 @@
 // Instead, its webhook initialization logic will be called from server.js.
 
 // Load environment variables from .env file
-require('dotenv').config();
+import dotenv from 'dotenv';
+dotenv.config();
 // Use dynamic import for node-fetch to support different module versions
 const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
 
 // Import the Telegram Bot API library
-const TelegramBot = require('node-telegram-bot-api');
+import TelegramBot from 'node-telegram-bot-api';
 const token = process.env.TELEGRAM_BOT_TOKEN;
 
 // Get the server URL from your .env file
 const serverUrl = process.env.APP_BASE_URL;
 
 // Create a new Telegram bot instance without polling.
-const bot = new TelegramBot(token, { polling: false });
+export const bot = new TelegramBot(token, { polling: false });
 
 // This object will hold the state of users going through the registration process.
 // In a production environment, this should be replaced with a database or a persistent cache like Redis.
-const userRegistrationState = {};
+export const userRegistrationState = {};
 
 // NEW: Variable to store the bot's username
 let botUsername = '';
 
 // This function sets up the webhook on Telegram's side and registers the commands.
-const setupWebhook = async () => {
+export const setupWebhook = async () => {
     try {
         const webhookUrl = `${serverUrl}/bot${token}`;
         await bot.setWebHook(webhookUrl);
@@ -755,8 +756,8 @@ bot.on('callback_query', async (callbackQuery) => {
     }
 });
 
-module.exports = {
-    bot,
-    setupWebhook,
-    userRegistrationState
-};
+// module.exports = {
+//     bot,
+//     setupWebhook,
+//     userRegistrationState
+// };
