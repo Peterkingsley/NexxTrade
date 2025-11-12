@@ -81,7 +81,7 @@ const activeSubscriptions = activeSubscriptionsResult.rows[0].active_subscriptio
 
 // NEW: Import the Telegram bot and webhook setup function
 // This allows the server to command the bot (e.g., to create invite links).
-const { bot, setupWebhook, userRegistrationState } = require('./telegram_bot.js');
+import { bot, setupWebhook, userRegistrationState } from('./telegram_bot.js');
 
 // Middleware setup
 // Use the CORS middleware to allow cross-origin requests
