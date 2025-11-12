@@ -76,7 +76,7 @@ db.connect()
 const app = express();
 const port = process.env.PORT || 3000;
 
-const activeSubscriptionsResult = await db.query('SELECT COUNT(*)::int AS active_subscriptions FROM users WHERE subscription_expires_at > NOW()');
+const activeSubscriptionsResult = await db.query('SELECT COUNT(*)::int AS active_subscriptions FROM users WHERE subscription_expiration > NOW()');
 const activeSubscriptions = activeSubscriptionsResult.rows[0].active_subscriptions;
 
 // NEW: Import the Telegram bot and webhook setup function
