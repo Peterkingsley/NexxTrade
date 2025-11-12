@@ -44,17 +44,27 @@
 
 */
 
-// Import required modules
-const express = require('express');
-const cors = require('cors'); // Import the cors package
-const { Pool } = require('pg');
-const path = require('path');
-const bcrypt = require('bcrypt'); // Import bcrypt for password hashing
-const crypto = require('crypto'); // Import crypto for generating unique tokens
-const cron = require('node-cron'); // Import the cron job library
+// --- NEW: Imports for ES Module Scope ---
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+// Define ES Module equivalents for CommonJS globals (needed for path resolution)
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Import required modules using ES Module syntax
+import express from 'express';
+import cors from 'cors'; // Import the cors package
+import { Pool } from 'pg';
+import path from 'path';
+import bcrypt from 'bcrypt'; // Import bcrypt for password hashing
+import crypto from 'crypto'; // Import crypto for generating unique tokens
+import cron from 'node-cron'; // Import the cron job library
+
+// Load environment variables from .env file (ES Module equivalent for require('dotenv').config())
+import 'dotenv/config'; 
+
 const app = express();
-// Load environment variables from .env file
-require('dotenv').config();
 const port = process.env.PORT || 3000;
 
 const activeSubscriptionsResult = await db.query('SELECT COUNT(*)::int AS active_subscriptions FROM users WHERE subscription_expires_at > NOW()');
