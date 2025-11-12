@@ -47,6 +47,9 @@
 // --- NEW: Imports for ES Module Scope ---
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+// ...
+import { Pool } from 'pg';
+// ...
 
 // Define ES Module equivalents for CommonJS globals (needed for path resolution)
 const __filename = fileURLToPath(import.meta.url);
