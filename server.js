@@ -44,28 +44,34 @@
 
 */
 
-// --- NEW: Imports for ES Module Scope ---
+/ 1. ES Module Context Setup
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
-// ...
-import { Pool } from 'pg';
-// ...
 
 // Define ES Module equivalents for CommonJS globals (needed for path resolution)
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Import required modules using ES Module syntax
+// 2. Imports using ES Module syntax (Ensure NO duplicates here)
 import express from 'express';
-import cors from 'cors'; // Import the cors package
-import { Pool } from 'pg';
+import cors from 'cors';
+import { Pool } from 'pg'; // <--- This is the only place Pool should be imported
 import path from 'path';
-import bcrypt from 'bcrypt'; // Import bcrypt for password hashing
-import crypto from 'crypto'; // Import crypto for generating unique tokens
-import cron from 'node-cron'; // Import the cron job library
+import bcrypt from 'bcrypt';
+import crypto from 'crypto';
+import cron from 'node-cron';
+import 'dotenv/config'; // Load environment variables
 
-// Load environment variables from .env file (ES Module equivalent for require('dotenv').config())
-import 'dotenv/config'; 
+// 3. Database Connection Pool Initialization (This defines 'db')
+const db = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+});
+
+db.connect()
+    .then(() => console.log('Successfully connected to PostgreSQL database.'))
+    .catch(err => console.error('Database connection error:', err.stack));
+
 
 const app = express();
 const port = process.env.PORT || 3000;
