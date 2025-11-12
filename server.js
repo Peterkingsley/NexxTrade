@@ -44,7 +44,7 @@
 
 */
 
-/ 1. ES Module Context Setup
+// 1. ES Module Context Setup
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 
