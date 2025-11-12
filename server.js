@@ -893,10 +893,10 @@ app.get('/api/dashboard/stats', async (req, res) => {
         
         const userAcquisitionQuery = `
             SELECT
-                COUNT(CASE WHEN acquisition_source = 'web' THEN 1 END) AS total_web,
-                COUNT(CASE WHEN acquisition_source = 'bot' THEN 1 END) AS total_bot,
-                COUNT(CASE WHEN acquisition_source = 'web' AND subscription_status = 'active' THEN 1 END) AS active_web,
-                COUNT(CASE WHEN acquisition_source = 'bot' AND subscription_status = 'active' THEN 1 END) AS active_bot,
+                COUNT(CASE WHEN registration_source = 'web' THEN 1 END) AS total_web,
+                COUNT(CASE WHEN registration_source = 'bot' THEN 1 END) AS total_bot,
+                COUNT(CASE WHEN registration_source = 'web' AND subscription_status = 'active' THEN 1 END) AS active_web,
+                COUNT(CASE WHEN registration_source = 'bot' AND subscription_status = 'active' THEN 1 END) AS active_bot,
                 COUNT(CASE WHEN referred_by IS NOT NULL THEN 1 END) AS total_referred,
                 COUNT(CASE WHEN referred_by IS NOT NULL AND subscription_status = 'active' THEN 1 END) AS active_referred
             FROM users;
