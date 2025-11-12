@@ -877,94 +877,77 @@ app.get('/api/users/stats', async (req, res) => {
 });
 
 // MODIFIED: API route for detailed admin dashboard statistics
-app.get('/api/dashboard-stats', async (req, res) => {
-  try {
-    // Query 1: Get active users per package
-    const activeUsersPerPackageQuery = await pool.query(`
-      SELECT plan_name, COUNT(*) AS active_users
-      FROM users
-      WHERE subscription_status = 'active'
-      GROUP BY plan_name;
-    `);
-    const activeUsersPerPackage = activeUsersPerPackageQuery.rows;
-
-    const activeUsersQuery = `
-            SELECT COUNT(id) AS "activeUsers"
-            FROM public.users
-            WHERE subscription_expiration >= CURRENT_DATE;
+app.get('/api/dashboard/stats', async (req, res) => {
+    try {
+        // Queries to fetch the necessary data for the dashboard stats
+        const activeUsersQuery = `
+            SELECT 
+                p.plan_name, 
+                COUNT(u.id) AS active_count
+            FROM users u
+            JOIN pricingplans p ON u.plan_name = p.plan_name
+            WHERE u.subscription_status = 'active'
+            GROUP BY p.plan_name
+            ORDER BY p.plan_name;
+        `;
+        
+        const userAcquisitionQuery = `
+            SELECT
+                COUNT(CASE WHEN acquisition_source = 'web' THEN 1 END) AS total_web,
+                COUNT(CASE WHEN acquisition_source = 'bot' THEN 1 END) AS total_bot,
+                COUNT(CASE WHEN acquisition_source = 'web' AND subscription_status = 'active' THEN 1 END) AS active_web,
+                COUNT(CASE WHEN acquisition_source = 'bot' AND subscription_status = 'active' THEN 1 END) AS active_bot,
+                COUNT(CASE WHEN referred_by IS NOT NULL THEN 1 END) AS total_referred,
+                COUNT(CASE WHEN referred_by IS NOT NULL AND subscription_status = 'active' THEN 1 END) AS active_referred
+            FROM users;
         `;
 
-    // SQL to count all users (if you don't already have this)
-    const totalUsersQuery = `
-            SELECT COUNT(id) AS "totalUsers"
-            FROM public.users;
+        const totalActiveUsersQuery = `
+            SELECT COUNT(*)::int AS total_active_users 
+            FROM users 
+            WHERE subscription_status = 'active';
         `;
 
-    // Query 2: Get user acquisition channels (total vs. active)
-    const userAcquisitionQuery = await pool.query(`
-      SELECT
-        (SELECT COUNT(*) FROM users WHERE registration_source = 'web') AS total_web,
-        (SELECT COUNT(*) FROM users WHERE registration_source = 'bot') AS total_bot,
-        (SELECT COUNT(*) FROM users WHERE referred_by IS NOT NULL) AS total_referred,
-        (SELECT COUNT(*) FROM users WHERE registration_source = 'web' AND subscription_status = 'active') AS active_web,
-        (SELECT COUNT(*) FROM users WHERE registration_source = 'bot' AND subscription_status = 'active') AS active_bot,
-        (SELECT COUNT(*) FROM users WHERE referred_by IS NOT NULL AND subscription_status = 'active') AS active_referred;
-    `);
-    const userAcquisition = userAcquisitionQuery.rows[0];
-
-    // Query 3: Get total active users
-    const totalActiveUsersQuery = await pool.query(`
-      SELECT COUNT(*) AS total_active_users
-      FROM users
-      WHERE subscription_status = 'active';
-    `);
-    const totalActiveUsers = parseInt(totalActiveUsersQuery.rows[0].total_active_users, 10);
-
-    // Combine all stats into a single JSON response
-    res.status(200).json({
-      activeUsersPerPackage,
-      userAcquisition: {
-        web: {
-          total: parseInt(userAcquisition.total_web, 10),
-          active: parseInt(userAcquisition.active_web, 10)
-        },
-        bot: {
-          total: parseInt(userAcquisition.total_bot, 10),
-          active: parseInt(userAcquisition.active_bot, 10)
-        },
-        referred: {
-          total: parseInt(userAcquisition.total_referred, 10),
-          active: parseInt(userAcquisition.active_referred, 10)
-        }
-      },
-      totalActiveUsers
-    });
-
-    const [
-            activeUsersResult, 
-            totalUsersResult, 
-            // ... other query results
-        ] = await Promise.all([
-            pool.query(activeUsersQuery), 
-            pool.query(totalUsersQuery),
-            // ... other pool.query() calls
+        const [ activeUsersResult, userAcquisitionResult, totalActiveUsersResult ] = await Promise.all([
+            pool.query(activeUsersQuery),
+            pool.query(userAcquisitionQuery),
+            pool.query(totalActiveUsersQuery)
         ]);
 
-        const stats = {
-            totalUsers: parseInt(totalUsersResult.rows[0].totalUsers, 10),
-            // *** NEW: Add the active users count to the response ***
-            activeUsers: parseInt(activeUsersResult.rows[0].activeUsers, 10),
-            // ... other statistics
-        };
+        // Process results
+        const activeUsersPerPackage = activeUsersResult.rows.map(row => ({
+            plan_name: row.plan_name,
+            active_count: parseInt(row.active_count, 10)
+        }));
+        
+        const userAcquisition = userAcquisitionResult.rows[0];
+        const totalActiveUsers = totalActiveUsersResult.rows[0].total_active_users;
 
-        res.json(stats);
 
-    } catch (error) {
-        console.error('Error fetching dashboard statistics:', error);
-        res.status(500).json({ message: 'Failed to fetch dashboard statistics' });
+        // Combine all stats into a single JSON response
+        res.status(200).json({ 
+            activeUsersPerPackage, 
+            userAcquisition: { 
+                web: { 
+                    total: parseInt(userAcquisition.total_web, 10), 
+                    active: parseInt(userAcquisition.active_web, 10) 
+                }, 
+                bot: { 
+                    total: parseInt(userAcquisition.total_bot, 10), 
+                    active: parseInt(userAcquisition.active_bot, 10) 
+                }, 
+                referred: { 
+                    total: parseInt(userAcquisition.total_referred, 10), 
+                    active: parseInt(userAcquisition.active_referred, 10) 
+                } 
+            }, 
+            totalActiveUsers 
+        });
+    } catch (err) {
+        console.error('Error fetching dashboard stats:', err);
+        // Ensure the API call always responds with JSON on error
+        res.status(500).json({ message: 'Internal Server Error fetching dashboard stats.' });
     }
-
-  
 });
 
 
