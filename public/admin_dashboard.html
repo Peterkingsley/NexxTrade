@@ -495,6 +495,7 @@
             });
             
             // --- Function to fetch the main dashboard statistics ---
+            // --- Function to fetch the main dashboard statistics ---
             const fetchDashboardStats = async () => {
                 try {
                     const response = await fetch(`${API_BASE_URL}/dashboard/stats`);
@@ -502,9 +503,9 @@
                     const stats = await response.json();
 
                     // 1. UPDATE ACTIVE USERS STAT
-                    // Assumes the backend returns the count in the 'activeUsers' field
+                    // FIX 1: Change 'stats.activeUsers' to 'stats.totalActiveUsers' to match backend response structure.
                     if (totalActiveUsersEl) {
-                        const activeCount = stats.activeUsers ? stats.activeUsers : 0;
+                        const activeCount = stats.totalActiveUsers ? stats.totalActiveUsers : 0;
                         totalActiveUsersEl.textContent = activeCount.toLocaleString();
                     }
                     
@@ -515,7 +516,7 @@
                             const card = document.createElement('div');
                             card.className = 'p-4 border border-line rounded-lg';
                             card.innerHTML = `
-                                <div class="text-2xl font-bold">${pkg.active_users.toLocaleString()}</div>
+                                <div class="text-2xl font-bold">${pkg.active_count.toLocaleString()}</div>
                                 <p class="text-muted">${pkg.plan_name}</p>
                             `;
                             packageContainer.appendChild(card);
@@ -527,9 +528,10 @@
                     // 3. UPDATE USER ACQUISITION
                     acquisitionContainer.innerHTML = ''; 
                     const sources = [
-                        { label: 'Web Signups', data: stats.userAcquisition ? stats.userAcquisition.web : { active: 0, total: 0 } },
-                        { label: 'Bot Signups', data: stats.userAcquisition ? stats.userAcquisition.bot : { active: 0, total: 0 } },
-                        { label: 'Referred Users', data: stats.userAcquisition ? stats.userAcquisition.referred : { active: 0, total: 0 } }
+                        // Defensive check added: If stats.userAcquisition is null/undefined, default to an object with zeros.
+                        { label: 'Web Signups', data: stats.userAcquisition && stats.userAcquisition.web ? stats.userAcquisition.web : { active: 0, total: 0 } },
+                        { label: 'Bot Signups', data: stats.userAcquisition && stats.userAcquisition.bot ? stats.userAcquisition.bot : { active: 0, total: 0 } },
+                        { label: 'Referred Users', data: stats.userAcquisition && stats.userAcquisition.referred ? stats.userAcquisition.referred : { active: 0, total: 0 } }
                     ];
 
                     sources.forEach(source => {
@@ -551,7 +553,7 @@
                     acquisitionContainer.innerHTML = '<p class="text-danger text-center col-span-full">Could not load acquisition data.</p>';
                 }
             };
-
+            
             // --- Function to fetch all users and other table data ---
             const fetchTableData = async () => {
                 try {
