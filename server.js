@@ -57,6 +57,9 @@ const app = express();
 require('dotenv').config();
 const port = process.env.PORT || 3000;
 
+const activeSubscriptionsResult = await db.query('SELECT COUNT(*)::int AS active_subscriptions FROM users WHERE subscription_expires_at > NOW()');
+const activeSubscriptions = activeSubscriptionsResult.rows[0].active_subscriptions;
+
 // NEW: Import the Telegram bot and webhook setup function
 // This allows the server to command the bot (e.g., to create invite links).
 const { bot, setupWebhook, userRegistrationState } = require('./telegram_bot.js');
@@ -866,6 +869,18 @@ app.get('/api/dashboard-stats', async (req, res) => {
     `);
     const activeUsersPerPackage = activeUsersPerPackageQuery.rows;
 
+    const activeUsersQuery = `
+            SELECT COUNT(id) AS "activeUsers"
+            FROM public.users
+            WHERE subscription_expiration >= CURRENT_DATE;
+        `;
+
+    // SQL to count all users (if you don't already have this)
+    const totalUsersQuery = `
+            SELECT COUNT(id) AS "totalUsers"
+            FROM public.users;
+        `;
+
     // Query 2: Get user acquisition channels (total vs. active)
     const userAcquisitionQuery = await pool.query(`
       SELECT
@@ -906,10 +921,31 @@ app.get('/api/dashboard-stats', async (req, res) => {
       totalActiveUsers
     });
 
-  } catch (err) {
-    console.error('Error fetching dashboard stats:', err);
-    res.status(500).json({ message: 'Server error while fetching dashboard stats.' });
-  }
+    const [
+            activeUsersResult, 
+            totalUsersResult, 
+            // ... other query results
+        ] = await Promise.all([
+            pool.query(activeUsersQuery), 
+            pool.query(totalUsersQuery),
+            // ... other pool.query() calls
+        ]);
+
+        const stats = {
+            totalUsers: parseInt(totalUsersResult.rows[0].totalUsers, 10),
+            // *** NEW: Add the active users count to the response ***
+            activeUsers: parseInt(activeUsersResult.rows[0].activeUsers, 10),
+            // ... other statistics
+        };
+
+        res.json(stats);
+
+    } catch (error) {
+        console.error('Error fetching dashboard statistics:', error);
+        res.status(500).json({ message: 'Failed to fetch dashboard statistics' });
+    }
+
+  
 });
 
 

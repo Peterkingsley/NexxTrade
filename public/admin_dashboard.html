@@ -213,18 +213,18 @@
                 background-color: var(--line);
             }
 
-            /* --- ADD THESE NEW STYLES --- */
-        .btn-sm {
-            padding: .5rem 1rem;
-            font-size: 0.875rem;
-        }
+            /* --- NEW STYLES for buttons and filters --- */
+            .btn-sm {
+                padding: .5rem 1rem;
+                font-size: 0.875rem;
+            }
 
-        .filter-btn.active {
-            background: var(--line);
-            color: var(--text);
-            border-color: var(--line);
-        }
-        /* --- END OF NEW STYLES --- */
+            .filter-btn.active {
+                background: var(--line);
+                color: var(--text);
+                border-color: var(--line);
+            }
+            /* --- END OF NEW STYLES --- */
 
             /* Mobile-friendly table overflow */
             .card table {
@@ -265,9 +265,7 @@
         <div class="space-y-8">
             <h2 class="text-2xl font-semibold">Dashboard Overview</h2>
 
-            <!-- Main Stats -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <!-- Total Active Users -->
                 <div class="md:col-span-3 card p-6 flex flex-col items-center justify-center text-center space-y-2 bg-gradient-to-br from-green-900/30 to-bg-2">
                     <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                     <div class="text-5xl font-extrabold" id="total-active-users-stat">...</div>
@@ -275,7 +273,6 @@
                 </div>
             </div>
 
-            <!-- Active Users by Package -->
             <div class="card p-6">
                 <h3 class="text-xl font-semibold mb-4">Active Users by Package</h3>
                 <div id="active-users-per-package-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -283,7 +280,6 @@
                 </div>
             </div>
 
-            <!-- User Acquisition -->
             <div class="card p-6">
                 <h3 class="text-xl font-semibold mb-4">User Acquisition Source</h3>
                 <div id="user-acquisition-container" class="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
@@ -394,14 +390,18 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             lucide.createIcons();
-            const API_BASE_URL = 'https://nexxtrade.onrender.com/api';
+            // Use relative path for API calls as we are serving locally
+            const API_BASE_URL = '/api'; 
 
-            // --- NEW: Global variable to store all users ---
+            // --- Global variable to store all users for filtering ---
             let allUsers = []; 
             
-            // --- NEW: Cache table and filter elements ---
+            // --- Cache table and filter elements ---
             const usersTableBody = document.getElementById('users-table');
             const filterButtonContainer = document.getElementById('user-filter-buttons');
+            const totalActiveUsersEl = document.getElementById('total-active-users-stat');
+            const packageContainer = document.getElementById('active-users-per-package-container');
+            const acquisitionContainer = document.getElementById('user-acquisition-container');
 
             // Function to format date to YYYY-MM-DD
             function formatDate(dateString) {
@@ -410,23 +410,31 @@
                 return date.toISOString().split('T')[0];
             }
 
-            // --- NEW: Helper function to get raw status as a string ---
+            // --- Core Logic: Determines the user status based on expiration date ---
             function calculateUserStatus(user) {
                 const status = user.subscription_status;
                 const expirationDate = user.subscription_expiration;
 
-                if (status === 'active') {
-                    if (!expirationDate) {
-                        return 'active'; // Assume active if no expiration date is set
-                    }
-                    const now = new Date();
-                    const expiration = new Date(expirationDate);
-                    return expiration > now ? 'active' : 'expired';
+                if (!expirationDate) {
+                    return status === 'active' ? 'active' : 'pending';
                 }
-                return status || 'pending'; // Default to 'pending' if status is null/undefined
+
+                const now = new Date();
+                // Set time to start of day for accurate comparison
+                now.setHours(0, 0, 0, 0); 
+                const expiration = new Date(expirationDate);
+                expiration.setHours(0, 0, 0, 0); 
+
+                // If expiration is today or in the future, they are active
+                if (expiration >= now) {
+                    return 'active';
+                }
+                
+                // If expiration is in the past, they are expired
+                return 'expired';
             }
 
-            // --- MODIFIED: Function to get HTML status string ---
+            // --- Helper function to get styled HTML for the user status ---
             function getSubscriptionStatus(user) {
                 const status = calculateUserStatus(user);
                 switch (status) {
@@ -436,11 +444,11 @@
                         return '<span class="text-danger">Expired</span>';
                     case 'pending':
                     default:
-                        return `<span class="text-muted">${status}</span>`;
+                        return `<span class="text-muted">Pending</span>`;
                 }
             }
             
-            // --- NEW: Function to render the users table based on a provided list ---
+            // --- Function to render the users table based on a provided list ---
             const renderUsersTable = (usersToRender) => {
                 usersTableBody.innerHTML = ''; // Clear the table
                 
@@ -462,7 +470,7 @@
                 });
             };
 
-            // --- NEW: Event listener for filter buttons ---
+            // --- Event listener for filter buttons ---
             filterButtonContainer.addEventListener('click', (e) => {
                 const targetButton = e.target.closest('.filter-btn');
                 if (!targetButton) return; // Ignore clicks outside buttons
@@ -479,32 +487,35 @@
                 if (filter === 'all') {
                     filteredUsers = allUsers;
                 } else {
+                    // Filter based on the calculated status
                     filteredUsers = allUsers.filter(user => calculateUserStatus(user) === filter);
                 }
                 
                 renderUsersTable(filteredUsers);
             });
             
-            // --- This function is unchanged ---
+            // --- Function to fetch the main dashboard statistics ---
             const fetchDashboardStats = async () => {
-                const totalActiveUsersEl = document.getElementById('total-active-users-stat');
-                const packageContainer = document.getElementById('active-users-per-package-container');
-                const acquisitionContainer = document.getElementById('user-acquisition-container');
-
                 try {
-                    const response = await fetch(`${API_BASE_URL}/dashboard-stats`);
+                    const response = await fetch(`${API_BASE_URL}/dashboard/stats`);
                     if (!response.ok) throw new Error('Failed to fetch dashboard stats');
                     const stats = await response.json();
 
-                    totalActiveUsersEl.textContent = stats.totalActiveUsers;
+                    // 1. UPDATE ACTIVE USERS STAT
+                    // Assumes the backend returns the count in the 'activeUsers' field
+                    if (totalActiveUsersEl) {
+                        const activeCount = stats.activeUsers ? stats.activeUsers : 0;
+                        totalActiveUsersEl.textContent = activeCount.toLocaleString();
+                    }
                     
+                    // 2. UPDATE ACTIVE USERS PER PACKAGE
                     packageContainer.innerHTML = ''; 
-                    if (stats.activeUsersPerPackage.length > 0) {
+                    if (stats.activeUsersPerPackage && stats.activeUsersPerPackage.length > 0) {
                         stats.activeUsersPerPackage.forEach(pkg => {
                             const card = document.createElement('div');
                             card.className = 'p-4 border border-line rounded-lg';
                             card.innerHTML = `
-                                <div class="text-2xl font-bold">${pkg.active_users}</div>
+                                <div class="text-2xl font-bold">${pkg.active_users.toLocaleString()}</div>
                                 <p class="text-muted">${pkg.plan_name}</p>
                             `;
                             packageContainer.appendChild(card);
@@ -513,11 +524,12 @@
                         packageContainer.innerHTML = '<p class="text-muted col-span-full text-center">No active users on any package.</p>';
                     }
 
+                    // 3. UPDATE USER ACQUISITION
                     acquisitionContainer.innerHTML = ''; 
                     const sources = [
-                        { label: 'Web Signups', data: stats.userAcquisition.web },
-                        { label: 'Bot Signups', data: stats.userAcquisition.bot },
-                        { label: 'Referred Users', data: stats.userAcquisition.referred }
+                        { label: 'Web Signups', data: stats.userAcquisition ? stats.userAcquisition.web : { active: 0, total: 0 } },
+                        { label: 'Bot Signups', data: stats.userAcquisition ? stats.userAcquisition.bot : { active: 0, total: 0 } },
+                        { label: 'Referred Users', data: stats.userAcquisition ? stats.userAcquisition.referred : { active: 0, total: 0 } }
                     ];
 
                     sources.forEach(source => {
@@ -525,8 +537,8 @@
                         card.className = 'p-4 border border-line rounded-lg';
                         card.innerHTML = `
                             <div>
-                                <span class="text-2xl font-bold">${source.data.active}</span>
-                                <span class="text-muted">/ ${source.data.total}</span>
+                                <span class="text-2xl font-bold">${source.data.active.toLocaleString()}</span>
+                                <span class="text-muted">/ ${source.data.total.toLocaleString()}</span>
                             </div>
                             <p class="text-muted">${source.label}</p>
                         `;
@@ -534,22 +546,21 @@
                     });
                 } catch (error) {
                     console.error('Error fetching dashboard stats:', error);
-                    totalActiveUsersEl.textContent = 'Error';
+                    if (totalActiveUsersEl) totalActiveUsersEl.textContent = 'Error';
                     packageContainer.innerHTML = '<p class="text-danger text-center col-span-full">Could not load package data.</p>';
                     acquisitionContainer.innerHTML = '<p class="text-danger text-center col-span-full">Could not load acquisition data.</p>';
                 }
             };
 
-
-            // --- MODIFIED: This function now populates `allUsers` and calls `renderUsersTable` ---
+            // --- Function to fetch all users and other table data ---
             const fetchTableData = async () => {
                 try {
-                    // Fetch and populate all registered users table
+                    // 1. Fetch and populate all registered users table
                     const usersResponse = await fetch(`${API_BASE_URL}/users`);
                     allUsers = await usersResponse.json(); // <-- Store users globally
                     renderUsersTable(allUsers); // <-- Initial render with all users
 
-                    // Fetch and populate recent blog posts table (limit to 5)
+                    // 2. Fetch and populate recent blog posts table (limit to 5)
                     const blogsResponse = await fetch(`${API_BASE_URL}/blogs`);
                     const blogs = await blogsResponse.json();
                     const blogsTableBody = document.getElementById('blogs-table');
@@ -561,7 +572,7 @@
                         recentBlogs.forEach(post => {
                             const row = document.createElement('tr');
                             row.innerHTML = `
-                                D<td>${post.title}</td>
+                                <td>${post.title}</td>
                                 <td>${post.author}</td>
                                 <td>${formatDate(post.published_date)}</td>
                                 <td>${post.status}</td>
@@ -571,7 +582,7 @@
                         });
                     }
 
-                    // Fetch and populate recent signals table (limit to 5)
+                    // 3. Fetch and populate recent signals table (limit to 5)
                     const signalsResponse = await fetch(`${API_BASE_URL}/performances`);
                     const signals = await signalsResponse.json();
                     const signalsTableBody = document.getElementById('signals-table');
@@ -611,4 +622,3 @@
     </script>
 </body>
 </html>
-
