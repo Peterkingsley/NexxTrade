@@ -956,25 +956,30 @@ app.get('/api/dashboard/stats', async (req, res) => {
 // =================================================================
 
 // ==========================================================
-// CORRECTED createOrUpdateTransfiUser (v3) in server.js
-// Adds the 'phone' field to the TransFi payload.
+// FINAL CORRECTED createOrUpdateTransfiUser (v4) in server.js
+// Now includes 'phone' and all address fields.
 // ==========================================================
 /**
  * Creates or retrieves an individual user in TransFi's system using the User API.
- * @param {object} userData - User details (email, firstName, lastName, dateOfBirth, country, phone).
+ * @param {object} userData - User details (email, firstName, lastName, dateOfBirth, country, phone, addressLine1, city, zipCode).
  * @returns {Promise<string>} The TransFi userId.
  */
 async function createOrUpdateTransfiUser(userData) {
-    const { email, firstName, lastName, dateOfBirth, country, phone } = userData;
+    const { email, firstName, lastName, dateOfBirth, country, phone, addressLine1, city, zipCode } = userData;
     
-    // TransFi requires 'phone' field for some compliance/countries
     const userPayload = {
         email,
         firstName,
         lastName,
-        date: dateOfBirth, // Format must be DD-MM-YYYY
+        date: dateOfBirth, 
         country,
-        phone,              // 🚨 FIX: Pass the phone number here
+        phone,
+        // 🚨 FIX: ADDRESS FIELDS ADDED TO PAYLOAD
+        addressLine1,
+        city,
+        zipCode,
+        // TransFi may require this if Line 1 is not sufficient
+        addressLine2: "", 
     };
 
     try {
@@ -1002,7 +1007,7 @@ async function createOrUpdateTransfiUser(userData) {
             return data.userId;
         }
     
-        // Throw error for other failures (like the 'Phone is required' error you saw)
+        // Throw error for other failures
         console.error('[TransFi User Creation Error]', data);
         throw new Error(data.message || `Failed to create or verify user with TransFi. Code: ${data.code}`);
 
@@ -1066,10 +1071,10 @@ app.get('/api/transfi/rate', async (req, res) => {
 // Purpose: Create the order, handle user registration/update, and get the TransFi paymentUrl.
 app.post('/api/transfi/deposit', async (req, res) => {
     // Note: 'amount' here is expected to be in CENTS as returned by the rate API.
-    const { fullname, email, date_of_birth, telegram, whatsapp_number, planName, pay_currency, amount, quoteId, paymentCode, country, referral_code } = req.body; 
+    const { fullname, email, date_of_birth, telegram, whatsapp_number, addressLine1, city, zipCode, planName, pay_currency, amount, quoteId, paymentCode, country, referral_code } = req.body; 
 
     // --- 1. Validation (CRITICAL: Validate fields needed for TransFi User API) ---
-    if (!fullname || !email || !telegram || !planName || !amount || !quoteId || !paymentCode || !country || !date_of_birth) {
+    if (!fullname || !email || !telegram || !planName || !amount || !quoteId || !paymentCode || !country || !date_of_birth || !addressLine1 || !city || !zipCode) {
         // Added country and date_of_birth to the validation check
         return res.status(400).json({ message: 'Missing required information for payment initiation (fullname, email, date_of_birth, country, telegram, planName, amount, quoteId, or paymentCode).' });
     }
@@ -1091,7 +1096,10 @@ app.post('/api/transfi/deposit', async (req, res) => {
             lastName: lastName,
             dateOfBirth: date_of_birth,
             country: country,
-            phone: whatsapp_number // 🚨 FIX: Pass the whatsapp_number here
+            phone: whatsapp_number, // 🚨 FIX: Pass the whatsapp_number here
+            addressLine1: addressLine1, 
+            city: city,
+            zipCode: zipCode
         });
         
     } catch (error) {

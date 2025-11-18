@@ -217,6 +217,18 @@
                     <input type="text" id="crypto-telegram" placeholder="@yourhandle" class="input-field" required>
                 </div>
                 <div>
+    <label for="fiat-address1" class="block text-sm font-medium mb-1 text-muted">Address Line 1</label>
+    <input type="text" id="fiat-address1" placeholder="Street name and house/apt number" class="input-field" required>
+</div>
+<div>
+    <label for="fiat-city" class="block text-sm font-medium mb-1 text-muted">City</label>
+    <input type="text" id="fiat-city" placeholder="City" class="input-field" required>
+</div>
+<div>
+    <label for="fiat-zip" class="block text-sm font-medium mb-1 text-muted">Zip / Postal Code</label>
+    <input type="text" id="fiat-zip" placeholder="12345" class="input-field" required>
+</div>
+                <div>
                     <label for="crypto-whatsapp" class="block text-sm font-medium mb-1 text-muted">WhatsApp Number</label>
                     <input type="tel" id="crypto-whatsapp" placeholder="+1234567890" class="input-field" required>
                 </div>
@@ -582,6 +594,9 @@ const formData = {
     planName: plans[selectedPlanKey].name, 
     priceUSD: plans[selectedPlanKey].priceUSD, // Used for rate calculation call
     referral_code: referralCode,
+    addressLine1: document.getElementById('fiat-address1').value,
+    city: document.getElementById('fiat-city').value,
+    zipCode: document.getElementById('fiat-zip').value,
     // 🚨 NEW: Include country in the initial data object
     country: document.getElementById('fiat-country').value 
 };
