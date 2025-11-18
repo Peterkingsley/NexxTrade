@@ -428,7 +428,7 @@
         }));
 
         // ==========================================================
-        // CODE TO ADD: Date Formatting Helper
+        // FIX: Date Formatting Helper - Ensures DD-MM-YYYY format
         // ==========================================================
         /**
          * Formats YYYY-MM-DD date string from HTML input to TransFi's preferred DD-MM-YYYY.
@@ -439,7 +439,12 @@
             if (!dateString) return '';
             try {
                 const [year, month, day] = dateString.split('-');
-                return `${day}-${month}-${year}`;
+                // CRITICAL: Ensure day, month, and year are not undefined before joining
+                if (!day || !month || !year) {
+                    console.error("Date components missing:", dateString);
+                    return dateString;
+                }
+                return `${day}-${month}-${year}`; // Correct DD-MM-YYYY format
             } catch (e) {
                 console.error("Date formatting failed:", e);
                 return dateString; // Fallback
@@ -556,6 +561,7 @@
 
 
             // 🚨 CRITICAL FIX: The payload to your server must be flat to match server.js destructuring.
+            // Ensure date_of_birth is read and formatted here as well.
             const payload = {
                 // --- User/Contact Details ---
                 fullname: fullName, 
@@ -566,10 +572,11 @@
                 whatsapp_number: document.getElementById('fiat-whatsapp').value,
                 
                 // --- Address and DOB (FLAT FIELDS for the server to process) ---
+                // CRITICAL: Ensure date is correctly formatted here for the server/TransFi
                 date_of_birth: formatDateForTransFi(document.getElementById('fiat-dob').value), 
                 addressLine1: document.getElementById('fiat-address1').value, // <--- FLAT
                 city: document.getElementById('fiat-city').value,             // <--- FLAT
-                state: document.getElementById('fiat-state').value,           // <--- FLAT (New)
+                state: document.getElementById('fiat-state').value,           // <--- FLAT
                 zipCode: document.getElementById('fiat-zipcode').value,       // <--- FLAT
                 country: countryCode, // ISO 2-letter code
 
@@ -618,12 +625,12 @@
             }
             
             // ==========================================================
-            // Gather all data required for both steps (used for validation before rate call)
+            // Gather all data required for both steps
             // ==========================================================
             const formData = {
                 fullname: document.getElementById('fiat-fullname').value,
                 email: document.getElementById('fiat-email').value,
-                // NEW: Format DOB correctly for TransFi (DD-MM-YYYY)
+                // CRITICAL FIX: Ensure date is formatted DD-MM-YYYY here for the rate call
                 date_of_birth: formatDateForTransFi(document.getElementById('fiat-dob').value), 
                 telegram: document.getElementById('fiat-telegram').value,
                 whatsapp_number: document.getElementById('fiat-whatsapp').value,
@@ -633,7 +640,7 @@
                 // FIX: Correctly mapped address fields
                 addressLine1: document.getElementById('fiat-address1').value,
                 city: document.getElementById('fiat-city').value,
-                state: document.getElementById('fiat-state').value,           // <--- ADDED 'state' HERE
+                state: document.getElementById('fiat-state').value,           
                 zipCode: document.getElementById('fiat-zipcode').value, 
                 // NEW: Include country in the initial data object
                 country: document.getElementById('fiat-country').value 
