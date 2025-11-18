@@ -979,7 +979,7 @@ async function createOrUpdateTransfiUser(userData) {
         city,
         zipCode,
         // TransFi may require this if Line 1 is not sufficient
-        addressLine2: "", 
+        addressLine2, 
     };
 
     try {
@@ -1152,6 +1152,9 @@ app.post('/api/transfi/deposit', async (req, res) => {
             amount: parseFloat(amount),
             paymentType: "bank_transfer", 
             currency: pay_currency, 
+            addressLine1: addressLine1,
+            city: city,
+            zipCode: zipCode,
             paymentCode: paymentCode, 
             purposeCode: "expense_or_medical_reimbursement",
             quoteId: quoteId, 
