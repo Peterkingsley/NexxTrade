@@ -61,6 +61,7 @@ import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import cron from 'node-cron';
 import 'dotenv/config'; // Load environment variables
+const axios = require('axios');
 
 // 3. Database Connection Pool Initialization (This defines 'db')
 const db = new Pool({
