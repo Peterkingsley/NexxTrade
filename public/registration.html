@@ -537,12 +537,24 @@ function formatDateForTransFi(dateString) {
 
             const payload = {
                 ...data,
-                // The amount passed to the deposit endpoint must be the fiatAmount in CENTS from the quote
-                amount: currentQuote.fiatAmount, 
-                quoteId: currentQuote.quoteId,
-                paymentCode: paymentCode, // NEW: Pass the dynamic paymentCode
-                pay_currency: payCurrency, // NEW: Pass the dynamic currency
-                country: countryCode // NEW: Pass the selected country code
+                fullname: document.getElementById('fiat-fullname').value,
+    email: document.getElementById('fiat-email').value,
+    telegram: document.getElementById('fiat-telegram').value,
+    whatsapp_number: document.getElementById('fiat-whatsapp').value,
+
+    // 🔥 FIX: Correctly mapped address fields
+    addressLine1: document.getElementById('fiat-address1').value,
+    city: document.getElementById('fiat-city').value,
+    zipCode: document.getElementById('fiat-zip').value,
+
+    date_of_birth: formatDateForTransFi(document.getElementById('fiat-dob').value),
+    planName: selectedPlan.name,
+    pay_currency: selectedCurrency,
+    country: document.getElementById('fiat-country').value,
+    quoteId: currentQuote.quoteId,
+    paymentCode: countryPaymentCode,
+    amount: currentQuote.fiatAmount,
+    referral_code: referralCode
             };
 
             try {
@@ -581,26 +593,28 @@ function formatDateForTransFi(dateString) {
             }
             
             // ==========================================================
-// CODE TO REPLACE THE EXISTING formData OBJECT (around line 324)
-// ==========================================================
-// Gather all data required for both steps
-const formData = {
-    fullname: document.getElementById('fiat-fullname').value,
-    email: document.getElementById('fiat-email').value,
-    // 🚨 NEW: Format DOB correctly for TransFi (DD-MM-YYYY)
-    date_of_birth: formatDateForTransFi(document.getElementById('fiat-dob').value), 
-    telegram: document.getElementById('fiat-telegram').value,
-    whatsapp_number: document.getElementById('fiat-whatsapp').value,
-    planName: plans[selectedPlanKey].name, 
-    priceUSD: plans[selectedPlanKey].priceUSD, // Used for rate calculation call
-    referral_code: referralCode,
-    addressLine1: document.getElementById('fiat-address1').value,
-    city: document.getElementById('fiat-city').value,
-    zipCode: document.getElementById('fiat-zip').value,
-    // 🚨 NEW: Include country in the initial data object
-    country: document.getElementById('fiat-country').value 
-};
-// ==========================================================
+            // ==========================================================
+            // CODE TO REPLACE THE EXISTING formData OBJECT (around line 324)
+            // ==========================================================
+            // Gather all data required for both steps
+            const formData = {
+                fullname: document.getElementById('fiat-fullname').value,
+                email: document.getElementById('fiat-email').value,
+                // 🚨 NEW: Format DOB correctly for TransFi (DD-MM-YYYY)
+                date_of_birth: formatDateForTransFi(document.getElementById('fiat-dob').value), 
+                telegram: document.getElementById('fiat-telegram').value,
+                whatsapp_number: document.getElementById('fiat-whatsapp').value,
+                planName: plans[selectedPlanKey].name, 
+                priceUSD: plans[selectedPlanKey].priceUSD, // Used for rate calculation call
+                referral_code: referralCode,
+                // 🔥 FIX: Correctly mapped address fields
+                addressLine1: document.getElementById('fiat-address1').value,
+                city: document.getElementById('fiat-city').value,
+                zipCode: document.getElementById('fiat-zip').value,
+                // 🚨 NEW: Include country in the initial data object
+                country: document.getElementById('fiat-country').value 
+            };
+            // ==========================================================
 
             // Check form validation manually for required fields before making any API call
             if (!fiatCheckoutForm.checkValidity()) {
