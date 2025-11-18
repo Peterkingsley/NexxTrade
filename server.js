@@ -990,7 +990,7 @@ app.get('/api/transfi/rate', async (req, res) => {
 
         const data = await response.json();
         
-        if (!response.ok || data.status !== 'SUCCESS') {
+        if (!response.ok || data.status !== 'success') {
             console.error('TransFi Rate API Error:', data);
             return res.status(response.status).json({ message: data.message || "Failed to fetch exchange rate from TransFi.", details: data });
         }
