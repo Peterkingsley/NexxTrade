@@ -145,6 +145,37 @@
                     <input type="tel" id="fiat-whatsapp" placeholder="+1234567890" class="input-field" required>
                 </div>
             </div>
+            <div class="space-y-4">
+                <h3 class="font-semibold text-lg">3. Payment Method & Summary</h3>
+                <div>
+                    <label for="fiat-payment-code" class="block text-sm font-medium mb-1 text-muted">Payment Method</label>
+                    <select id="fiat-payment-code" class="input-field">
+                        <option value="bank_transfer" selected>Bank Transfer (SEPA, ACH, etc.)</option>
+                        <option value="card_payment" disabled>Card Payment (Coming Soon)</option>
+                    </select>
+                </div>
+                
+                <div id="rate-summary-box" class="card p-4 space-y-2 text-sm hidden">
+                    <div class="flex justify-between">
+                        <span class="text-muted">Plan Price:</span>
+                        <span id="summary-fiat-amount" class="font-medium text-text">0.00 USD</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-muted">TransFi Fees:</span>
+                        <span id="summary-total-fee" class="font-medium text-text">0.00 USD</span>
+                    </div>
+                    <div class="border-t border-line pt-2 flex justify-between">
+                        <span class="font-bold">Total Fiat Payable:</span>
+                        <span id="summary-total-payable" class="font-bold text-accent">0.00 USD</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-muted">Crypto to Receive (USDT):</span>
+                        <span id="summary-crypto-amount" class="font-bold text-text">0.00 USDT</span>
+                    </div>
+                    <p class="text-xs text-muted pt-2" id="summary-exchange-rate">Exchange Rate: 1 USD = 0.999 USDT</p>
+                </div>
+            </div>
+            <input type="hidden" id="fiat-quote-id" value="">
             <div class="flex flex-col gap-4">
                 <button type="submit" id="fiat-pay-button" class="btn btn-primary mt-4">Proceed to Payment</button>
                 <button type="button" class="back-to-selection-btn text-center text-sm text-muted hover:underline">Back to Payment Selection</button>
@@ -228,6 +259,7 @@
         let selectedNetwork = null;
         let paymentCheckInterval = null;
         let referralCode = null;
+        let currentQuote = null; // New variable to store the exchange rate quote from TransFi
 
         // --- Referral Code Logic ---
         function captureReferralCode() {
@@ -270,11 +302,13 @@
             }
         }
 
-        function showMessage(containerId, message) {
+        function showMessage(containerId, message, isSuccess = false) {
             const container = document.getElementById(containerId);
-            container.innerHTML = `<div class="message-box error">${message}</div>`;
+            container.innerHTML = `<div class="message-box ${isSuccess ? 'success' : 'error'}">${message}</div>`;
             // Clear message after a few seconds to not be permanent
-            setTimeout(() => { container.innerHTML = '' }, 5000);
+            if (!isSuccess) {
+                setTimeout(() => { container.innerHTML = '' }, 5000);
+            }
         }
 
         function clearSessionState() {
@@ -309,6 +343,14 @@
                         selectedPlanKey = e.currentTarget.dataset.plan;
                         document.querySelectorAll('.plan-button').forEach(b => b.classList.remove('active'));
                         document.querySelectorAll(`.plan-button[data-plan="${selectedPlanKey}"]`).forEach(b => b.classList.add('active'));
+                        
+                        // IMPORTANT: Reset fiat button state when a new plan is selected
+                        const payButton = document.getElementById('fiat-pay-button');
+                        payButton.setAttribute('data-step', 'rate');
+                        payButton.textContent = 'Calculate Final Price & Fees';
+                        document.getElementById('rate-summary-box').classList.add('hidden');
+                        currentQuote = null;
+                        showMessage('fiat-message-box', '', false);
                     });
                 });
                 
@@ -336,51 +378,168 @@
         backToSelectionBtns.forEach(btn => btn.addEventListener('click', () => {
             if (paymentCheckInterval) clearInterval(paymentCheckInterval);
             clearSessionState();
+            currentQuote = null; // Add this line inside the backToSelectionBtns.forEach callback:
             switchView(methodSelectionContainer);
         }));
 
-        // --- FIAT Payment Logic ---
-        fiatCheckoutForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
+        // --- FIAT Payment Logic (Replaced) ---
+
+        // Function to update the rate summary box and prepare for deposit
+        function updateRateSummary(data, planPrice) {
+            const summaryBox = document.getElementById('rate-summary-box');
+            const fiatAmountElement = document.getElementById('summary-fiat-amount');
+            const totalFeeElement = document.getElementById('summary-total-fee');
+            const totalPayableElement = document.getElementById('summary-total-payable');
+            const cryptoAmountElement = document.getElementById('summary-crypto-amount');
+            const exchangeRateElement = document.getElementById('summary-exchange-rate');
+            const quoteIdInput = document.getElementById('fiat-quote-id');
+            const payButton = document.getElementById('fiat-pay-button');
+
+            const fiatAmount = data.data.fiatAmount; // The amount in CENTS TransFi expects to be paid
+            const totalFee = data.data.fees.totalFee;
+            const totalPayable = parseFloat(fiatAmount) + parseFloat(totalFee);
+            
+            fiatAmountElement.textContent = `${parseFloat(planPrice).toFixed(2)} USD`; // Show original plan price
+            totalFeeElement.textContent = `${(parseFloat(totalFee) / 100).toFixed(2)} USD`; // Convert cents to dollars
+            totalPayableElement.textContent = `${(totalPayable / 100).toFixed(2)} USD`; // Convert cents to dollars
+            cryptoAmountElement.textContent = `${parseFloat(data.data.withdrawAmount).toFixed(4)} USDT`;
+            exchangeRateElement.textContent = `Exchange Rate: 1 ${data.data.fiatTicker} = ${data.data.exchangeRate.toFixed(4)} USDT`;
+
+            // Store quote ID and entire quote data for the next step
+            currentQuote = data.data;
+            quoteIdInput.value = data.data.quoteId;
+
+            summaryBox.classList.remove('hidden');
+            
+            // Update button for Step 2
+            payButton.textContent = `Proceed to Pay $${(totalPayable / 100).toFixed(2)}`;
+            payButton.classList.add('btn-primary');
+            payButton.setAttribute('data-step', 'deposit'); // Mark as ready for deposit
+            payButton.disabled = false;
+        }
+
+        // Function to fetch the rate from the backend (Step 1)
+        async function fetchAndDisplayRate(data) {
+            const payButton = document.getElementById('fiat-pay-button');
+            const originalButtonText = payButton.textContent;
+            const planPrice = data.priceUSD;
+            const currency = 'USD'; // Your hardcoded currency
+            const paymentCode = document.getElementById('fiat-payment-code').value;
+
+            payButton.disabled = true;
+            payButton.textContent = 'Calculating Rate...';
+            showMessage('fiat-message-box', '', false); 
+
+            try {
+                const response = await fetch(`/api/transfi/rate?amount=${planPrice}&currency=${currency}&paymentCode=${paymentCode}`, {
+                    method: 'GET',
+                });
+                const result = await response.json();
+
+                if (response.ok && result.status === 'SUCCESS') {
+                    updateRateSummary(result, planPrice);
+                    showMessage('fiat-message-box', 'Rate calculated. Click "Proceed to Pay" to continue.', true);
+                } else {
+                    throw new Error(result.message || (result.details && result.details.message) || 'Failed to calculate rate.');
+                }
+            } catch (error) {
+                showMessage('fiat-message-box', `Rate Calculation Error: ${error.message}`);
+                payButton.disabled = false;
+                payButton.textContent = originalButtonText;
+                payButton.setAttribute('data-step', 'rate'); // Reset step
+                document.getElementById('rate-summary-box').classList.add('hidden');
+            }
+        }
+
+        // Function to create the deposit order (Step 2)
+        async function createDepositOrder(data) {
             const payButton = document.getElementById('fiat-pay-button');
             payButton.disabled = true;
-            payButton.textContent = 'Processing...';
-            
-            if (!selectedPlanKey || !plans[selectedPlanKey]) {
-                showMessage('fiat-message-box', 'Please select a valid plan.');
+            payButton.textContent = 'Creating Order...';
+            showMessage('fiat-message-box', '', false); 
+
+            if (!currentQuote) {
+                showMessage('fiat-message-box', 'Error: Exchange rate quote is missing. Please click the button to recalculate.');
                 payButton.disabled = false;
-                payButton.textContent = 'Proceed to Payment';
+                payButton.textContent = 'Recalculate Rate';
+                payButton.setAttribute('data-step', 'rate');
                 return;
             }
 
-            const data = {
+            const payload = {
+                ...data,
+                // The amount passed to the deposit endpoint must be the fiatAmount in CENTS from the quote
+                amount: currentQuote.fiatAmount, 
+                quoteId: currentQuote.quoteId,
+                paymentCode: document.getElementById('fiat-payment-code').value,
+                pay_currency: 'USD' // Hardcode to USD
+            };
+
+            try {
+                const response = await fetch('/api/transfi/deposit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.redirectUrl) {
+                    // Success: Redirect the user to the TransFi hosted payment page
+                    window.location.href = result.redirectUrl;
+                } else {
+                    throw new Error(result.message || (result.details && result.details.message) || 'Failed to initiate payment.');
+                }
+            } catch (error) {
+                showMessage('fiat-message-box', `Payment Initiation Error: ${error.message}`);
+                payButton.disabled = false;
+                payButton.textContent = `Proceed to Pay $${(currentQuote.fiatAmount / 100).toFixed(2)}`;
+            }
+        }
+
+        // Replace the entire existing fiatCheckoutForm.addEventListener('submit', ...)
+        fiatCheckoutForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const payButton = document.getElementById('fiat-pay-button');
+            if (!selectedPlanKey || !plans[selectedPlanKey]) {
+                showMessage('fiat-message-box', 'Please select a valid plan.');
+                return;
+            }
+            
+            // Gather all data required for both steps
+            const formData = {
                 fullname: document.getElementById('fiat-fullname').value,
                 email: document.getElementById('fiat-email').value,
                 telegram: document.getElementById('fiat-telegram').value,
                 whatsapp_number: document.getElementById('fiat-whatsapp').value,
-                planName: plans[selectedPlanKey].name,
-                priceUSD: plans[selectedPlanKey].priceUSD,
-                referral_code: referralCode // Pass referral code
+                planName: plans[selectedPlanKey].name, 
+                priceUSD: plans[selectedPlanKey].priceUSD, // Used for rate calculation call
+                referral_code: referralCode
             };
 
-            try {
-                const response = await fetch('/api/payments/fiat/create', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data),
-                });
-                const result = await response.json();
-                if (response.ok && result.redirectUrl) {
-                    window.location.href = result.redirectUrl;
-                } else {
-                    throw new Error(result.message || 'Failed to initiate payment.');
-                }
-            } catch (error) {
-                showMessage('fiat-message-box', error.message);
-                payButton.disabled = false;
-                payButton.textContent = 'Proceed to Payment';
+            // Check form validation manually for required fields before making any API call
+            if (!fiatCheckoutForm.checkValidity()) {
+                fiatCheckoutForm.reportValidity();
+                return;
+            }
+
+            // Check if the deposit step is ready
+            if (payButton.getAttribute('data-step') === 'deposit' && currentQuote) {
+                // Step 2: Create Deposit Order
+                await createDepositOrder(formData);
+            } else {
+                // Step 1: Fetch and Display Rate
+                await fetchAndDisplayRate(formData);
             }
         });
+
+        // IMPORTANT: Add this logic to ensure the button is initialized correctly 
+        // for the new two-step flow when a plan is selected.
+        const fiatPayButton = document.getElementById('fiat-pay-button');
+        fiatPayButton.setAttribute('data-step', 'rate');
+        fiatPayButton.textContent = 'Calculate Final Price & Fees';
+
 
         // --- CRYPTO Payment Logic ---
         document.getElementById('network-selection-buttons').querySelectorAll('.network-button').forEach(btn => {
@@ -539,54 +698,6 @@
 
             switchView(successContainer);
             document.getElementById('join-link').href = inviteLink;
-        }
-
-        async function handleFiatSubmit(event) {
-            event.preventDefault();
-            const fiatForm = event.target;
-            const submitButton = fiatForm.querySelector('button[type="submit"]');
-            const originalButtonText = submitButton.innerHTML;
-            
-            // Show loading state
-            submitButton.disabled = true;
-            submitButton.innerHTML = `
-                <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Processing...`;
-            
-            try {
-                const formData = new FormData(fiatForm);
-                const data = Object.fromEntries(formData.entries());
-                
-                // Add the selected plan and referral code from your existing variables
-                data.planName = selectedPlan.plan_name;
-                data.referral_code = referralCode; // This comes from captureReferralCode()
-
-                const response = await fetch('/api/payments/fiat/create', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data)
-                });
-
-                const result = await response.json();
-
-                if (response.ok) {
-                    // Success! Redirect to TransFi checkout
-                    window.location.href = result.redirectUrl;
-                } else {
-                    // Show an error message from the server
-                    alert(`Error: ${result.message}`);
-                    submitButton.disabled = false;
-                    submitButton.innerHTML = originalButtonText;
-                }
-            } catch (err) {
-                // Show a generic network error
-                alert('A network error occurred: ' + err.message);
-                submitButton.disabled = false;
-                submitButton.innerHTML = originalButtonText;
-            }
         }
 
         function checkForExistingState() {

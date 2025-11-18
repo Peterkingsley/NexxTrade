@@ -966,129 +966,143 @@ const createTransfiAuthToken = () => {
     return `Basic ${Buffer.from(credentials).toString('base64')}`;
 };
 
-app.post('/api/payments/fiat/create', async (req, res) => {
+// NOTE: The helper function 'createTransfiAuthToken' is already correctly defined above this section.
+
+// 1) CALL EXCHANGE RATE: GET /api/transfi/rate
+// Purpose: Show the user the rate, fees, final fiat amount, and crypto amount, and get quoteId.
+app.get('/api/transfi/rate', async (req, res) => {
     try {
-        const { fullname, email, telegram, whatsapp_number, planName, referral_code } = req.body;
+        const { amount, currency, paymentCode } = req.query;
 
-        if (!fullname || !email || !telegram || !whatsapp_number || !planName) {
-            return res.status(400).json({ message: 'Missing required fields for payment.' });
+        if (!amount || !currency || !paymentCode) {
+            return res.status(400).json({ message: "Missing required query parameters: amount, currency, or paymentCode." });
         }
         
-        // 1. Get Plan Details
-        const planResult = await pool.query('SELECT * FROM pricingplans WHERE plan_name = $1', [planName]);
-        if (planResult.rows.length === 0) {
-            return res.status(404).json({ message: 'Selected plan not found.' });
-        }
-        const plan = planResult.rows[0];
-        const priceUSD = plan.price;
-
-        // 2. Create a unique Order ID
-        const order_id = `nexxtrade-fiat-${telegram.replace('@', '')}-${Date.now()}`;
+        // TransFi uses direction=forward (fiat->crypto) and balanceCurrency is the same as currency
+        const url = `${process.env.TRANSFI_BASE_URL}/v2/exchange-rates/deposit?amount=${amount}&currency=${currency}&paymentCode=${paymentCode}&direction=forward&balanceCurrency=${currency}`;
         
-        // 3. Create/Update user as 'pending' (Your existing logic)
-        const referrerId = await getReferrerId(referral_code);
-        const existingUserPlanQuery = await pool.query(
-            'SELECT * FROM users WHERE telegram_handle = $1 AND plan_name = $2',
-            [telegram, planName]
-        );
-
-        let emailForDb = email;
-        if (existingUserPlanQuery.rows.length > 0) {
-             const userRecord = existingUserPlanQuery.rows[0];
-             if (userRecord.subscription_status === 'active') {
-                return res.status(409).json({ message: `You already have an active subscription for the ${planName} plan.` });
-             }
-             const emailConflictQuery = await pool.query('SELECT id FROM users WHERE email = $1 AND id != $2', [email, userRecord.id]);
-             if (emailConflictQuery.rows.length > 0) emailForDb = userRecord.email;
-
-             await pool.query(
-                `UPDATE users SET full_name = $1, email = $2, whatsapp_number = $3, order_id = $4, subscription_status = 'pending', last_payment_attempt = NOW(), payment_attempts = payment_attempts + 1, registration_source = 'web', referred_by = $5 WHERE id = $6`,
-                [fullname, emailForDb, whatsapp_number, order_id, referrerId, userRecord.id]
-             );
-        } else {
-             const emailConflictQuery = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
-             if (emailConflictQuery.rows.length > 0) {
-                 emailForDb = `${telegram.replace('@', '')}.${crypto.randomBytes(3).toString('hex')}@telegram.user`;
-             }
-             const registrationDate = new Date().toISOString().split('T')[0];
-             await pool.query(
-               `INSERT INTO users (full_name, email, telegram_handle, plan_name, subscription_status, registration_date, order_id, payment_attempts, last_payment_attempt, registration_source, whatsapp_number, referred_by)
-                VALUES ($1, $2, $3, $4, 'pending', $5, $6, 1, NOW(), 'web', $7, $8)`,
-               [fullname, emailForDb, telegram, planName, registrationDate, order_id, whatsapp_number, referrerId]
-             );
-        }
-
-        // 4. Call TransFi API to create an order
-        
-        // --- *** THIS IS THE CORRECT PAYLOAD FROM YOUR DOCS *** ---
-        const nameParts = fullname.split(' ');
-        const firstName = nameParts.shift() || 'User'; // Get first name
-        const lastName = nameParts.join(' ') || 'Name'; // Get the rest as last name
-
-        if (!process.env.TRANSFI_WITHDRAWAL_WALLET_ADDRESS) {
-            throw new Error("Server configuration error: Missing TRANSFI_WITHDRAWAL_WALLET_ADDRESS in .env");
-        }
-
-        const transfiPayload = {
-            firstName: firstName,
-            lastName: lastName,
-            email: email,
-            country: "US", // Hardcoded for sandbox, TransFi requires this
-            amount: priceUSD,
-            currency: "USD", // Renamed from fiatCurrency
-            paymentType: "bank_transfer", // Renamed from paymentMethod
-            purposeCode: "expense_or_medical_reimbursement", // Hardcoded for sandbox
-            purposeCodeReason: "Subscription for NexxTrade services",
-            redirectUrl: `${process.env.APP_BASE_URL}/join?payment=success`,
-            type: "individual", // Hardcoded as per docs
-            partnerContext: {}, // Added as per docs
-            //partnerId: order_id, // Renamed from clientOrderId to match docs
-            invoiceId: `IN-${order_id}`, // <-- ADD THIS LINE
-            withdrawDetails: {
-                cryptoTicker: "USDT",
-                walletAddress: process.env.TRANSFI_WITHDRAWAL_WALLET_ADDRESS
-            }
-        };
-        // --- *** END OF CORRECT PAYLOAD *** ---
-
-        const transfiResponse = await fetch(`${process.env.TRANSFI_SANDBOX_URL}/v2/orders/deposit`, {
-            method: 'POST',
+        const response = await fetch(url, {
             headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'Authorization': createTransfiAuthToken(),
-                'MID': process.env.TRANSFI_MID
-            },
-            body: JSON.stringify(transfiPayload)
+                "Authorization": createTransfiAuthToken(),
+                "MID": process.env.TRANSFI_MID
+            }
         });
-        
-        // --- Error handling (no changes needed) ---
-        if (!transfiResponse.ok) {
-            const errorText = await transfiResponse.text();
-            console.error('TransFi API Error - Status:', transfiResponse.status, transfiResponse.statusText);
-            console.error('TransFi API Response Body:', errorText);
-            return res.status(500).json({ message: `Fiat payment processor error: ${errorText || 'Received an invalid response from TransFi.'}`});
-        }
-        
-        const transfiData = await transfiResponse.json();
 
-        // 5. Send the TransFi payment URL to the client
-        res.status(200).json({ 
-            message: 'Payment initiated successfully. Redirecting...',
-            redirectUrl: transfiData.paymentUrl 
-        });
+        const data = await response.json();
+        
+        if (!response.ok || data.status !== 'SUCCESS') {
+            console.error('TransFi Rate API Error:', data);
+            return res.status(response.status).json({ message: data.message || "Failed to fetch exchange rate from TransFi.", details: data });
+        }
+
+        // Response contains: exchangeRate, fees, fiatAmount (in CENTS), quoteId, withdrawAmount
+        res.json(data);
 
     } catch (err) {
-        // --- Temporary debugging (no changes needed) ---
-        console.error('Error creating Fiat payment:', err);
-        res.status(500).json({ 
-            message: 'Server Error. See error details.',
-            error_message: err.message, 
-            error_stack: err.stack      
-        });
+        console.error('Error fetching TransFi rate:', err);
+        res.status(500).json({ message: "Error fetching rate", error: err.message });
     }
 });
 
+// 2) CREATE TRANSFI ORDER: POST /api/transfi/deposit (This replaces the old /api/payments/fiat/create)
+// Purpose: Create the order, handle user registration/update, and get the TransFi paymentUrl.
+app.post('/api/transfi/deposit', async (req, res) => {
+    // Note: 'amount' here is expected to be in CENTS as returned by the rate API.
+    const { fullname, email, telegram, whatsapp_number, planName, pay_currency, amount, quoteId, paymentCode } = req.body;
+
+    if (!fullname || !email || !telegram || !planName || !amount || !quoteId || !paymentCode) {
+        return res.status(400).json({ message: 'Missing required information for payment initiation.' });
+    }
+
+    // getReferrerId is an existing function in your server.js
+    const referrerId = await getReferrerId(req.body.referral_code);
+
+    try {
+        // *** Your existing database logic to find or create a user is integrated here ***
+        const order_id = `nexxtrade-web-${Date.now()}`;
+        let emailForDb = email;
+
+        const existingUserResult = await pool.query('SELECT * FROM users WHERE telegram_handle = $1 AND plan_name = $2', [telegram, planName]);
+
+        if (existingUserResult.rows.length > 0) {
+            const userRecord = existingUserResult.rows[0];
+            const emailConflictQuery = await pool.query('SELECT id FROM users WHERE email = $1 AND id != $2', [email, userRecord.id]);
+            if (emailConflictQuery.rows.length > 0) {
+                 emailForDb = userRecord.email; 
+            }
+            await pool.query(
+                `UPDATE users SET full_name = $1, email = $2, whatsapp_number = $3, order_id = $4, subscription_status = 'pending', last_payment_attempt = NOW(), payment_attempts = payment_attempts + 1, registration_source = 'web', referred_by = $5 WHERE id = $6`,
+                [fullname, emailForDb, whatsapp_number, order_id, referrerId, userRecord.id]
+            );
+        } else {
+            const emailConflictQuery = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+            if (emailConflictQuery.rows.length > 0) {
+                emailForDb = `${telegram.replace('@', '')}.${crypto.randomBytes(3).toString('hex')}@telegram.user`;
+            }
+            const registrationDate = new Date().toISOString().split('T')[0];
+            await pool.query(
+                `INSERT INTO users (full_name, email, telegram_handle, plan_name, subscription_status, registration_date, order_id, payment_attempts, last_payment_attempt, registration_source, whatsapp_number, referred_by) 
+                VALUES ($1, $2, $3, $4, 'pending', $5, $6, 1, NOW(), 'web', $7, $8)`,
+                [fullname, emailForDb, telegram, planName, registrationDate, order_id, whatsapp_number, referrerId]
+            );
+        }
+
+        // *** TransFi API Call ***
+        const nameParts = fullname.split(' ');
+        const firstName = nameParts.shift() || 'User'; 
+        const lastName = nameParts.join(' ') || 'Name'; 
+
+        const transfiPayload = {
+            orderId: order_id, // Our unique order ID
+            firstName: firstName,
+            lastName: lastName,
+            email: email,
+            country: "US", // Assuming US as hardcoded country
+            amount: parseFloat(amount), 
+            currency: pay_currency, // e.g., "USD"
+            paymentCode: paymentCode, // e.g., "bank_transfer"
+            quoteId: quoteId, // CRUCIAL: To lock the rate
+            // Note: Updated redirectUrl to include the order_id for status tracking
+            redirectUrl: `${process.env.APP_BASE_URL}/join?payment=pending&order_id=${order_id}`, 
+            partnerContext: {
+                planName: planName,
+                telegramHandle: telegram
+            },
+            withdrawDetails: {
+                cryptoTicker: "USDT",
+                walletAddress: process.env.TRANSFI_WITHDRAWAL_WALLET_ADDRESS,
+                network: "TRX", // Assuming TRON/TRC20
+            }
+        };
+
+        const response = await fetch(`${process.env.TRANSFI_BASE_URL}/v2/orders/deposit`, {
+            method: "POST",
+            headers: {
+                "Authorization": createTransfiAuthToken(),
+                "Content-Type": "application/json",
+                "MID": process.env.TRANSFI_MID
+            },
+            body: JSON.stringify(transfiPayload)
+        });
+
+        const data = await response.json();
+        
+        if (!response.ok || data.status !== 'SUCCESS') {
+            console.error('TransFi Deposit API Error:', data);
+            return res.status(response.status).json({ message: data.message || "Failed to create deposit order.", details: data });
+        }
+
+        // Success: Redirect the user to the TransFi payment page
+        res.json({ 
+            message: 'Payment order created successfully.',
+            redirectUrl: data.data.paymentUrl // This is the TransFi hosted URL
+        });
+
+    } catch (err) {
+        console.error('Error creating TransFi deposit order:', err);
+        res.status(500).json({ message: 'Server error while initiating TransFi payment.' });
+    }
+});
 // =================================================================
 // --- START: TransFi Webhook Handler ---
 // =================================================================
