@@ -956,30 +956,32 @@ app.get('/api/dashboard/stats', async (req, res) => {
 // =================================================================
 
 // ==========================================================
-// CORRECTED FUNCTION TO REPLACE YOUR EXISTING createOrUpdateTransfiUser
-// This uses 'fetch' and removes the 'axios' dependency.
+// CORRECTED createOrUpdateTransfiUser (v3) in server.js
+// Adds the 'phone' field to the TransFi payload.
 // ==========================================================
 /**
  * Creates or retrieves an individual user in TransFi's system using the User API.
- * @param {object} userData - User details (email, firstName, lastName, dateOfBirth, country).
+ * @param {object} userData - User details (email, firstName, lastName, dateOfBirth, country, phone).
  * @returns {Promise<string>} The TransFi userId.
  */
 async function createOrUpdateTransfiUser(userData) {
-    const { email, firstName, lastName, dateOfBirth, country } = userData;
+    const { email, firstName, lastName, dateOfBirth, country, phone } = userData;
     
+    // TransFi requires 'phone' field for some compliance/countries
     const userPayload = {
         email,
         firstName,
         lastName,
         date: dateOfBirth, // Format must be DD-MM-YYYY
         country,
+        phone,              // 🚨 FIX: Pass the phone number here
     };
 
     try {
         const response = await fetch(`${process.env.TRANSFI_BASE_URL}/v2/users/individual`, {
             method: "POST",
             headers: {
-                "Authorization": createTransfiAuthToken(), // Assumes this helper is defined
+                "Authorization": createTransfiAuthToken(),
                 "Content-Type": "application/json",
                 "MID": process.env.TRANSFI_MID,
             },
@@ -988,7 +990,7 @@ async function createOrUpdateTransfiUser(userData) {
         
         const data = await response.json();
         
-        // Success: User created
+        // Success
         if (response.ok && data.userId) {
             console.log(`[TransFi] New user created. UserID: ${data.userId}`);
             return data.userId;
@@ -1000,7 +1002,7 @@ async function createOrUpdateTransfiUser(userData) {
             return data.userId;
         }
     
-        // Throw error for other failures
+        // Throw error for other failures (like the 'Phone is required' error you saw)
         console.error('[TransFi User Creation Error]', data);
         throw new Error(data.message || `Failed to create or verify user with TransFi. Code: ${data.code}`);
 
@@ -1009,7 +1011,6 @@ async function createOrUpdateTransfiUser(userData) {
         throw new Error(`Failed to create or verify user with TransFi: ${error.message}`);
     }
 }
-// ==========================================================
 // ==========================================================
 
 // Make sure 'fetch' is available.
