@@ -555,35 +555,31 @@
             const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : 'N/A';
 
 
-            // 🚨 CRITICAL FIXES 1, 2, & 3 APPLIED HERE
+            // 🚨 CRITICAL FIX: The payload to your server must be flat to match server.js destructuring.
             const payload = {
-                // --- User/Contact Details (TransFi expects firstName, lastName, phone, dateOfBirth) ---
-                firstName: firstName,
+                // --- User/Contact Details ---
+                fullname: fullName, 
+                firstName: firstName, 
                 lastName: lastName,
                 email: document.getElementById('fiat-email').value,
-                phone: document.getElementById('fiat-whatsapp').value, // TransFi uses 'phone' for the contact number
                 telegram: document.getElementById('fiat-telegram').value,
-                
-                // --- Address and DOB (Required by TransFi) ---
-                dateOfBirth: formatDateForTransFi(document.getElementById('fiat-dob').value), // Correctly formatted DD-MM-YYYY
-                country: countryCode, // ISO 2-letter code
-                address: { // TransFi requires address fields nested under 'address'
-                    addressLine1: document.getElementById('fiat-address1').value,
-                    city: document.getElementById('fiat-city').value,
-                    zipCode: document.getElementById('fiat-zipcode').value, // <-- CORRECTED ID
-                    country: countryCode // Redundant but safe to include
-                },
-
-                // --- Payment/Order Details (FIXED variables) ---
-                planName: plans[selectedPlanKey].name, // FIX 1: Used plans[selectedPlanKey]
-                pay_currency: countryConfig.currency, // FIX 1: Used countryConfig.currency
-                quoteId: currentQuote.quoteId,
-                paymentCode: countryConfig.paymentCode, // FIX 1 & 2: Used countryConfig.paymentCode
-                amount: currentQuote.fiatAmount, // Amount in CENTS
-                referral_code: referralCode,
-
-                // Add additional metadata for your own backend to track
                 whatsapp_number: document.getElementById('fiat-whatsapp').value,
+                
+                // --- Address and DOB (FLAT FIELDS for the server to process) ---
+                date_of_birth: formatDateForTransFi(document.getElementById('fiat-dob').value), 
+                addressLine1: document.getElementById('fiat-address1').value, // <--- FLAT
+                city: document.getElementById('fiat-city').value,             // <--- FLAT
+                state: document.getElementById('fiat-state').value,           // <--- FLAT (New)
+                zipCode: document.getElementById('fiat-zipcode').value,       // <--- FLAT
+                country: countryCode, // ISO 2-letter code
+
+                // --- Payment/Order Details ---
+                planName: plans[selectedPlanKey].name,
+                pay_currency: countryConfig.currency,
+                amount: currentQuote.fiatAmount, // Amount in CENTS
+                quoteId: currentQuote.quoteId,
+                paymentCode: countryConfig.paymentCode,
+                referral_code: referralCode,
             };
 
             try {
@@ -602,8 +598,6 @@
                     const displayCurrency = countryConfig.currency;
                     // Fallback to error message from response or generic failure
                     throw new Error(result.message || (result.details && result.details.message) || 'Failed to initiate payment.');
-                    // This line below is now unreachable due to the throw above, but was here for clarity:
-                    // payButton.textContent = `Proceed to Pay ${displayCurrency}${(currentQuote.fiatAmount / 100).toFixed(2)}`;
                 }
             } catch (error) {
                 const displayCurrency = countryConfig.currency;
@@ -639,7 +633,8 @@
                 // FIX: Correctly mapped address fields
                 addressLine1: document.getElementById('fiat-address1').value,
                 city: document.getElementById('fiat-city').value,
-                zipCode: document.getElementById('fiat-zipcode').value, // <-- CORRECTED ID
+                state: document.getElementById('fiat-state').value,           // <--- ADDED 'state' HERE
+                zipCode: document.getElementById('fiat-zipcode').value, 
                 // NEW: Include country in the initial data object
                 country: document.getElementById('fiat-country').value 
             };
