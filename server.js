@@ -1059,7 +1059,7 @@ app.post('/api/transfi/deposit', async (req, res) => {
         email: email,
         country: country, // MODIFIED: Use the dynamic 'country' from the request
         amount: parseFloat(amount),
-        paymentType: "BANK_TRANSFER", 
+        paymentType: "bank_transfer", 
         currency: pay_currency, // MODIFIED: Use the dynamic 'pay_currency' from the request
         paymentCode: paymentCode, // MODIFIED: Use the dynamic 'paymentCode' from the request
         quoteId: quoteId, 
