@@ -1062,6 +1062,7 @@ app.post('/api/transfi/deposit', async (req, res) => {
         paymentType: "bank_transfer", 
         currency: pay_currency, // MODIFIED: Use the dynamic 'pay_currency' from the request
         paymentCode: paymentCode, // MODIFIED: Use the dynamic 'paymentCode' from the request
+        purposeCode: "expense_or_medical_reimbursement",
         quoteId: quoteId, 
         // Note: Updated redirectUrl to include the order_id for status tracking
         redirectUrl: `${process.env.APP_BASE_URL}/join?payment=pending&order_id=${order_id}`, 
