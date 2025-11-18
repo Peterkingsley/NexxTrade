@@ -145,18 +145,33 @@
                     <input type="date" id="fiat-dob" class="input-field" required>
                     <p class="text-xs text-muted mt-1">Required for regulatory checks (format is DD-MM-YYYY).</p>
                 </div>
-                 <div>
-                    <label for="fiat-address1" class="block text-sm font-medium mb-1 text-muted">Address Line 1</label>
-                    <input type="text" id="fiat-address1" placeholder="Street name and house/apt number" class="input-field" required>
-                </div>
                 <div>
-                    <label for="fiat-city" class="block text-sm font-medium mb-1 text-muted">City</label>
-                    <input type="text" id="fiat-city" placeholder="City" class="input-field" required>
+                    <label for="fiat-address1" class="block text-sm font-medium mb-1 text-muted">Street Address</label>
+                    <input type="text" id="fiat-address1" name="addressLine1" placeholder="Street Address (e.g., 123 Main St)" class="input-field" required>
                 </div>
-                <div>
-                    <label for="fiat-zip" class="block text-sm font-medium mb-1 text-muted">Zip / Postal Code</label>
-                    <input type="text" id="fiat-zip" placeholder="12345" class="input-field" required>
-                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div>
+        <label for="fiat-city" class="block text-sm font-medium mb-1 text-muted">City</label>
+        <input type="text" id="fiat-city" name="city" placeholder="City" class="input-field" required>
+    </div>
+
+    <div>
+        <label for="fiat-state" class="block text-sm font-medium mb-1 text-muted">State / Region</label>
+        <input 
+            type="text" 
+            id="fiat-state" 
+            name="state" 
+            placeholder="State/Region (e.g., UP)" 
+            class="input-field" 
+            required
+        >
+    </div>
+
+    <div>
+        <label for="fiat-zipcode" class="block text-sm font-medium mb-1 text-muted">Zip / Postal Code</label>
+        <input type="text" id="fiat-zipcode" name="zipCode" placeholder="201301" class="input-field" required>
+    </div>
+</div>
                 <div>
                     <label for="fiat-whatsapp" class="block text-sm font-medium mb-1 text-muted">WhatsApp Number</label>
                     <input type="tel" id="fiat-whatsapp" placeholder="+1234567890" class="input-field" required>
@@ -555,7 +570,7 @@
                 address: { // TransFi requires address fields nested under 'address'
                     addressLine1: document.getElementById('fiat-address1').value,
                     city: document.getElementById('fiat-city').value,
-                    zipCode: document.getElementById('fiat-zip').value,
+                    zipCode: document.getElementById('fiat-zipcode').value, // <-- CORRECTED ID
                     country: countryCode // Redundant but safe to include
                 },
 
@@ -624,7 +639,7 @@
                 // FIX: Correctly mapped address fields
                 addressLine1: document.getElementById('fiat-address1').value,
                 city: document.getElementById('fiat-city').value,
-                zipCode: document.getElementById('fiat-zip').value,
+                zipCode: document.getElementById('fiat-zipcode').value, // <-- CORRECTED ID
                 // NEW: Include country in the initial data object
                 country: document.getElementById('fiat-country').value 
             };
@@ -851,3 +866,4 @@
         checkForExistingState();
     });
   </script>
+</html>

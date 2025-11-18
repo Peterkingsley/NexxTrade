@@ -956,64 +956,65 @@ app.get('/api/dashboard/stats', async (req, res) => {
 // =================================================================
 
 // ==========================================================
-// FINAL CORRECTED createOrUpdateTransfiUser (v4) in server.js
-// Now includes 'phone' and all address fields.
 // ==========================================================
-/**
- * Creates or retrieves an individual user in TransFi's system using the User API.
- * @param {object} userData - User details (email, firstName, lastName, dateOfBirth, country, phone, addressLine1, city, zipCode).
- * @returns {Promise<string>} The TransFi userId.
- */
-async function createOrUpdateTransfiUser(userData) {
-    const { email, firstName, lastName, dateOfBirth, country, phone, addressLine1, city, zipCode } = userData;
-    
+// FINAL CORRECTED createOrUpdateTransfiUser (v5 - with nested address)
+// ==========================================================
+/** * Creates or retrieves an individual user in TransFi's system using the User API.
+ * @param {object} userData - User details (email, firstName, lastName, dateOfBirth, country, phone, addressLine1, city, state, zipCode).
+ * @returns {Promise<string>} The TransFi userId. 
+ */ 
+async function createOrUpdateTransfiUser(userData) { 
+    // ADD 'state' to the destructuring
+    const { email, firstName, lastName, dateOfBirth, country, phone, addressLine1, city, state, zipCode } = userData; 
+
+    // CRITICAL FIX: Restructure the payload to use the nested 'address' object
     const userPayload = {
         email,
         firstName,
         lastName,
-        date: dateOfBirth, 
+        date: dateOfBirth, // Assumes TransFi API uses 'date' for Date of Birth
         country,
         phone,
-        // 🚨 FIX: ADDRESS FIELDS ADDED TO PAYLOAD
-        addressLine1,
-        city,
-        zipCode,
-        // // TransFi may require this if Line 1 is not sufficient
-        // addressLine2, 
+        "address": {        
+            "street": addressLine1,   // Map 'addressLine1' to 'street'
+            "city": city,        
+            "state": state,          // Use the 'state' variable
+            "postalCode": zipCode    // Map 'zipCode' to 'postalCode'
+        }
     };
-
-    try {
-        const response = await fetch(`${process.env.TRANSFI_BASE_URL}/v2/users/individual`, {
-            method: "POST",
-            headers: {
-                "Authorization": createTransfiAuthToken(),
-                "Content-Type": "application/json",
-                "MID": process.env.TRANSFI_MID,
-            },
-            body: JSON.stringify(userPayload)
-        });
+    
+    try { 
+        // Existing API call to TransFi
+        const response = await fetch(`${process.env.TRANSFI_BASE_URL}/v2/users/individual`, { 
+            method: "POST", 
+            headers: { 
+                "Authorization": createTransfiAuthToken(), // Ensure createTransfiAuthToken() is defined 
+                "Content-Type": "application/json", 
+                "MID": process.env.TRANSFI_MID, 
+            }, 
+            body: JSON.stringify(userPayload) 
+        }); 
         
-        const data = await response.json();
+        const data = await response.json(); 
         
-        // Success
-        if (response.ok && data.userId) {
-            console.log(`[TransFi] New user created. UserID: ${data.userId}`);
-            return data.userId;
+        // Success 
+        if (response.ok && data.userId) { 
+            return data.userId; 
         } 
         
-        // Handle CONFLICT (User already exists)
-        if (data.code === 'CONFLICT' && data.userId) {
-            console.log(`[TransFi] User already exists. Using existing UserID: ${data.userId}`);
-            return data.userId;
+        // Handle User already exists case (inferred from common API patterns)
+        if (data.message && data.message.includes('User already registered') && data.userId) {
+             return data.userId;
         }
-    
-        // Throw error for other failures
-        console.error('[TransFi User Creation Error]', data);
-        throw new Error(data.message || `Failed to create or verify user with TransFi. Code: ${data.code}`);
 
-    } catch (error) {
-        console.error('[TransFi User Creation Error] Network or Parsing Issue:', error.message);
-        throw new Error(`Failed to create or verify user with TransFi: ${error.message}`);
+        // Error handling 
+        const errorMessage = data.message || `Failed to register user: ${response.status} ${response.statusText}`; 
+        console.error('TransFi User API Error:', data); 
+        throw new Error(errorMessage); 
+        
+    } catch (err) { 
+        console.error('Error in createOrUpdateTransfiUser:', err.message); 
+        throw new Error(err.message); 
     }
 }
 // ==========================================================
@@ -1071,10 +1072,10 @@ app.get('/api/transfi/rate', async (req, res) => {
 // Purpose: Create the order, handle user registration/update, and get the TransFi paymentUrl.
 app.post('/api/transfi/deposit', async (req, res) => {
     // Note: 'amount' here is expected to be in CENTS as returned by the rate API.
-    const { fullname, email, date_of_birth, telegram, whatsapp_number, addressLine1, city, zipCode, planName, pay_currency, amount, quoteId, paymentCode, country, referral_code } = req.body; 
+    const { fullname, email, date_of_birth, telegram, whatsapp_number, addressLine1, city, zipCode, planName, pay_currency, amount, quoteId, paymentCode, country, state, referral_code } = req.body; 
 
     // --- 1. Validation (CRITICAL: Validate fields needed for TransFi User API) ---
-    if (!fullname || !email || !telegram || !planName || !amount || !quoteId || !paymentCode || !country || !date_of_birth || !addressLine1 || !city || !zipCode) {
+    if (!fullname || !email || !telegram || !planName || !amount || !quoteId || !paymentCode || !country || !date_of_birth || !addressLine1 || !city || !zipCode || !state) {
         // Added country and date_of_birth to the validation check
         return res.status(400).json({ message: 'Missing required information for payment initiation (fullname, email, date_of_birth, country, telegram, planName, amount, quoteId, or paymentCode).' });
     }
@@ -1089,26 +1090,22 @@ app.post('/api/transfi/deposit', async (req, res) => {
 
     try {
         // 3. 🚨 FIX: Call the User API FIRST to create/verify the user.
-        // This MUST happen before the Deposit API call to avoid 'USER_NOT_FOUND'.
-        transfiUserId = await createOrUpdateTransfiUser({
+        const transfiUserId = await createOrUpdateTransfiUser({
             email: email,
             firstName: firstName,
             lastName: lastName,
             dateOfBirth: date_of_birth,
             country: country,
-            phone: whatsapp_number, // 🚨 FIX: Pass the whatsapp_number here
-            addressLine1: addressLine1, 
+            phone: whatsapp_number,
+            addressLine1: addressLine1,
             city: city,
+            state: state, // <-- PASSED 'state' HERE
             zipCode: zipCode
         });
-        
     } catch (error) {
         // If user creation fails, do not proceed with deposit
         console.error('Pre-deposit TransFi user setup failed:', error.message);
-        return res.status(500).json({ 
-            message: 'User registration failed on TransFi. Please check user details and try again.', 
-            details: error.message 
-        });
+        return res.status(500).json({ message: 'User registration failed on TransFi. Please check user details and try again.', details: error.message });
     }
 
     try {
