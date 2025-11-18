@@ -978,8 +978,8 @@ async function createOrUpdateTransfiUser(userData) {
         addressLine1,
         city,
         zipCode,
-        // TransFi may require this if Line 1 is not sufficient
-        addressLine2, 
+        // // TransFi may require this if Line 1 is not sufficient
+        // addressLine2, 
     };
 
     try {
