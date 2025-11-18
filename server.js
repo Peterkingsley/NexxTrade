@@ -972,13 +972,13 @@ const createTransfiAuthToken = () => {
 // Purpose: Show the user the rate, fees, final fiat amount, and crypto amount, and get quoteId.
 app.get('/api/transfi/rate', async (req, res) => {
     try {
-        const { amount, currency, paymentCode } = req.query;
+        const { amount, currency, paymentCode } = req.query; // Now receiving currency and paymentCode from frontend
 
         if (!amount || !currency || !paymentCode) {
             return res.status(400).json({ message: "Missing required query parameters: amount, currency, or paymentCode." });
         }
         
-        // TransFi uses direction=forward (fiat->crypto) and balanceCurrency is the same as currency
+        // Use the received currency and paymentCode
         const url = `${process.env.TRANSFI_BASE_URL}/v2/exchange-rates/deposit?amount=${amount}&currency=${currency}&paymentCode=${paymentCode}&direction=forward&balanceCurrency=${currency}`;
         
         const response = await fetch(url, {
@@ -1008,7 +1008,7 @@ app.get('/api/transfi/rate', async (req, res) => {
 // Purpose: Create the order, handle user registration/update, and get the TransFi paymentUrl.
 app.post('/api/transfi/deposit', async (req, res) => {
     // Note: 'amount' here is expected to be in CENTS as returned by the rate API.
-    const { fullname, email, telegram, whatsapp_number, planName, pay_currency, amount, quoteId, paymentCode } = req.body;
+    const { fullname, email, firstName, lastName, telegram, whatsapp_number, planName, pay_currency, amount, quoteId, paymentCode, country } = req.body; // MODIFIED: Added 'country'
 
     if (!fullname || !email || !telegram || !planName || !amount || !quoteId || !paymentCode) {
         return res.status(400).json({ message: 'Missing required information for payment initiation.' });
@@ -1049,31 +1049,31 @@ app.post('/api/transfi/deposit', async (req, res) => {
 
         // *** TransFi API Call ***
         const nameParts = fullname.split(' ');
-        const firstName = nameParts.shift() || 'User'; 
-        const lastName = nameParts.join(' ') || 'Name'; 
+    const firstName = nameParts.shift() || 'User'; 
+    const lastName = nameParts.join(' ') || 'Name'; 
 
-        const transfiPayload = {
-            orderId: order_id, // Our unique order ID
-            firstName: firstName,
-            lastName: lastName,
-            email: email,
-            country: "US", // Assuming US as hardcoded country
-            amount: parseFloat(amount), 
-            currency: pay_currency, // e.g., "USD"
-            paymentCode: paymentCode, // e.g., "bank_transfer"
-            quoteId: quoteId, // CRUCIAL: To lock the rate
-            // Note: Updated redirectUrl to include the order_id for status tracking
-            redirectUrl: `${process.env.APP_BASE_URL}/join?payment=pending&order_id=${order_id}`, 
-            partnerContext: {
-                planName: planName,
-                telegramHandle: telegram
-            },
-            withdrawDetails: {
-                cryptoTicker: "USDT",
-                walletAddress: process.env.TRANSFI_WITHDRAWAL_WALLET_ADDRESS,
-                network: "TRX", // Assuming TRON/TRC20
-            }
-        };
+    const transfiPayload = {
+        orderId: order_id, // Our unique order ID
+        firstName: firstName,
+        lastName: lastName,
+        email: email,
+        country: country, // MODIFIED: Use the dynamic 'country' from the request
+        amount: parseFloat(amount), 
+        currency: pay_currency, // MODIFIED: Use the dynamic 'pay_currency' from the request
+        paymentCode: paymentCode, // MODIFIED: Use the dynamic 'paymentCode' from the request
+        quoteId: quoteId, 
+        // Note: Updated redirectUrl to include the order_id for status tracking
+        redirectUrl: `${process.env.APP_BASE_URL}/join?payment=pending&order_id=${order_id}`, 
+        partnerContext: {
+            planName: planName,
+            telegramHandle: telegram
+        },
+        withdrawDetails: {
+            cryptoTicker: "USDT",
+            walletAddress: process.env.TRANSFI_WITHDRAWAL_WALLET_ADDRESS,
+            network: "TRX", // Assuming TRON/TRC20
+        }
+    };
 
         const response = await fetch(`${process.env.TRANSFI_BASE_URL}/v2/orders/deposit`, {
             method: "POST",

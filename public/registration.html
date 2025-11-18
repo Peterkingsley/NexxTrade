@@ -148,13 +148,16 @@
             <div class="space-y-4">
                 <h3 class="font-semibold text-lg">3. Payment Method & Summary</h3>
                 <div>
-                    <label for="fiat-payment-code" class="block text-sm font-medium mb-1 text-muted">Payment Method</label>
-                    <select id="fiat-payment-code" class="input-field">
-                        <option value="bank_transfer" selected>Bank Transfer (SEPA, ACH, etc.)</option>
-                        <option value="card_payment" disabled>Card Payment (Coming Soon)</option>
+                    <label for="fiat-country" class="block text-sm font-medium mb-1 text-muted">Your Region / Country</label>
+                    <select id="fiat-country" class="input-field" required>
+                        <option value="" disabled selected>Select your country</option>
+                        <option value="US">United States (USD) - ACH</option>
+                        <option value="DE">Europe (EUR) - SEPA</option>
+                        <option value="GB">United Kingdom (GBP) - Faster Payments</option>
+                        <option value="AU">Australia (AUD) - PayID</option>
                     </select>
+                    <p id="fiat-currency-info" class="text-xs text-muted mt-1">Currency: USD | Payment Rail: ACH</p>
                 </div>
-                
                 <div id="rate-summary-box" class="card p-4 space-y-2 text-sm hidden">
                     <div class="flex justify-between">
                         <span class="text-muted">Plan Price:</span>
@@ -260,6 +263,16 @@
         let paymentCheckInterval = null;
         let referralCode = null;
         let currentQuote = null; // New variable to store the exchange rate quote from TransFi
+
+        // NEW: Map country codes to their corresponding currency and TransFi payment codes
+        const COUNTRY_PAYMENT_MAP = {
+            'US': { currency: 'USD', paymentCode: 'ach_pull', description: 'USD | ACH' },
+            'DE': { currency: 'EUR', paymentCode: 'sepa_pull', description: 'EUR | SEPA' },
+            'GB': { currency: 'GBP', paymentCode: 'uk_sort_code', description: 'GBP | Faster Payments' },
+            'AU': { currency: 'AUD', paymentCode: 'payid', description: 'AUD | PayID' },
+            // Default fallback (can be US or removed if country selection is strictly required)
+            'DEFAULT': { currency: 'USD', paymentCode: 'ach_pull', description: 'USD | ACH' } 
+        };
 
         // --- Referral Code Logic ---
         function captureReferralCode() {
@@ -399,9 +412,14 @@
             const totalFee = data.data.fees.totalFee;
             const totalPayable = parseFloat(fiatAmount) + parseFloat(totalFee);
             
-            fiatAmountElement.textContent = `${parseFloat(planPrice).toFixed(2)} USD`; // Show original plan price
-            totalFeeElement.textContent = `${(parseFloat(totalFee) / 100).toFixed(2)} USD`; // Convert cents to dollars
-            totalPayableElement.textContent = `${(totalPayable / 100).toFixed(2)} USD`; // Convert cents to dollars
+            // NOTE: The display currency is dynamic, using data.data.fiatTicker for currency symbol display
+            const countryCode = document.getElementById('fiat-country').value || 'DEFAULT';
+            const countryConfig = COUNTRY_PAYMENT_MAP[countryCode] || COUNTRY_PAYMENT_MAP['DEFAULT'];
+            const displayCurrency = countryConfig.currency; 
+
+            fiatAmountElement.textContent = `${parseFloat(planPrice).toFixed(2)} ${displayCurrency}`; // Show original plan price
+            totalFeeElement.textContent = `${(parseFloat(totalFee) / 100).toFixed(2)} ${displayCurrency}`; // Convert cents to dollars
+            totalPayableElement.textContent = `${(totalPayable / 100).toFixed(2)} ${displayCurrency}`; // Convert cents to dollars
             cryptoAmountElement.textContent = `${parseFloat(data.data.withdrawAmount).toFixed(4)} USDT`;
             exchangeRateElement.textContent = `Exchange Rate: 1 ${data.data.fiatTicker} = ${data.data.exchangeRate.toFixed(4)} USDT`;
 
@@ -412,7 +430,7 @@
             summaryBox.classList.remove('hidden');
             
             // Update button for Step 2
-            payButton.textContent = `Proceed to Pay $${(totalPayable / 100).toFixed(2)}`;
+            payButton.textContent = `Proceed to Pay ${displayCurrency}${(totalPayable / 100).toFixed(2)}`;
             payButton.classList.add('btn-primary');
             payButton.setAttribute('data-step', 'deposit'); // Mark as ready for deposit
             payButton.disabled = false;
@@ -423,8 +441,16 @@
             const payButton = document.getElementById('fiat-pay-button');
             const originalButtonText = payButton.textContent;
             const planPrice = data.priceUSD;
-            const currency = 'USD'; // Your hardcoded currency
-            const paymentCode = document.getElementById('fiat-payment-code').value;
+
+            // NEW: Get dynamic currency and payment code
+            const countryCode = document.getElementById('fiat-country').value;
+            if (!countryCode) {
+                 showMessage('fiat-message-box', 'Please select your country/region.');
+                 return;
+            }
+            const countryConfig = COUNTRY_PAYMENT_MAP[countryCode] || COUNTRY_PAYMENT_MAP['DEFAULT'];
+            const currency = countryConfig.currency;
+            const paymentCode = countryConfig.paymentCode;
 
             payButton.disabled = true;
             payButton.textContent = 'Calculating Rate...';
@@ -466,13 +492,20 @@
                 return;
             }
 
+            // NEW: Get dynamic country, currency, and payment code
+            const countryCode = document.getElementById('fiat-country').value || 'US';
+            const countryConfig = COUNTRY_PAYMENT_MAP[countryCode] || COUNTRY_PAYMENT_MAP['DEFAULT'];
+            const paymentCode = countryConfig.paymentCode;
+            const payCurrency = countryConfig.currency; // The fiat currency
+
             const payload = {
                 ...data,
                 // The amount passed to the deposit endpoint must be the fiatAmount in CENTS from the quote
                 amount: currentQuote.fiatAmount, 
                 quoteId: currentQuote.quoteId,
-                paymentCode: document.getElementById('fiat-payment-code').value,
-                pay_currency: 'USD' // Hardcode to USD
+                paymentCode: paymentCode, // NEW: Pass the dynamic paymentCode
+                pay_currency: payCurrency, // NEW: Pass the dynamic currency
+                country: countryCode // NEW: Pass the selected country code
             };
 
             try {
@@ -488,12 +521,15 @@
                     // Success: Redirect the user to the TransFi hosted payment page
                     window.location.href = result.redirectUrl;
                 } else {
+                    const displayCurrency = countryConfig.currency;
                     throw new Error(result.message || (result.details && result.details.message) || 'Failed to initiate payment.');
+                    payButton.textContent = `Proceed to Pay ${displayCurrency}${(currentQuote.fiatAmount / 100).toFixed(2)}`;
                 }
             } catch (error) {
+                const displayCurrency = countryConfig.currency;
                 showMessage('fiat-message-box', `Payment Initiation Error: ${error.message}`);
                 payButton.disabled = false;
-                payButton.textContent = `Proceed to Pay $${(currentQuote.fiatAmount / 100).toFixed(2)}`;
+                payButton.textContent = `Proceed to Pay ${displayCurrency}${(currentQuote.fiatAmount / 100).toFixed(2)}`;
             }
         }
 
@@ -539,6 +575,23 @@
         const fiatPayButton = document.getElementById('fiat-pay-button');
         fiatPayButton.setAttribute('data-step', 'rate');
         fiatPayButton.textContent = 'Calculate Final Price & Fees';
+
+        // --- NEW: Country Selection Listener (Section B.4) ---
+        document.getElementById('fiat-country').addEventListener('change', (e) => {
+            const countryCode = e.target.value;
+            const config = COUNTRY_PAYMENT_MAP[countryCode] || COUNTRY_PAYMENT_MAP['DEFAULT'];
+            
+            // Update the currency info label
+            document.getElementById('fiat-currency-info').textContent = `Currency: ${config.currency} | Payment Rail: ${config.paymentCode.replace('_', ' ').toUpperCase()}`;
+            
+            // Reset the rate/deposit state so the user must re-calculate the rate
+            const payButton = document.getElementById('fiat-pay-button');
+            payButton.setAttribute('data-step', 'rate');
+            payButton.textContent = 'Calculate Final Price & Fees';
+            document.getElementById('rate-summary-box').classList.add('hidden');
+            currentQuote = null;
+            showMessage('fiat-message-box', '', false);
+        });
 
 
         // --- CRYPTO Payment Logic ---
