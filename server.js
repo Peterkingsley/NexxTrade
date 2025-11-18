@@ -61,7 +61,6 @@ import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import cron from 'node-cron';
 import 'dotenv/config'; // Load environment variables
-const axios = require('axios');
 
 // 3. Database Connection Pool Initialization (This defines 'db')
 const db = new Pool({
@@ -957,66 +956,60 @@ app.get('/api/dashboard/stats', async (req, res) => {
 // =================================================================
 
 // ==========================================================
-// NEW CODE TO ADD: TransFi User Creation/Verification Function
-// Fixes 'USER_NOT_FOUND' error by ensuring user exists on TransFi
+// CORRECTED FUNCTION TO REPLACE YOUR EXISTING createOrUpdateTransfiUser
+// This uses 'fetch' and removes the 'axios' dependency.
 // ==========================================================
 /**
- * Creates or updates an individual user in TransFi's system.
- * It handles the case where the user already exists ('CONFLICT').
+ * Creates or retrieves an individual user in TransFi's system using the User API.
  * @param {object} userData - User details (email, firstName, lastName, dateOfBirth, country).
  * @returns {Promise<string>} The TransFi userId.
  */
 async function createOrUpdateTransfiUser(userData) {
     const { email, firstName, lastName, dateOfBirth, country } = userData;
     
-    // --- Configuration ---
-    // Ensure you have these environment variables set in your .env:
-    // TRANSFI_BASE_URL (e.g., https://api.transfi.com or https://sandbox-api.transfi.com)
-    // TRANSFI_AUTH_TOKEN (Your Base64 encoded 'API_KEY:SECRET' or similar)
-    // TRANSFI_MID_VALUE (Your Merchant ID)
-    const headers = {
-        'accept': 'application/json',
-        'content-type': 'application/json',
-        'Authorization': `Basic ${process.env.TRANSFI_AUTH_TOKEN}`,
-        'MID': process.env.TRANSFI_MID_VALUE, // Ensure you include your Merchant ID
-    };
-
-    // Payload for the Individual User Creation API (POST /v2/users/individual)
     const userPayload = {
-        email: email,
-        firstName: firstName,
-        lastName: lastName,
-        // The 'date' (Date of Birth) field is often required for deposit (on-ramp) flows
-        date: dateOfBirth, // IMPORTANT: Check TransFi docs for the required format (e.g., DD-MM-YYYY)
-        country: country
+        email,
+        firstName,
+        lastName,
+        date: dateOfBirth, // Format must be DD-MM-YYYY
+        country,
     };
 
     try {
-        const response = await axios.post(
-            `${process.env.TRANSFI_BASE_URL}/v2/users/individual`,
-            userPayload,
-            { headers: headers }
-        );
-
+        const response = await fetch(`${process.env.TRANSFI_BASE_URL}/v2/users/individual`, {
+            method: "POST",
+            headers: {
+                "Authorization": createTransfiAuthToken(), // Assumes this helper is defined
+                "Content-Type": "application/json",
+                "MID": process.env.TRANSFI_MID,
+            },
+            body: JSON.stringify(userPayload)
+        });
+        
+        const data = await response.json();
+        
         // Success: User created
-        if (response.data && response.data.userId) {
-            console.log(`[TransFi] User created/found successfully. UserID: ${response.data.userId}`);
-            return response.data.userId;
+        if (response.ok && data.userId) {
+            console.log(`[TransFi] New user created. UserID: ${data.userId}`);
+            return data.userId;
+        } 
+        
+        // Handle CONFLICT (User already exists)
+        if (data.code === 'CONFLICT' && data.userId) {
+            console.log(`[TransFi] User already exists. Using existing UserID: ${data.userId}`);
+            return data.userId;
         }
+    
+        // Throw error for other failures
+        console.error('[TransFi User Creation Error]', data);
+        throw new Error(data.message || `Failed to create or verify user with TransFi. Code: ${data.code}`);
 
     } catch (error) {
-        // TransFi returns a CONFLICT error if the user already exists. We check for that
-        // to retrieve the existing userId and proceed.
-        if (error.response && error.response.data && error.response.data.code === 'CONFLICT' && error.response.data.userId) {
-            console.log(`[TransFi] User already exists. Using existing UserID: ${error.response.data.userId}`);
-            return error.response.data.userId;
-        }
-
-        // Handle other API errors
-        console.error('[TransFi User Creation Error]', error.response ? error.response.data : error.message);
-        throw new Error(`Failed to create or verify user with TransFi: ${error.response ? error.response.data.message || 'Unknown API Error' : error.message}`);
+        console.error('[TransFi User Creation Error] Network or Parsing Issue:', error.message);
+        throw new Error(`Failed to create or verify user with TransFi: ${error.message}`);
     }
 }
+// ==========================================================
 // ==========================================================
 
 // Make sure 'fetch' is available.
