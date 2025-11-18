@@ -462,9 +462,9 @@
                 });
                 const result = await response.json();
 
-                if (response.ok && result.status === 'SUCCESS') {
-                    updateRateSummary(result, planPrice);
-                    showMessage('fiat-message-box', 'Rate calculated. Click "Proceed to Pay" to continue.', true);
+                if (response.ok && result.status && result.status.toUpperCase() === 'SUCCESS') { 
+            updateRateSummary(result, planPrice);
+            showMessage('fiat-message-box', 'Rate calculated. Click "Proceed to Pay" to continue.', true);
                 } else {
                     throw new Error(result.message || (result.details && result.details.message) || 'Failed to calculate rate.');
                 }
