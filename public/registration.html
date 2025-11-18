@@ -598,9 +598,10 @@
 
                 const result = await response.json();
 
-                if (response.ok && result.redirectUrl) {
+                // 🚨 CRITICAL FIX: Check for the TransFi payment URL, not the redirect URL
+                if (response.ok && result.paymentUrl) {
                     // Success: Redirect the user to the TransFi hosted payment page
-                    window.location.href = result.redirectUrl;
+                    window.location.href = result.paymentUrl;
                 } else {
                     const displayCurrency = countryConfig.currency;
                     // Fallback to error message from response or generic failure
@@ -634,7 +635,7 @@
                 date_of_birth: formatDateForTransFi(document.getElementById('fiat-dob').value), 
                 telegram: document.getElementById('fiat-telegram').value,
                 whatsapp_number: document.getElementById('fiat-whatsapp').value,
-                planName: plans[selectedPlanKey].name, 
+                planName: plans[selectedPlanKey].name,
                 priceUSD: plans[selectedPlanKey].priceUSD, // Used for rate calculation call
                 referral_code: referralCode,
                 // FIX: Correctly mapped address fields
