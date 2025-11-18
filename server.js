@@ -1090,7 +1090,8 @@ app.post('/api/transfi/deposit', async (req, res) => {
             firstName: firstName,
             lastName: lastName,
             dateOfBirth: date_of_birth,
-            country: country
+            country: country,
+            phone: whatsapp_number // 🚨 FIX: Pass the whatsapp_number here
         });
         
     } catch (error) {
