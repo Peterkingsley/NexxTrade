@@ -279,7 +279,7 @@
         let selectedNetwork = null;
         let paymentCheckInterval = null;
         let referralCode = null;
-        let currentQuote = null; // New variable to store the exchange rate quote from TransFi
+        let currentQuote = null; // Variable to store the exchange rate quote from TransFi
 
         // NEW: Map country codes to their corresponding currency and TransFi payment codes
         const COUNTRY_PAYMENT_MAP = {
@@ -408,29 +408,29 @@
         backToSelectionBtns.forEach(btn => btn.addEventListener('click', () => {
             if (paymentCheckInterval) clearInterval(paymentCheckInterval);
             clearSessionState();
-            currentQuote = null; // Add this line inside the backToSelectionBtns.forEach callback:
+            currentQuote = null; 
             switchView(methodSelectionContainer);
         }));
 
         // ==========================================================
-// CODE TO ADD: Date Formatting Helper
-// ==========================================================
-/**
- * Formats YYYY-MM-DD date string from HTML input to TransFi's preferred DD-MM-YYYY.
- * @param {string} dateString - Date string from HTML input (YYYY-MM-DD).
- * @returns {string} Formatted date (DD-MM-YYYY) or empty string if invalid.
- */
-function formatDateForTransFi(dateString) {
-    if (!dateString) return '';
-    try {
-        const [year, month, day] = dateString.split('-');
-        return `${day}-${month}-${year}`;
-    } catch (e) {
-        console.error("Date formatting failed:", e);
-        return dateString; // Fallback
-    }
-}
-// ==========================================================
+        // CODE TO ADD: Date Formatting Helper
+        // ==========================================================
+        /**
+         * Formats YYYY-MM-DD date string from HTML input to TransFi's preferred DD-MM-YYYY.
+         * @param {string} dateString - Date string from HTML input (YYYY-MM-DD).
+         * @returns {string} Formatted date (DD-MM-YYYY) or empty string if invalid.
+         */
+        function formatDateForTransFi(dateString) {
+            if (!dateString) return '';
+            try {
+                const [year, month, day] = dateString.split('-');
+                return `${day}-${month}-${year}`;
+            } catch (e) {
+                console.error("Date formatting failed:", e);
+                return dateString; // Fallback
+            }
+        }
+        // ==========================================================
 
         // --- FIAT Payment Logic (Replaced) ---
 
@@ -500,8 +500,8 @@ function formatDateForTransFi(dateString) {
                 const result = await response.json();
 
                 if (response.ok && result.status && result.status.toUpperCase() === 'SUCCESS') { 
-            updateRateSummary(result, planPrice);
-            showMessage('fiat-message-box', 'Rate calculated. Click "Proceed to Pay" to continue.', true);
+                    updateRateSummary(result, planPrice);
+                    showMessage('fiat-message-box', 'Rate calculated. Click "Proceed to Pay" to continue.', true);
                 } else {
                     throw new Error(result.message || (result.details && result.details.message) || 'Failed to calculate rate.');
                 }
@@ -532,29 +532,43 @@ function formatDateForTransFi(dateString) {
             // NEW: Get dynamic country, currency, and payment code
             const countryCode = document.getElementById('fiat-country').value || 'US';
             const countryConfig = COUNTRY_PAYMENT_MAP[countryCode] || COUNTRY_PAYMENT_MAP['DEFAULT'];
-            const paymentCode = countryConfig.paymentCode;
-            const payCurrency = countryConfig.currency; // The fiat currency
 
+            // 🚨 FIX: Split Full Name into First and Last Name (TransFi requirement)
+            const fullName = document.getElementById('fiat-fullname').value.trim();
+            const nameParts = fullName.split(/\s+/);
+            const firstName = nameParts[0] || 'N/A';
+            const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : 'N/A';
+
+
+            // 🚨 CRITICAL FIXES 1, 2, & 3 APPLIED HERE
             const payload = {
-                ...data,
-                fullname: document.getElementById('fiat-fullname').value,
-    email: document.getElementById('fiat-email').value,
-    telegram: document.getElementById('fiat-telegram').value,
-    whatsapp_number: document.getElementById('fiat-whatsapp').value,
+                // --- User/Contact Details (TransFi expects firstName, lastName, phone, dateOfBirth) ---
+                firstName: firstName,
+                lastName: lastName,
+                email: document.getElementById('fiat-email').value,
+                phone: document.getElementById('fiat-whatsapp').value, // TransFi uses 'phone' for the contact number
+                telegram: document.getElementById('fiat-telegram').value,
+                
+                // --- Address and DOB (Required by TransFi) ---
+                dateOfBirth: formatDateForTransFi(document.getElementById('fiat-dob').value), // Correctly formatted DD-MM-YYYY
+                country: countryCode, // ISO 2-letter code
+                address: { // TransFi requires address fields nested under 'address'
+                    addressLine1: document.getElementById('fiat-address1').value,
+                    city: document.getElementById('fiat-city').value,
+                    zipCode: document.getElementById('fiat-zip').value,
+                    country: countryCode // Redundant but safe to include
+                },
 
-    // 🔥 FIX: Correctly mapped address fields
-    addressLine1: document.getElementById('fiat-address1').value,
-    city: document.getElementById('fiat-city').value,
-    zipCode: document.getElementById('fiat-zip').value,
+                // --- Payment/Order Details (FIXED variables) ---
+                planName: plans[selectedPlanKey].name, // FIX 1: Used plans[selectedPlanKey]
+                pay_currency: countryConfig.currency, // FIX 1: Used countryConfig.currency
+                quoteId: currentQuote.quoteId,
+                paymentCode: countryConfig.paymentCode, // FIX 1 & 2: Used countryConfig.paymentCode
+                amount: currentQuote.fiatAmount, // Amount in CENTS
+                referral_code: referralCode,
 
-    date_of_birth: formatDateForTransFi(document.getElementById('fiat-dob').value),
-    planName: selectedPlan.name,
-    pay_currency: selectedCurrency,
-    country: document.getElementById('fiat-country').value,
-    quoteId: currentQuote.quoteId,
-    paymentCode: countryPaymentCode,
-    amount: currentQuote.fiatAmount,
-    referral_code: referralCode
+                // Add additional metadata for your own backend to track
+                whatsapp_number: document.getElementById('fiat-whatsapp').value,
             };
 
             try {
@@ -571,8 +585,10 @@ function formatDateForTransFi(dateString) {
                     window.location.href = result.redirectUrl;
                 } else {
                     const displayCurrency = countryConfig.currency;
+                    // Fallback to error message from response or generic failure
                     throw new Error(result.message || (result.details && result.details.message) || 'Failed to initiate payment.');
-                    payButton.textContent = `Proceed to Pay ${displayCurrency}${(currentQuote.fiatAmount / 100).toFixed(2)}`;
+                    // This line below is now unreachable due to the throw above, but was here for clarity:
+                    // payButton.textContent = `Proceed to Pay ${displayCurrency}${(currentQuote.fiatAmount / 100).toFixed(2)}`;
                 }
             } catch (error) {
                 const displayCurrency = countryConfig.currency;
@@ -593,25 +609,23 @@ function formatDateForTransFi(dateString) {
             }
             
             // ==========================================================
+            // Gather all data required for both steps (used for validation before rate call)
             // ==========================================================
-            // CODE TO REPLACE THE EXISTING formData OBJECT (around line 324)
-            // ==========================================================
-            // Gather all data required for both steps
             const formData = {
                 fullname: document.getElementById('fiat-fullname').value,
                 email: document.getElementById('fiat-email').value,
-                // 🚨 NEW: Format DOB correctly for TransFi (DD-MM-YYYY)
+                // NEW: Format DOB correctly for TransFi (DD-MM-YYYY)
                 date_of_birth: formatDateForTransFi(document.getElementById('fiat-dob').value), 
                 telegram: document.getElementById('fiat-telegram').value,
                 whatsapp_number: document.getElementById('fiat-whatsapp').value,
                 planName: plans[selectedPlanKey].name, 
                 priceUSD: plans[selectedPlanKey].priceUSD, // Used for rate calculation call
                 referral_code: referralCode,
-                // 🔥 FIX: Correctly mapped address fields
+                // FIX: Correctly mapped address fields
                 addressLine1: document.getElementById('fiat-address1').value,
                 city: document.getElementById('fiat-city').value,
                 zipCode: document.getElementById('fiat-zip').value,
-                // 🚨 NEW: Include country in the initial data object
+                // NEW: Include country in the initial data object
                 country: document.getElementById('fiat-country').value 
             };
             // ==========================================================
@@ -624,7 +638,7 @@ function formatDateForTransFi(dateString) {
 
             // Check if the deposit step is ready
             if (payButton.getAttribute('data-step') === 'deposit' && currentQuote) {
-                // Step 2: Create Deposit Order
+                // Step 2: Create Deposit Order (uses collected form data for user info)
                 await createDepositOrder(formData);
             } else {
                 // Step 1: Fetch and Display Rate
@@ -832,10 +846,8 @@ function formatDateForTransFi(dateString) {
         }
 
         // --- Initialization ---
-        captureReferralCode(); // <-- Add this call
+        captureReferralCode(); 
         fetchAndPopulatePlans();
         checkForExistingState();
     });
   </script>
-</body>
-</html>
