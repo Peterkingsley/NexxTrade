@@ -140,6 +140,11 @@
                     <label for="fiat-telegram" class="block text-sm font-medium mb-1 text-muted">Telegram Username</label>
                     <input type="text" id="fiat-telegram" placeholder="@yourhandle" class="input-field" required>
                 </div>
+                <div>
+                    <label for="fiat-dob" class="block text-sm font-medium mb-1 text-muted">Date of Birth</label>
+                    <input type="date" id="fiat-dob" class="input-field" required>
+                    <p class="text-xs text-muted mt-1">Required for regulatory checks (format is DD-MM-YYYY).</p>
+                </div>
                  <div>
                     <label for="fiat-whatsapp" class="block text-sm font-medium mb-1 text-muted">WhatsApp Number</label>
                     <input type="tel" id="fiat-whatsapp" placeholder="+1234567890" class="input-field" required>
@@ -395,6 +400,26 @@
             switchView(methodSelectionContainer);
         }));
 
+        // ==========================================================
+// CODE TO ADD: Date Formatting Helper
+// ==========================================================
+/**
+ * Formats YYYY-MM-DD date string from HTML input to TransFi's preferred DD-MM-YYYY.
+ * @param {string} dateString - Date string from HTML input (YYYY-MM-DD).
+ * @returns {string} Formatted date (DD-MM-YYYY) or empty string if invalid.
+ */
+function formatDateForTransFi(dateString) {
+    if (!dateString) return '';
+    try {
+        const [year, month, day] = dateString.split('-');
+        return `${day}-${month}-${year}`;
+    } catch (e) {
+        console.error("Date formatting failed:", e);
+        return dateString; // Fallback
+    }
+}
+// ==========================================================
+
         // --- FIAT Payment Logic (Replaced) ---
 
         // Function to update the rate summary box and prepare for deposit
@@ -543,16 +568,24 @@
                 return;
             }
             
-            // Gather all data required for both steps
-            const formData = {
-                fullname: document.getElementById('fiat-fullname').value,
-                email: document.getElementById('fiat-email').value,
-                telegram: document.getElementById('fiat-telegram').value,
-                whatsapp_number: document.getElementById('fiat-whatsapp').value,
-                planName: plans[selectedPlanKey].name, 
-                priceUSD: plans[selectedPlanKey].priceUSD, // Used for rate calculation call
-                referral_code: referralCode
-            };
+            // ==========================================================
+// CODE TO REPLACE THE EXISTING formData OBJECT (around line 324)
+// ==========================================================
+// Gather all data required for both steps
+const formData = {
+    fullname: document.getElementById('fiat-fullname').value,
+    email: document.getElementById('fiat-email').value,
+    // 🚨 NEW: Format DOB correctly for TransFi (DD-MM-YYYY)
+    date_of_birth: formatDateForTransFi(document.getElementById('fiat-dob').value), 
+    telegram: document.getElementById('fiat-telegram').value,
+    whatsapp_number: document.getElementById('fiat-whatsapp').value,
+    planName: plans[selectedPlanKey].name, 
+    priceUSD: plans[selectedPlanKey].priceUSD, // Used for rate calculation call
+    referral_code: referralCode,
+    // 🚨 NEW: Include country in the initial data object
+    country: document.getElementById('fiat-country').value 
+};
+// ==========================================================
 
             // Check form validation manually for required fields before making any API call
             if (!fiatCheckoutForm.checkValidity()) {

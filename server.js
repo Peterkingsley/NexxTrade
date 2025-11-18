@@ -955,6 +955,69 @@ app.get('/api/dashboard/stats', async (req, res) => {
 // --- START: Fiat Payment API Routes (Now with TransFi) ---
 // =================================================================
 
+// ==========================================================
+// NEW CODE TO ADD: TransFi User Creation/Verification Function
+// Fixes 'USER_NOT_FOUND' error by ensuring user exists on TransFi
+// ==========================================================
+/**
+ * Creates or updates an individual user in TransFi's system.
+ * It handles the case where the user already exists ('CONFLICT').
+ * @param {object} userData - User details (email, firstName, lastName, dateOfBirth, country).
+ * @returns {Promise<string>} The TransFi userId.
+ */
+async function createOrUpdateTransfiUser(userData) {
+    const { email, firstName, lastName, dateOfBirth, country } = userData;
+    
+    // --- Configuration ---
+    // Ensure you have these environment variables set in your .env:
+    // TRANSFI_BASE_URL (e.g., https://api.transfi.com or https://sandbox-api.transfi.com)
+    // TRANSFI_AUTH_TOKEN (Your Base64 encoded 'API_KEY:SECRET' or similar)
+    // TRANSFI_MID_VALUE (Your Merchant ID)
+    const headers = {
+        'accept': 'application/json',
+        'content-type': 'application/json',
+        'Authorization': `Basic ${process.env.TRANSFI_AUTH_TOKEN}`,
+        'MID': process.env.TRANSFI_MID_VALUE, // Ensure you include your Merchant ID
+    };
+
+    // Payload for the Individual User Creation API (POST /v2/users/individual)
+    const userPayload = {
+        email: email,
+        firstName: firstName,
+        lastName: lastName,
+        // The 'date' (Date of Birth) field is often required for deposit (on-ramp) flows
+        date: dateOfBirth, // IMPORTANT: Check TransFi docs for the required format (e.g., DD-MM-YYYY)
+        country: country
+    };
+
+    try {
+        const response = await axios.post(
+            `${process.env.TRANSFI_BASE_URL}/v2/users/individual`,
+            userPayload,
+            { headers: headers }
+        );
+
+        // Success: User created
+        if (response.data && response.data.userId) {
+            console.log(`[TransFi] User created/found successfully. UserID: ${response.data.userId}`);
+            return response.data.userId;
+        }
+
+    } catch (error) {
+        // TransFi returns a CONFLICT error if the user already exists. We check for that
+        // to retrieve the existing userId and proceed.
+        if (error.response && error.response.data && error.response.data.code === 'CONFLICT' && error.response.data.userId) {
+            console.log(`[TransFi] User already exists. Using existing UserID: ${error.response.data.userId}`);
+            return error.response.data.userId;
+        }
+
+        // Handle other API errors
+        console.error('[TransFi User Creation Error]', error.response ? error.response.data : error.message);
+        throw new Error(`Failed to create or verify user with TransFi: ${error.response ? error.response.data.message || 'Unknown API Error' : error.message}`);
+    }
+}
+// ==========================================================
+
 // Make sure 'fetch' is available.
 const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
 
@@ -1004,21 +1067,48 @@ app.get('/api/transfi/rate', async (req, res) => {
     }
 });
 
-// 2) CREATE TRANSFI ORDER: POST /api/transfi/deposit (This replaces the old /api/payments/fiat/create)
+// 2) CREATE TRANSFI ORDER: POST /api/transfi/deposit
 // Purpose: Create the order, handle user registration/update, and get the TransFi paymentUrl.
 app.post('/api/transfi/deposit', async (req, res) => {
     // Note: 'amount' here is expected to be in CENTS as returned by the rate API.
-    const { fullname, email, firstName, lastName, telegram, whatsapp_number, planName, pay_currency, amount, quoteId, paymentCode, country } = req.body; // MODIFIED: Added 'country'
+    const { fullname, email, date_of_birth, telegram, whatsapp_number, planName, pay_currency, amount, quoteId, paymentCode, country, referral_code } = req.body; 
 
-    if (!fullname || !email || !telegram || !planName || !amount || !quoteId || !paymentCode) {
-        return res.status(400).json({ message: 'Missing required information for payment initiation.' });
+    // --- 1. Validation (CRITICAL: Validate fields needed for TransFi User API) ---
+    if (!fullname || !email || !telegram || !planName || !amount || !quoteId || !paymentCode || !country || !date_of_birth) {
+        // Added country and date_of_birth to the validation check
+        return res.status(400).json({ message: 'Missing required information for payment initiation (fullname, email, date_of_birth, country, telegram, planName, amount, quoteId, or paymentCode).' });
     }
 
-    // getReferrerId is an existing function in your server.js
-    const referrerId = await getReferrerId(req.body.referral_code);
+    const referrerId = await getReferrerId(referral_code);
+    
+    // --- 2. Prepare User Data for TransFi ---
+    const nameParts = fullname.split(/\s+/);
+    const firstName = nameParts.shift() || 'User'; 
+    const lastName = nameParts.join(' ') || 'Name'; 
+    let transfiUserId;
 
     try {
-        // *** Your existing database logic to find or create a user is integrated here ***
+        // 3. 🚨 FIX: Call the User API FIRST to create/verify the user.
+        // This MUST happen before the Deposit API call to avoid 'USER_NOT_FOUND'.
+        transfiUserId = await createOrUpdateTransfiUser({
+            email: email,
+            firstName: firstName,
+            lastName: lastName,
+            dateOfBirth: date_of_birth,
+            country: country
+        });
+        
+    } catch (error) {
+        // If user creation fails, do not proceed with deposit
+        console.error('Pre-deposit TransFi user setup failed:', error.message);
+        return res.status(500).json({ 
+            message: 'User registration failed on TransFi. Please check user details and try again.', 
+            details: error.message 
+        });
+    }
+
+    try {
+        // *** Your existing database logic to find or create a user ***
         const order_id = `nexxtrade-web-${Date.now()}`;
         let emailForDb = email;
 
@@ -1037,45 +1127,41 @@ app.post('/api/transfi/deposit', async (req, res) => {
         } else {
             const emailConflictQuery = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
             if (emailConflictQuery.rows.length > 0) {
+                // Using crypto.randomBytes assumes you have required the 'crypto' module
                 emailForDb = `${telegram.replace('@', '')}.${crypto.randomBytes(3).toString('hex')}@telegram.user`;
             }
             const registrationDate = new Date().toISOString().split('T')[0];
             await pool.query(
                 `INSERT INTO users (full_name, email, telegram_handle, plan_name, subscription_status, registration_date, order_id, payment_attempts, last_payment_attempt, registration_source, whatsapp_number, referred_by) 
-                VALUES ($1, $2, $3, $4, 'pending', $5, $6, 1, NOW(), 'web', $7, $8)`,
+                 VALUES ($1, $2, $3, $4, 'pending', $5, $6, 1, NOW(), 'web', $7, $8)`,
                 [fullname, emailForDb, telegram, planName, registrationDate, order_id, whatsapp_number, referrerId]
             );
         }
 
-        // *** TransFi API Call ***
-        const nameParts = fullname.split(' ');
-    const firstName = nameParts.shift() || 'User'; 
-    const lastName = nameParts.join(' ') || 'Name'; 
-
-    const transfiPayload = {
-        orderId: order_id, // Our unique order ID
-        firstName: firstName,
-        lastName: lastName,
-        email: email,
-        country: country, // MODIFIED: Use the dynamic 'country' from the request
-        amount: parseFloat(amount),
-        paymentType: "bank_transfer", 
-        currency: pay_currency, // MODIFIED: Use the dynamic 'pay_currency' from the request
-        paymentCode: paymentCode, // MODIFIED: Use the dynamic 'paymentCode' from the request
-        purposeCode: "expense_or_medical_reimbursement",
-        quoteId: quoteId, 
-        // Note: Updated redirectUrl to include the order_id for status tracking
-        redirectUrl: `${process.env.APP_BASE_URL}/join?payment=pending&order_id=${order_id}`, 
-        partnerContext: {
-            planName: planName,
-            telegramHandle: telegram
-        },
-        withdrawDetails: {
-            cryptoTicker: "USDT",
-            walletAddress: process.env.TRANSFI_WITHDRAWAL_WALLET_ADDRESS,
-            network: "TRX", // Assuming TRON/TRC20
-        }
-    };
+        // --- 4. TransFi Deposit API Call ---
+        const transfiPayload = {
+            orderId: order_id, // Our unique order ID
+            firstName: firstName,
+            lastName: lastName,
+            email: email, 
+            country: country, 
+            amount: parseFloat(amount),
+            paymentType: "bank_transfer", 
+            currency: pay_currency, 
+            paymentCode: paymentCode, 
+            purposeCode: "expense_or_medical_reimbursement",
+            quoteId: quoteId, 
+            redirectUrl: `${process.env.APP_BASE_URL}/join?payment=pending&order_id=${order_id}`, 
+            partnerContext: {
+                planName: planName,
+                telegramHandle: telegram
+            },
+            withdrawDetails: {
+                cryptoTicker: "USDT",
+                walletAddress: process.env.TRANSFI_WITHDRAWAL_WALLET_ADDRESS,
+                network: "TRX", 
+            }
+        };
 
         const response = await fetch(`${process.env.TRANSFI_BASE_URL}/v2/orders/deposit`, {
             method: "POST",
@@ -1091,20 +1177,21 @@ app.post('/api/transfi/deposit', async (req, res) => {
         
         if (!response.ok || data.status !== 'SUCCESS') {
             console.error('TransFi Deposit API Error:', data);
-            return res.status(response.status).json({ message: data.message || "Failed to create deposit order.", details: data });
+            return res.status(response.status || 500).json({ message: data.message || "Failed to create deposit order.", details: data });
         }
 
         // Success: Redirect the user to the TransFi payment page
         res.json({ 
             message: 'Payment order created successfully.',
-            redirectUrl: data.data.paymentUrl // This is the TransFi hosted URL
+            redirectUrl: data.data.paymentUrl 
         });
 
     } catch (err) {
-        console.error('Error creating TransFi deposit order:', err);
+        console.error('Server error while initiating TransFi payment:', err);
         res.status(500).json({ message: 'Server error while initiating TransFi payment.' });
     }
 });
+
 // =================================================================
 // --- START: TransFi Webhook Handler ---
 // =================================================================
