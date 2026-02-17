@@ -162,6 +162,7 @@ async function manageExpiredSubscriptions() {
             try {
                 // 1. Attempt to kick user from the Telegram group
                 await bot.kickChatMember(user.telegram_group_id, user.telegram_user_id);
+                await bot.unbanChatMember(user.telegram_group_id, user.telegram_user_id);
                 console.log(`Successfully kicked ${user.telegram_handle} (ID: ${user.telegram_user_id}) from group ${user.telegram_group_id}.`);
 
                 // 2. Attempt to send a notification to the user's private chat
@@ -1245,10 +1246,20 @@ app.post('/api/payments/transfi/webhook', async (req, res) => {
             const today = new Date();
             let newExpiration = new Date(today);
             
-            if (plan.term.toLowerCase().includes('month')) newExpiration.setMonth(newExpiration.getMonth() + 1);
-            if (plan.term.toLowerCase().includes('quarter')) newExpiration.setMonth(newExpiration.getMonth() + 3);
-            if (plan.term.toLowerCase().includes('year')) newExpiration.setFullYear(newExpiration.getFullYear() + 1);
-            if (plan.term.toLowerCase().includes('bi-annually')) newExpiration.setMonth(newExpiration.getMonth() + 6);
+            let monthsToAdd = 1;
+            const trimmedPlanName = plan.plan_name.trim();
+            if (trimmedPlanName === 'Pro') monthsToAdd = 3;
+            else if (trimmedPlanName === 'Elite') monthsToAdd = 6;
+            else if (trimmedPlanName === 'Basic') monthsToAdd = 1;
+            else {
+                if (plan.term.toLowerCase().includes('month')) {
+                    const match = plan.term.match(/(\d+)\s*month/);
+                    monthsToAdd = match ? parseInt(match[1]) : 1;
+                } else if (plan.term.toLowerCase().includes('year')) {
+                    monthsToAdd = 12;
+                }
+            }
+            newExpiration.setMonth(newExpiration.getMonth() + monthsToAdd);
 
             await pool.query(
                 `UPDATE users SET subscription_status = 'active', subscription_expiration = $1 WHERE id = $2`,
@@ -1618,10 +1629,20 @@ app.post('/api/payments/nowpayments/webhook', async (req, res) => {
                 const today = new Date();
                 let newExpiration = new Date(today);
                 
-                if (plan.term.toLowerCase().includes('month')) newExpiration.setMonth(newExpiration.getMonth() + 1);
-                if (plan.term.toLowerCase().includes('quarter')) newExpiration.setMonth(newExpiration.getMonth() + 3);
-                if (plan.term.toLowerCase().includes('year')) newExpiration.setFullYear(newExpiration.getFullYear() + 1);
-                if (plan.term.toLowerCase().includes('bi-annually')) newExpiration.setMonth(newExpiration.getMonth() + 6);
+                let monthsToAdd = 1;
+                const trimmedPlanName = plan.plan_name.trim();
+                if (trimmedPlanName === 'Pro') monthsToAdd = 3;
+                else if (trimmedPlanName === 'Elite') monthsToAdd = 6;
+                else if (trimmedPlanName === 'Basic') monthsToAdd = 1;
+                else {
+                    if (plan.term.toLowerCase().includes('month')) {
+                        const match = plan.term.match(/(\d+)\s*month/);
+                        monthsToAdd = match ? parseInt(match[1]) : 1;
+                    } else if (plan.term.toLowerCase().includes('year')) {
+                        monthsToAdd = 12;
+                    }
+                }
+                newExpiration.setMonth(newExpiration.getMonth() + monthsToAdd);
 
 
                 await pool.query(
@@ -2145,8 +2166,57 @@ app.get('/*', (req, res) => {
 });
 
 
+
+async function runOneTimeAdjustment() {
+    console.log("Starting one-time subscription adjustment...");
+    const client = await pool.connect();
+    try {
+        // 1. Trim plan names
+        await client.query("UPDATE pricingplans SET plan_name = TRIM(plan_name)");
+        await client.query("UPDATE users SET plan_name = TRIM(plan_name)");
+
+        // 2. Fetch all active users
+        const { rows: users } = await client.query("SELECT * FROM users WHERE subscription_status = 'active'");
+
+        for (const user of users) {
+            // Fetch plan details
+            const planResult = await client.query("SELECT * FROM pricingplans WHERE plan_name = $1", [user.plan_name]);
+            if (planResult.rows.length === 0) continue;
+            const plan = planResult.rows[0];
+
+            // Determine correct duration
+            let months = 1;
+            if (plan.plan_name === 'Pro') months = 3;
+            else if (plan.plan_name === 'Elite') months = 6;
+
+            // Recalculate expiration date from registration_date
+            if (!user.registration_date) continue;
+            const regDate = new Date(user.registration_date);
+            const correctExpDate = new Date(regDate);
+            correctExpDate.setMonth(correctExpDate.getMonth() + months);
+
+            const currentExpDate = user.subscription_expiration ? new Date(user.subscription_expiration) : null;
+
+            if (!currentExpDate || correctExpDate.toISOString().split('T')[0] !== currentExpDate.toISOString().split('T')[0]) {
+                console.log(`Updating expiration for user ${user.id} (${user.telegram_handle}): ${currentExpDate ? currentExpDate.toISOString().split('T')[0] : 'NULL'} -> ${correctExpDate.toISOString().split('T')[0]}`);
+                await client.query("UPDATE users SET subscription_expiration = $1 WHERE id = $2", [correctExpDate.toISOString().split('T')[0], user.id]);
+            }
+        }
+
+        // 3. Run the expired subscription manager to handle anyone who is now expired
+        await manageExpiredSubscriptions();
+
+        console.log("One-time adjustment completed.");
+    } catch (err) {
+        console.error("Adjustment failed:", err);
+    } finally {
+        client.release();
+    }
+}
+
 // Start the server
 app.listen(port, async () => {
   console.log(`Server is running on http://localhost:${port}`);
   await setupWebhook();
+  await runOneTimeAdjustment();
 });
