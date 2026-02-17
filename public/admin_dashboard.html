@@ -10,15 +10,15 @@
     <style>
         /* Custom CSS to match the original site's theme and styles */
         :root {
-            --bg: #f7f7f7;
-            --bg-2: #ffffff;
-            --text: #000000;
-            --muted: #15c243;
-            --accent: #1d06cd;
-            --accent-2: #fefcfc;
+            --bg: #0b0f14;
+            --bg-2: #0f141b;
+            --text: #e9edf3;
+            --muted: #a8b3c7;
+            --accent: #2ad678;
+            --accent-2: #f0c75e;
             --danger: #ff5d5d;
-            --line: #e8eef0;
-            --shadow: 0 8px 24px rgba(4, 3, 3, 0.35);
+            --line: #1b2330;
+            --shadow: 0 8px 24px rgba(0,0,0,.35);
             --radius: 16px;
             --radius-lg: 20px;
         }
@@ -131,33 +131,34 @@
         }
 
         th {
-            color: var(--text);
+            color: var(--muted);
             font-weight: 600;
             background: #0d1219;
         }
 
-        /* Message box styling */
-        .message-box {
-            padding: 16px;
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
+        /* Stats grid specific */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1.5rem;
+        }
+
+        /* Filter button styles */
+        .filter-btn {
+            padding: 8px 16px;
+            border-radius: 999px;
+            background: var(--bg-2);
+            border: 1px solid var(--line);
+            color: var(--muted);
+            font-size: 0.875rem;
             font-weight: 500;
-            margin-top: 1rem;
-            margin-bottom: 1rem;
+            transition: all 0.2s;
         }
 
-        .message-box.success {
-            background-color: rgba(42, 214, 120, 0.1);
-            color: var(--accent);
-            border: 1px solid rgba(42, 214, 120, 0.2);
-        }
-
-        .message-box.error {
-            background-color: rgba(255, 93, 93, 0.1);
-            color: var(--danger);
-            border: 1px solid rgba(255, 93, 93, 0.2);
+        .filter-btn.active {
+            background: var(--accent);
+            color: #04140a;
+            border-color: var(--accent);
         }
 
         /* Styles for the brand logo from index.html */
@@ -174,60 +175,38 @@
             display: block;
         }
 
-        /* Login-specific styles */
-        .login-container {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            padding: 1rem;
-        }
-
         /* Responsive-specific styles for mobile */
         @media (max-width: 768px) {
-            /* General mobile padding */
             .container {
                 padding-inline: 16px;
             }
 
-            /* Mobile-friendly header */
             .admin-header {
                 flex-direction: column;
-                align-items: flex-start;
+                gap: 1rem;
+                text-align: center;
             }
 
-            /* Responsive tab navigation */
             .tab-nav {
                 flex-wrap: wrap;
                 justify-content: center;
                 border-bottom: none;
                 gap: 8px;
             }
+
             .tab-nav .tab-btn {
                 flex: 1 1 auto;
-                border-bottom: 2px solid transparent; /* Keep for active state */
+                border-bottom: 2px solid transparent;
                 border-radius: 999px;
                 padding: 8px 16px;
+                text-align: center;
             }
+
             .tab-nav .tab-btn.active {
                 background-color: var(--line);
             }
 
-            /* --- NEW STYLES for buttons and filters --- */
-            .btn-sm {
-                padding: .5rem 1rem;
-                font-size: 0.875rem;
-            }
-
-            .filter-btn.active {
-                background: var(--line);
-                color: var(--text);
-                border-color: var(--line);
-            }
-            /* --- END OF NEW STYLES --- */
-
-            /* Mobile-friendly table overflow */
-            .card table {
+            table {
                 display: block;
                 width: 100%;
                 white-space: nowrap;
@@ -238,6 +217,7 @@
 </head>
 <body class="p-4 md:p-8">
     <div id="admin-panel" class="container space-y-8">
+        <!-- Header Section -->
         <div class="card p-4 md:p-6 flex justify-between items-center admin-header">
             <div class="flex items-center gap-4">
                 <a class="brand" href="/" aria-label="NexxTrade home">
@@ -246,209 +226,179 @@
                 </a>
             </div>
             <a href="/admin" id="logout-btn" class="btn btn-ghost">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
+                <i data-lucide="log-out" class="w-5 h-5"></i>
                 Log Out
             </a>
         </div>
 
-        <div class="flex flex-wrap border-b border-line gap-2 tab-nav">
+        <!-- Tab Navigation -->
+                <div class="flex flex-wrap border-b border-line gap-2 tab-nav">
             <a href="/admin/dashboard" class="tab-btn active">Dashboard</a>
             <a href="/admin/blogs" class="tab-btn">Manage Blogs</a>
             <a href="/admin/performance" class="tab-btn">Performance</a>
             <a href="/admin/pricing" class="tab-btn">Update Pricing</a>
-            <a href="/admin/affiliates" class="tab-btn">Affiliates</a>
             <a href="/admin/roles" class="tab-btn">Delegate Roles</a>
             <a href="/admin/notifications" class="tab-btn">Manage Notifications</a>
             <a href="/admin/payouts" class="tab-btn">Manage Payouts</a>
+            <a href="/admin/affiliates" class="tab-btn">Manage Affiliates</a>
         </div>
 
         <div class="space-y-8">
-            <h2 class="text-2xl font-semibold">Dashboard Overview</h2>
+            <!-- Active Users Stat Card -->
+            <div class="card p-6 flex flex-col items-center justify-center text-center space-y-2">
+                <h2 class="text-muted font-medium uppercase tracking-wider text-sm">Total Active Users</h2>
+                <div id="total-active-users" class="text-5xl font-extrabold text-accent">--</div>
+                <p class="text-muted text-sm italic">Across all active subscription plans</p>
+            </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div class="md:col-span-3 card p-6 flex flex-col items-center justify-center text-center space-y-2 bg-gradient-to-br from-green-900/30 to-bg-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                    <div class="text-5xl font-extrabold" id="total-active-users-stat">...</div>
-                    <p class="text-muted text-lg">Total Active Users</p>
+            <!-- Detailed Stats Grid -->
+            <div class="grid md:grid-cols-2 gap-8">
+                <!-- Left: Active Users by Package -->
+                <div class="space-y-4">
+                    <h3 class="text-xl font-semibold flex items-center gap-2">
+                        <i data-lucide="package" class="text-accent"></i>
+                        Active Users per Package
+                    </h3>
+                    <div id="active-users-per-package" class="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                        <!-- Stat cards will be injected here -->
+                    </div>
+                </div>
+
+                <!-- Right: User Acquisition Sources -->
+                <div class="space-y-4">
+                    <h3 class="text-xl font-semibold flex items-center gap-2">
+                        <i data-lucide="users" class="text-accent"></i>
+                        User Acquisition (Active / Total)
+                    </h3>
+                    <div id="user-acquisition-sources" class="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                        <!-- Acquisition cards will be injected here -->
+                    </div>
                 </div>
             </div>
 
-            <div class="card p-6">
-                <h3 class="text-xl font-semibold mb-4">Active Users by Package</h3>
-                <div id="active-users-per-package-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <div class="p-4 border border-dashed border-line rounded-lg text-center text-muted">Loading package data...</div>
+            <!-- Registered Users Table with Filters -->
+            <div class="space-y-4">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <h3 class="text-xl font-semibold flex items-center gap-2">
+                        <i data-lucide="list" class="text-accent"></i>
+                        Registered Users
+                    </h3>
+                    <div id="filter-buttons" class="flex flex-wrap gap-2">
+                        <button class="filter-btn active" data-filter="all">All</button>
+                        <button class="filter-btn" data-filter="active">Active</button>
+                        <button class="filter-btn" data-filter="expired">Expired</button>
+                        <button class="filter-btn" data-filter="never">Never Subscribed</button>
+                    </div>
                 </div>
-            </div>
-
-            <div class="card p-6">
-                <h3 class="text-xl font-semibold mb-4">User Acquisition Source</h3>
-                <div id="user-acquisition-container" class="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
-                     <div class="p-4 border border-dashed border-line rounded-lg text-center text-muted">Loading acquisition data...</div>
-                </div>
-            </div>
-
-            <div class="card p-6">
-                <h3 class="text-xl font-semibold mb-4 flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                    All Registered Users
-                </h3>
-                <div id="user-filter-buttons" class="flex items-center gap-2 flex-wrap">
-                        <button class="btn btn-ghost btn-sm filter-btn active" data-filter="all">All</button>
-                        <button class="btn btn-ghost btn-sm filter-btn" data-filter="active">Active</button>
-                        <button class="btn btn-ghost btn-sm filter-btn" data-filter="pending">Pending</button>
-                        <button class="btn btn-ghost btn-sm filter-btn" data-filter="expired">Expired</button>
-                </div>
-                <div class="overflow-x-auto">
+                <div class="card overflow-hidden">
                     <table>
                         <thead>
                             <tr>
                                 <th>Email</th>
-                                <th>Telegram Handle</th>
-                                <th>Registered On</th>
-                                <th>Subscription Expires</th>
+                                <th>Telegram</th>
+                                <th>Joined</th>
+                                <th>Expires</th>
                                 <th>Status</th>
                             </tr>
                         </thead>
-                        <tbody id="users-table">
-                            <tr><td colspan="5" class="text-muted text-center py-4">Loading user data...</td></tr>
+                        <tbody id="users-table-body">
+                            <!-- User rows will be injected here -->
                         </tbody>
                     </table>
                 </div>
             </div>
 
-            <div class="card p-6">
-                <h3 class="text-xl font-semibold mb-4 flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent-2"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m2 15 5 2 8-5 5 2"/></svg>
-                    Recent Blog Posts
-                </h3>
-                <div class="overflow-x-auto">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Title</th>
-                                <th>Author</th>
-                                <th>Published Date</th>
-                                <th>Status</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="blogs-table">
-                            <tr><td colspan="5" class="text-muted text-center py-4">Loading blog posts...</td></tr>
-                        </tbody>
-                    </table>
+            <!-- Bottom Sections: Blogs & Performance -->
+            <div class="grid lg:grid-cols-2 gap-8">
+                <!-- Recent Blog Posts -->
+                <div class="space-y-4">
+                    <h3 class="text-xl font-semibold flex items-center gap-2">
+                        <i data-lucide="file-text" class="text-accent"></i>
+                        Recent Blogs
+                    </h3>
+                    <div class="card overflow-hidden">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Title</th>
+                                    <th>Author</th>
+                                    <th>Date</th>
+                                    <th>Status</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="blogs-table">
+                                <!-- Blog rows will be injected here -->
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-                <div class="flex justify-end mt-4">
-                    <a href="/admin/blogs" class="btn btn-ghost text-sm">View All Blogs</a>
-                </div>
-            </div>
 
-            <div class="card p-6">
-                <h3 class="text-xl font-semibold mb-4 flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 1 0 0 7h5a3.5 3.5 0 1 1 0 7H6"/></svg>
-                    Recent Performance Signals
-                </h3>
-                <div class="overflow-x-auto">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Pair</th>
-                                <th>Entry</th>
-                                <th>Exit</th>
-                                <th>P/L %</th>
-                                <th>Leverage</th>
-                                <th>Result</th>
-                            </tr>
-                        </thead>
-                        <tbody id="signals-table">
-                            <tr><td colspan="7" class="text-muted text-center py-4">Loading signals...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-                <div class="flex justify-end mt-4">
-                    <a href="/admin/performance" class="btn btn-ghost text-sm">View All Signals</a>
+                <!-- Recent Performance Signals -->
+                <div class="space-y-4">
+                    <h3 class="text-xl font-semibold flex items-center gap-2">
+                        <i data-lucide="trending-up" class="text-accent"></i>
+                        Recent Signals
+                    </h3>
+                    <div class="card overflow-hidden">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Pair</th>
+                                    <th>Entry</th>
+                                    <th>Exit</th>
+                                    <th>PnL</th>
+                                    <th>Lev.</th>
+                                    <th>Result</th>
+                                </tr>
+                            </thead>
+                            <tbody id="signals-table">
+                                <!-- Signal rows will be injected here -->
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
+
     <script>
-        // Check for authentication on page load
-        if (sessionStorage.getItem('isAdminLoggedIn') !== 'true') {
-            window.location.href = '/admin';
-        }
-
-        // Logout function
-        const logout = () => {
-            sessionStorage.removeItem('isAdminLoggedIn');
-            window.location.href = '/admin';
-        };
-
-        document.getElementById('logout-btn').addEventListener('click', (e) => {
-            e.preventDefault();
-            logout();
-        });
-
         document.addEventListener('DOMContentLoaded', () => {
-            lucide.createIcons();
-            // Use relative path for API calls as we are serving locally
-            const API_BASE_URL = '/api'; 
+            const API_BASE_URL = ''; // Same domain
+            const totalActiveUsersEl = document.getElementById('total-active-users');
+            const packageContainer = document.getElementById('active-users-per-package');
+            const acquisitionContainer = document.getElementById('user-acquisition-sources');
+            const usersTableBody = document.getElementById('users-table-body');
+            const filterButtonContainer = document.getElementById('filter-buttons');
 
-            // --- Global variable to store all users for filtering ---
-            let allUsers = []; 
-            
-            // --- Cache table and filter elements ---
-            const usersTableBody = document.getElementById('users-table');
-            const filterButtonContainer = document.getElementById('user-filter-buttons');
-            const totalActiveUsersEl = document.getElementById('total-active-users-stat');
-            const packageContainer = document.getElementById('active-users-per-package-container');
-            const acquisitionContainer = document.getElementById('user-acquisition-container');
+            let allUsers = []; // Store fetched users for filtering
 
-            // Function to format date to YYYY-MM-DD
-            function formatDate(dateString) {
+            // Helper to format dates
+            const formatDate = (dateString) => {
                 if (!dateString) return 'N/A';
-                const date = new Date(dateString);
-                return date.toISOString().split('T')[0];
-            }
+                return new Date(dateString).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric'
+                });
+            };
 
-            // --- Core Logic: Determines the user status based on expiration date ---
-            function calculateUserStatus(user) {
-                const status = user.subscription_status;
-                const expirationDate = user.subscription_expiration;
+            // Helper to determine user subscription status
+            const calculateUserStatus = (user) => {
+                if (!user.subscription_expiration) return 'never';
+                const expiration = new Date(user.subscription_expiration);
+                return expiration > new Date() ? 'active' : 'expired';
+            };
 
-                if (!expirationDate) {
-                    return status === 'active' ? 'active' : 'pending';
-                }
-
-                const now = new Date();
-                // Set time to start of day for accurate comparison
-                now.setHours(0, 0, 0, 0); 
-                const expiration = new Date(expirationDate);
-                expiration.setHours(0, 0, 0, 0); 
-
-                // If expiration is today or in the future, they are active
-                if (expiration >= now) {
-                    return 'active';
-                }
-                
-                // If expiration is in the past, they are expired
-                return 'expired';
-            }
-
-            // --- Helper function to get styled HTML for the user status ---
-            function getSubscriptionStatus(user) {
+            const getSubscriptionStatus = (user) => {
                 const status = calculateUserStatus(user);
-                switch (status) {
-                    case 'active':
-                        return '<span class="text-accent">Active</span>';
-                    case 'expired':
-                        return '<span class="text-danger">Expired</span>';
-                    case 'pending':
-                    default:
-                        return `<span class="text-muted">Pending</span>`;
-                }
-            }
-            
-            // --- Function to render the users table based on a provided list ---
+                if (status === 'active') return '<span class="text-accent">Active</span>';
+                if (status === 'expired') return '<span class="text-danger">Expired</span>';
+                return '<span class="text-muted">No Plan</span>';
+            };
+
+            // --- Function to render the user table based on a list ---
             const renderUsersTable = (usersToRender) => {
                 usersTableBody.innerHTML = ''; // Clear the table
                 
@@ -495,7 +445,6 @@
             });
             
             // --- Function to fetch the main dashboard statistics ---
-            // --- Function to fetch the main dashboard statistics ---
             const fetchDashboardStats = async () => {
                 try {
                     const response = await fetch(`${API_BASE_URL}/dashboard/stats`);
@@ -503,7 +452,6 @@
                     const stats = await response.json();
 
                     // 1. UPDATE ACTIVE USERS STAT
-                    // FIX 1: Change 'stats.activeUsers' to 'stats.totalActiveUsers' to match backend response structure.
                     if (totalActiveUsersEl) {
                         const activeCount = stats.totalActiveUsers ? stats.totalActiveUsers : 0;
                         totalActiveUsersEl.textContent = activeCount.toLocaleString();
@@ -528,7 +476,6 @@
                     // 3. UPDATE USER ACQUISITION
                     acquisitionContainer.innerHTML = ''; 
                     const sources = [
-                        // Defensive check added: If stats.userAcquisition is null/undefined, default to an object with zeros.
                         { label: 'Web Signups', data: stats.userAcquisition && stats.userAcquisition.web ? stats.userAcquisition.web : { active: 0, total: 0 } },
                         { label: 'Bot Signups', data: stats.userAcquisition && stats.userAcquisition.bot ? stats.userAcquisition.bot : { active: 0, total: 0 } },
                         { label: 'Referred Users', data: stats.userAcquisition && stats.userAcquisition.referred ? stats.userAcquisition.referred : { active: 0, total: 0 } }
@@ -620,6 +567,13 @@
             // Initial data fetch on page load
             fetchDashboardStats();
             fetchTableData();
+
+            // Logout handling
+            document.getElementById('logout-btn').addEventListener('click', (e) => {
+                e.preventDefault();
+                sessionStorage.removeItem('isAdminLoggedIn');
+                window.location.href = '/admin';
+            });
         });
     </script>
 </body>
