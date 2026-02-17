@@ -3,25 +3,162 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin - Send Notifications</title>
+    <link rel="icon" href="https://www.nexxtrade.io/images/Nexxtradeai.svg" type="image/svg+xml">
+    <title>NexxTrade Admin Panel - Send Notifications</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
     <style>
-        /* Style for the user tags */
+        /* Custom CSS to match the original site's theme and styles */
+        :root {
+            --bg: #0b0f14;
+            --bg-2: #0f141b;
+            --text: #e9edf3;
+            --muted: #a8b3c7;
+            --accent: #2ad678;
+            --accent-2: #f0c75e;
+            --danger: #ff5d5d;
+            --line: #1b2330;
+            --shadow: 0 8px 24px rgba(0,0,0,.35);
+            --radius: 16px;
+            --radius-lg: 20px;
+        }
+
+        /* Apply a consistent font and background */
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, "Helvetica Neue", Arial, sans-serif;
+            overflow-x: hidden;
+        }
+
+        /* Reusable card style */
+        .card {
+            background: var(--bg-2);
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+        }
+
+        /* Input field styling */
+        .input-field {
+            width: 100%;
+            padding: 12px 16px;
+            border-radius: 12px;
+            background: #0d1219;
+            border: 1px solid var(--line);
+            color: var(--text);
+            transition: border-color 0.2s ease;
+        }
+
+        .input-field:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        /* Button styles */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: .6rem;
+            padding: .9rem 1.4rem;
+            border-radius: 999px;
+            border: 1px solid transparent;
+            cursor: pointer;
+            transition: .2s ease;
+            white-space: nowrap;
+            font-weight: 600;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: #04140a;
+        }
+
+        .btn-primary:hover {
+            filter: brightness(1.1);
+            transform: translateY(-1px);
+        }
+
+        .btn-ghost {
+            background: transparent;
+            border-color: var(--line);
+            color: var(--text);
+        }
+
+        .btn-ghost:hover {
+            background: #0f151d;
+        }
+
+        /* Utility for spacing and layout */
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            margin-inline: auto;
+            padding-inline: 20px;
+        }
+
+        /* Custom styles for admin panel tabs */
+        .tab-btn {
+            padding: 12px 20px;
+            border-bottom: 2px solid transparent;
+            color: var(--muted);
+            font-weight: 500;
+            cursor: pointer;
+            transition: color 0.2s, border-color 0.2s;
+        }
+
+        .tab-btn:hover {
+            color: var(--text);
+        }
+
+        .tab-btn.active {
+            color: var(--accent);
+            border-color: var(--accent);
+        }
+
+        /* Message box styling */
+        .message-box {
+            padding: 16px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 500;
+            margin-top: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .message-box.success {
+            background-color: rgba(42, 214, 120, 0.1);
+            color: var(--accent);
+            border: 1px solid rgba(42, 214, 120, 0.2);
+        }
+
+        .message-box.error {
+            background-color: rgba(255, 93, 93, 0.1);
+            color: var(--danger);
+            border: 1px solid rgba(255, 93, 93, 0.2);
+        }
+
+        /* User tags */
         .user-tag {
             display: inline-flex;
             align-items: center;
+            background: rgba(42, 214, 120, 0.1);
+            color: var(--accent);
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 0.875rem;
+            border: 1px solid rgba(42, 214, 120, 0.2);
         }
         .user-tag-remove {
             margin-left: 0.5rem;
             cursor: pointer;
             font-weight: bold;
         }
-        #telegramHandlesContainer input {
-            outline: none;
-            border: none;
-            box-shadow: none;
-        }
+
+        /* Image preview */
         .image-preview-item {
             position: relative;
         }
@@ -29,7 +166,7 @@
             position: absolute;
             top: -5px;
             right: -5px;
-            background-color: rgba(0, 0, 0, 0.7);
+            background-color: var(--danger);
             color: white;
             border-radius: 50%;
             width: 20px;
@@ -39,144 +176,163 @@
             justify-content: center;
             font-size: 14px;
             cursor: pointer;
-            line-height: 20px;
+        }
+
+        /* Styles for the brand logo */
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: .6rem;
+        }
+
+        .logo {
+            width: 44px;
+            height: auto;
+            border-radius: 8px;
+            display: block;
+        }
+
+        /* Responsive-specific styles for mobile */
+        @media (max-width: 768px) {
+            .container {
+                padding-inline: 16px;
+            }
+
+            .admin-header {
+                flex-direction: column;
+                gap: 1rem;
+                text-align: center;
+            }
+
+            .tab-nav {
+                flex-wrap: wrap;
+                justify-content: center;
+                border-bottom: none;
+                gap: 8px;
+            }
+
+            .tab-nav .tab-btn {
+                flex: 1 1 auto;
+                border-bottom: 2px solid transparent;
+                border-radius: 999px;
+                padding: 8px 16px;
+                text-align: center;
+            }
+
+            .tab-nav .tab-btn.active {
+                background-color: var(--line);
+            }
         }
     </style>
 </head>
-<body class="bg-gray-100 font-sans">
-    <div class="relative min-h-screen md:flex">
-        <!-- Overlay for mobile sidebar -->
-        <div id="overlay" class="fixed inset-0 bg-black bg-opacity-50 z-30 hidden md:hidden"></div>
+<body class="p-4 md:p-8">
+    <div id="admin-panel" class="container space-y-8">
+        <!-- Header Section -->
+        <div class="card p-4 md:p-6 flex justify-between items-center admin-header">
+            <div class="flex items-center gap-4">
+                <a class="brand" href="/" aria-label="NexxTrade home">
+                    <img src="/images/Nexxtrade (1).svg" alt="NexxTrade Logo" class="logo">
+                    <h1 class="text-xl md:text-2xl font-bold">NexxTrade Admin Panel</h1>
+                </a>
+            </div>
+            <div class="flex items-center gap-4">
+                <span class="text-muted hidden md:inline" id="usernameDisplay"></span>
+                <a href="/admin" id="logout-btn" class="btn btn-ghost">
+                    <i data-lucide="log-out" class="w-5 h-5"></i>
+                    Log Out
+                </a>
+            </div>
+        </div>
 
-        <!-- Sidebar -->
-        <aside id="sidebar" class="bg-gray-800 text-white w-64 space-y-6 py-7 px-2 fixed inset-y-0 left-0 transform -translate-x-full md:relative md:translate-x-0 transition-transform duration-300 ease-in-out z-40">
-            <a href="/admin/dashboard" class="text-white text-2xl font-semibold px-4">Admin Panel</a>
-            <nav>
-                <a href="/admin/dashboard" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700">
-                    <i class="fas fa-tachometer-alt mr-3"></i>Dashboard
-                </a>
-                <a href="/admin/users" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700">
-                    <i class="fas fa-users mr-3"></i>Users
-                </a>
-                 <a href="/admin/notifications" class="block py-2.5 px-4 rounded transition duration-200 bg-gray-700 text-white">
-                    <i class="fas fa-bell mr-3"></i>Notifications
-                </a>
-                <a href="/admin/performance" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700">
-                    <i class="fas fa-chart-line mr-3"></i>Performance
-                </a>
-                <a href="/admin/blogs" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700">
-                    <i class="fas fa-blog mr-3"></i>Blogs
-                </a>
-                <a href="/admin/pricing" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700">
-                    <i class="fas fa-dollar-sign mr-3"></i>Pricing
-                </a>
-                <a href="/admin/payouts" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700">
-                    <i class="fas fa-hand-holding-usd mr-3"></i>Payouts
-                </a>
-                <a href="/admin/roles" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700">
-                    <i class="fas fa-user-shield mr-3"></i>Roles
-                </a>
-                 <a href="#" id="logoutButton" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700">
-                    <i class="fas fa-sign-out-alt mr-3"></i>Logout
-                </a>
-            </nav>
-        </aside>
+        <!-- Tab Navigation -->
+                <div class="flex flex-wrap border-b border-line gap-2 tab-nav">
+            <a href="/admin/dashboard" class="tab-btn">Dashboard</a>
+            <a href="/admin/blogs" class="tab-btn">Manage Blogs</a>
+            <a href="/admin/performance" class="tab-btn">Performance</a>
+            <a href="/admin/pricing" class="tab-btn">Update Pricing</a>
+            <a href="/admin/roles" class="tab-btn">Delegate Roles</a>
+            <a href="/admin/notifications" class="tab-btn active">Manage Notifications</a>
+            <a href="/admin/payouts" class="tab-btn">Manage Payouts</a>
+            <a href="/admin/affiliates" class="tab-btn">Manage Affiliates</a>
+        </div>
 
-        <!-- Main content -->
-        <div class="flex-1 flex flex-col">
-            <header class="flex justify-between items-center p-4 bg-white border-b">
-                <div class="flex items-center">
-                    <!-- Hamburger Menu for Mobile -->
-                    <button id="menu-button" class="text-gray-500 focus:outline-none md:hidden">
-                        <i class="fas fa-bars fa-lg"></i>
-                    </button>
-                    <h1 class="text-xl md:text-2xl font-semibold text-gray-800 ml-3">Push Notifications</h1>
-                </div>
-                 <div class="flex items-center">
-                    <span class="text-gray-600 mr-2" id="usernameDisplay"></span>
-                    <i class="fas fa-user-circle fa-2x text-gray-400"></i>
-                </div>
-            </header>
-            <main class="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-4 sm:p-6">
-                <div class="container mx-auto">
-                    <!-- Notification Composer Card -->
-                    <div class="bg-white p-6 md:p-8 rounded-lg shadow-lg">
-                        <h2 class="text-xl md:text-2xl font-bold mb-6 text-gray-800">Compose and Send Notification</h2>
-                        <form id="notificationForm">
-                            <!-- Message Textarea -->
-                            <div class="mb-6">
-                                <label for="message" class="block text-gray-700 text-sm font-bold mb-2">Message</label>
-                                <textarea id="message" name="message" rows="8" class="shadow-sm appearance-none border rounded w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Type your notification message here..." required></textarea>
-                            </div>
+        <div class="space-y-8">
+            <h2 class="text-2xl font-semibold">Push Notifications</h2>
 
-                            <!-- Image Upload Section -->
-                            <div class="mb-6">
-                                <label class="block text-gray-700 text-sm font-bold mb-2">Upload Images (Optional)</label>
-                                <label for="imageUpload" class="cursor-pointer inline-block bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-4 rounded-lg transition duration-300">
-                                    <i class="fas fa-upload mr-2"></i> Choose Files
-                                </label>
-                                <input type="file" id="imageUpload" class="hidden" multiple accept="image/jpeg, image/png, image/gif">
-                                <div id="imagePreviewContainer" class="mt-3 flex flex-wrap gap-4">
-                                    <!-- Image previews will be added here -->
-                                </div>
-                            </div>
-
-                            <!-- Target Audience -->
-                            <div class="mb-6">
-                                <label for="targetAudience" class="block text-gray-700 text-sm font-bold mb-2">Target Audience</label>
-                                <select id="targetAudience" name="targetAudience" class="shadow-sm border rounded w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                    <option value="all">Everyone (Bot Users Only)</option>
-                                    <option value="active">Active Subscribers</option>
-                                    <option value="pending">Pending Subscribers</option>
-                                    <option value="specific">Specific User(s)</option>
-                                </select>
-                            </div>
-
-                            <!-- Specific User Input (Initially Hidden) -->
-                            <div id="specificUserContainer" class="mb-6 hidden">
-                                <label for="telegramHandleInput" class="block text-gray-700 text-sm font-bold mb-2">Telegram Handles</label>
-                                <div id="telegramHandlesContainer" class="flex flex-wrap items-center gap-2 shadow-sm border rounded w-full p-2 bg-white focus-within:ring-2 focus-within:ring-blue-500">
-                                    <input type="text" id="telegramHandleInput" class="flex-grow py-1 px-2" placeholder="Type username and press Enter...">
-                                </div>
-                                <p class="text-xs text-gray-500 mt-1">Add one or more Telegram usernames.</p>
-                            </div>
-                            
-                            <!-- Embed Command Checkboxes -->
-                            <div class="mb-8">
-                                <label class="block text-gray-700 text-sm font-bold mb-2">Embed Command Button(s) (Optional)</label>
-                                <div id="embedCommandContainer" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 border rounded p-4">
-                                    <div><label class="flex items-center"><input type="checkbox" name="embedCommand" value="/start" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"><span class="ml-2 text-gray-700">/start</span></label></div>
-                                    <div><label class="flex items-center"><input type="checkbox" name="embedCommand" value="/getsignals" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"><span class="ml-2 text-gray-700">/getsignals</span></label></div>
-                                    <div><label class="flex items-center"><input type="checkbox" name="embedCommand" value="/myreferral" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"><span class="ml-2 text-gray-700">/myreferral</span></label></div>
-                                    <div><label class="flex items-center"><input type="checkbox" name="embedCommand" value="/setreferral" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"><span class="ml-2 text-gray-700">/setreferral</span></label></div>
-                                    <div><label class="flex items-center"><input type="checkbox" name="embedCommand" value="/referralstats" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"><span class="ml-2 text-gray-700">/referralstats</span></label></div>
-                                    <div><label class="flex items-center"><input type="checkbox" name="embedCommand" value="/requestpayout" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"><span class="ml-2 text-gray-700">/requestpayout</span></label></div>
-                                    <div><label class="flex items-center"><input type="checkbox" name="embedCommand" value="/faq" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"><span class="ml-2 text-gray-700">/faq</span></label></div>
-                                    <div><label class="flex items-center"><input type="checkbox" name="embedCommand" value="/support" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"><span class="ml-2 text-gray-700">/support</span></label></div>
-                                </div>
-                            </div>
-
-                            <!-- Submit Button -->
-                            <div class="flex items-center justify-end">
-                                <button type="submit" id="sendButton" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg focus:outline-none focus:shadow-outline transition duration-300 w-full sm:w-auto">
-                                    <i class="fas fa-paper-plane mr-2"></i>Send Notification
-                                </button>
-                            </div>
-                        </form>
-                        <!-- Status Message -->
-                        <div id="statusMessage" class="mt-4 text-center"></div>
+            <div class="card p-6">
+                <form id="notificationForm" class="space-y-6">
+                    <div>
+                        <label for="targetAudience" class="block text-sm font-medium mb-1 text-muted">Target Audience</label>
+                        <select id="targetAudience" class="input-field">
+                            <option value="all">All Registered Users</option>
+                            <option value="active">Active Subscribers Only</option>
+                            <option value="specific">Specific Users (by Telegram Handle)</option>
+                        </select>
                     </div>
-                </div>
-            </main>
+
+                    <div id="specificUserContainer" class="hidden space-y-2">
+                        <label class="block text-sm font-medium text-muted">Telegram Handles</label>
+                        <div id="telegramHandlesContainer" class="input-field flex flex-wrap gap-2 items-center">
+                            <input type="text" id="telegramHandleInput" placeholder="Type and press Enter..." class="bg-transparent border-none outline-none flex-1 min-w-[150px] text-text">
+                        </div>
+                        <p class="text-xs text-muted italic">Type a handle (without @) and press Enter to add.</p>
+                    </div>
+
+                    <div>
+                        <label for="message" class="block text-sm font-medium mb-1 text-muted">Message Content</label>
+                        <textarea id="message" rows="5" class="input-field" placeholder="Enter your notification message here..." required></textarea>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium mb-2 text-muted">Embed Quick Actions (Optional)</label>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" name="embedCommand" value="/start" class="w-4 h-4 rounded border-line bg-bg-2 text-accent focus:ring-accent">
+                                <span class="text-sm">/start (Main Menu)</span>
+                            </label>
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" name="embedCommand" value="/pricing" class="w-4 h-4 rounded border-line bg-bg-2 text-accent focus:ring-accent">
+                                <span class="text-sm">/pricing (View Plans)</span>
+                            </label>
+                             <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" name="embedCommand" value="/performance" class="w-4 h-4 rounded border-line bg-bg-2 text-accent focus:ring-accent">
+                                <span class="text-sm">/performance (View Results)</span>
+                            </label>
+                             <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" name="embedCommand" value="/support" class="w-4 h-4 rounded border-line bg-bg-2 text-accent focus:ring-accent">
+                                <span class="text-sm">/support (Contact Us)</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium mb-1 text-muted">Attach Images (Max 10)</label>
+                        <div class="flex flex-col gap-4">
+                            <input type="file" id="imageUpload" accept="image/*" multiple class="hidden">
+                            <button type="button" onclick="document.getElementById('imageUpload').click()" class="btn btn-ghost w-full py-4 border-dashed border-2">
+                                <i data-lucide="image" class="mr-2"></i> Select Images
+                            </button>
+                            <div id="imagePreviewContainer" class="flex flex-wrap gap-4"></div>
+                        </div>
+                    </div>
+
+                    <button type="submit" id="sendButton" class="btn btn-primary w-full py-4 text-lg">
+                        <i data-lucide="send" class="mr-2"></i> Send Notification
+                    </button>
+
+                    <div id="statusMessage" class="hidden"></div>
+                </form>
+            </div>
         </div>
     </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            lucide.createIcons();
             checkAuth();
             setupUI();
             setupMultiUserInput();
-            setupImageUpload(); // Changed from setupImageUrlInput
+            setupImageUpload();
             setupFormSubmission();
         });
 
@@ -192,20 +348,13 @@
         }
 
         function setupUI() {
-            const menuButton = document.getElementById('menu-button');
-            const sidebar = document.getElementById('sidebar');
-            const overlay = document.getElementById('overlay');
-            const toggleSidebar = () => {
-                sidebar.classList.toggle('-translate-x-full');
-                overlay.classList.toggle('hidden');
-            };
-            menuButton.addEventListener('click', toggleSidebar);
-            overlay.addEventListener('click', toggleSidebar);
-            document.getElementById('logoutButton').addEventListener('click', () => {
+            document.getElementById('logout-btn').addEventListener('click', (e) => {
+                e.preventDefault();
                 sessionStorage.removeItem('isAdminLoggedIn');
                 sessionStorage.removeItem('user');
                 window.location.href = '/admin'; 
             });
+
             const targetAudience = document.getElementById('targetAudience');
             const specificUserContainer = document.getElementById('specificUserContainer');
             targetAudience.addEventListener('change', function() {
@@ -217,38 +366,26 @@
             });
         }
 
-        // --- NEW FUNCTION: Handles file selection, reading, and previewing ---
         function setupImageUpload() {
             const fileInput = document.getElementById('imageUpload');
             const previewContainer = document.getElementById('imagePreviewContainer');
 
             fileInput.addEventListener('change', event => {
-                previewContainer.innerHTML = ''; // Clear existing previews
                 const files = event.target.files;
-
                 for (const file of files) {
                     if (!file.type.startsWith('image/')) continue;
-
                     const reader = new FileReader();
                     reader.onload = e => {
                         const previewWrapper = document.createElement('div');
                         previewWrapper.className = 'image-preview-item';
-                        
                         const img = document.createElement('img');
                         img.src = e.target.result;
-                        img.className = 'w-24 h-24 object-cover rounded-lg shadow-md';
-                        // Store base64 string on the element for later retrieval
+                        img.className = 'w-24 h-24 object-cover rounded-lg shadow-md border border-line';
                         img.dataset.base64 = e.target.result;
-
                         const removeBtn = document.createElement('div');
                         removeBtn.className = 'image-preview-remove';
                         removeBtn.innerHTML = '&times;';
-                        removeBtn.onclick = () => {
-                            previewWrapper.remove();
-                            // Note: This doesn't remove it from the file input's FileList,
-                            // but since we collect data from the previews, it works.
-                        };
-
+                        removeBtn.onclick = () => previewWrapper.remove();
                         previewWrapper.appendChild(img);
                         previewWrapper.appendChild(removeBtn);
                         previewContainer.appendChild(previewWrapper);
@@ -261,14 +398,14 @@
         function addTag(username) {
             const container = document.getElementById('telegramHandlesContainer');
             const input = document.getElementById('telegramHandleInput');
-            if (!username || !container || !input) return;
+            if (!username) return;
             const existingTags = Array.from(container.querySelectorAll('.user-tag-text')).map(t => t.textContent);
             if (existingTags.includes(username)) {
                 input.value = '';
                 return;
             }
             const tag = document.createElement('span');
-            tag.className = 'user-tag bg-blue-100 text-blue-800 text-sm font-medium px-2.5 py-1 rounded';
+            tag.className = 'user-tag';
             const tagText = document.createElement('span');
             tagText.className = 'user-tag-text';
             tagText.textContent = username;
@@ -283,7 +420,6 @@
 
         function setupMultiUserInput() {
             const input = document.getElementById('telegramHandleInput');
-            if (!input) return;
             input.addEventListener('keydown', function(event) {
                 if (event.key === 'Enter' && input.value.trim() !== '') {
                     event.preventDefault();
@@ -300,19 +436,15 @@
 
             form.addEventListener('submit', async function(event) {
                 event.preventDefault();
-                
                 const target = document.getElementById('targetAudience').value;
                 const telegramHandleInput = document.getElementById('telegramHandleInput');
                 if (target === 'specific' && telegramHandleInput.value.trim() !== '') {
                     addTag(telegramHandleInput.value.trim());
                     telegramHandleInput.value = '';
                 }
-
                 const message = document.getElementById('message').value;
                 const telegramHandles = Array.from(document.querySelectorAll('.user-tag-text')).map(tag => tag.textContent);
                 const commands = Array.from(document.querySelectorAll('input[name="embedCommand"]:checked')).map(cb => cb.value);
-                
-                // MODIFIED: Collect Base64 image data from the previews
                 const images = Array.from(document.querySelectorAll('#imagePreviewContainer img')).map(img => img.dataset.base64);
 
                 if (target === 'specific' && telegramHandles.length === 0) {
@@ -320,19 +452,12 @@
                     return;
                 }
                 
-                const payload = {
-                    message,
-                    target,
-                    commands,
-                    images // MODIFIED: Send 'images' array instead of 'imageUrls'
-                };
-
-                if (target === 'specific') {
-                    payload.telegramHandles = telegramHandles;
-                }
+                const payload = { message, target, commands, images };
+                if (target === 'specific') payload.telegramHandles = telegramHandles;
 
                 sendButton.disabled = true;
-                sendButton.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i>Sending...`;
+                sendButton.innerHTML = `<i data-lucide="loader-2" class="animate-spin mr-2"></i> Sending...`;
+                lucide.createIcons();
                 displayStatus('Processing your request...', 'info');
 
                 try {
@@ -347,7 +472,6 @@
                         form.reset(); 
                         document.getElementById('specificUserContainer').classList.add('hidden');
                         document.querySelectorAll('.user-tag').forEach(tag => tag.remove());
-                        // MODIFIED: Clear image previews and file input
                         document.getElementById('imagePreviewContainer').innerHTML = '';
                         document.getElementById('imageUpload').value = '';
                     } else {
@@ -358,27 +482,22 @@
                     displayStatus(`Error: ${error.message}`, 'error');
                 } finally {
                     sendButton.disabled = false;
-                    sendButton.innerHTML = `<i class="fas fa-paper-plane mr-2"></i>Send Notification`;
+                    sendButton.innerHTML = `<i data-lucide="send" class="mr-2"></i> Send Notification`;
+                    lucide.createIcons();
                 }
             });
 
             function displayStatus(message, type) {
                 statusMessage.innerHTML = message;
-                statusMessage.className = 'mt-4 text-center p-3 rounded-lg ';
+                statusMessage.className = 'message-box block ';
+                statusMessage.classList.remove('hidden');
                 switch(type) {
-                    case 'success':
-                        statusMessage.classList.add('bg-green-100', 'text-green-800');
-                        break;
-                    case 'error':
-                        statusMessage.classList.add('bg-red-100', 'text-red-800');
-                        break;
-                    case 'info':
-                        statusMessage.classList.add('bg-blue-100', 'text-blue-800');
-                        break;
+                    case 'success': statusMessage.classList.add('success'); break;
+                    case 'error': statusMessage.classList.add('error'); break;
+                    case 'info': statusMessage.classList.add('success'); break; // reused success style for info
                 }
             }
         }
     </script>
 </body>
 </html>
-
