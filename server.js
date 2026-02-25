@@ -82,6 +82,7 @@ const activeSubscriptions = activeSubscriptionsResult.rows[0].active_subscriptio
 // NEW: Import the Telegram bot and webhook setup function
 // This allows the server to command the bot (e.g., to create invite links).
 import { bot, setupWebhook, userRegistrationState } from './telegram_bot.js';
+import { sendMorningMessages } from './morning_messages.js';
 
 // Middleware setup
 // Use the CORS middleware to allow cross-origin requests
@@ -208,6 +209,13 @@ async function manageExpiredSubscriptions() {
 cron.schedule('0 3 * * *', () => {
     manageExpiredSubscriptions();
 });
+
+// Schedule morning message at 8:00 AM daily
+cron.schedule('0 8 * * *', () => {
+    sendMorningMessages(pool);
+});
+
+
 
 console.log('Scheduled subscription manager (cron job) to run daily at 3:04 AM.');
 
