@@ -82,6 +82,7 @@ const activeSubscriptions = activeSubscriptionsResult.rows[0].active_subscriptio
 // NEW: Import the Telegram bot and webhook setup function
 // This allows the server to command the bot (e.g., to create invite links).
 import { bot, setupWebhook, userRegistrationState } from './telegram_bot.js';
+import { sendMorningMessages } from './morning_messages.js';
 
 // Middleware setup
 // Use the CORS middleware to allow cross-origin requests
@@ -151,7 +152,6 @@ async function manageExpiredSubscriptions() {
 
         if (expiredUsers.length === 0) {
             console.log('Subscription job: No expired users found.');
-            client.release();
             return;
         }
 
@@ -162,6 +162,7 @@ async function manageExpiredSubscriptions() {
             try {
                 // 1. Attempt to kick user from the Telegram group
                 await bot.kickChatMember(user.telegram_group_id, user.telegram_user_id);
+                await bot.unbanChatMember(user.telegram_group_id, user.telegram_user_id);
                 console.log(`Successfully kicked ${user.telegram_handle} (ID: ${user.telegram_user_id}) from group ${user.telegram_group_id}.`);
 
                 // 2. Attempt to send a notification to the user's private chat
@@ -207,6 +208,13 @@ async function manageExpiredSubscriptions() {
 cron.schedule('0 3 * * *', () => {
     manageExpiredSubscriptions();
 });
+
+// Schedule morning message at 8:00 AM daily
+cron.schedule('0 8 * * *', () => {
+    sendMorningMessages(pool);
+});
+
+
 
 console.log('Scheduled subscription manager (cron job) to run daily at 3:04 AM.');
 
@@ -1122,8 +1130,8 @@ app.post('/api/transfi/deposit', async (req, res) => {
                  emailForDb = userRecord.email; 
             }
             await pool.query(
-                `UPDATE users SET full_name = $1, email = $2, whatsapp_number = $3, order_id = $4, subscription_status = 'pending', last_payment_attempt = NOW(), payment_attempts = payment_attempts + 1, registration_source = 'web', referred_by = $5 WHERE id = $6`,
-                [fullname, emailForDb, whatsapp_number, order_id, referrerId, userRecord.id]
+                `UPDATE users SET full_name = $1, email = $2, whatsapp_number = $3, order_id = $4, subscription_status = 'pending', last_payment_attempt = NOW(), payment_attempts = payment_attempts + 1, registration_source = 'web', referred_by = $5, coupon_code = $7 WHERE id = $6`,
+                [fullname, emailForDb, whatsapp_number, order_id, referrerId, userRecord.id, appliedCoupon]
             );
         } else {
             const emailConflictQuery = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
@@ -1133,9 +1141,9 @@ app.post('/api/transfi/deposit', async (req, res) => {
             }
             const registrationDate = new Date().toISOString().split('T')[0];
             await pool.query(
-                `INSERT INTO users (full_name, email, telegram_handle, plan_name, subscription_status, registration_date, order_id, payment_attempts, last_payment_attempt, registration_source, whatsapp_number, referred_by) 
-                 VALUES ($1, $2, $3, $4, 'pending', $5, $6, 1, NOW(), 'web', $7, $8)`,
-                [fullname, emailForDb, telegram, planName, registrationDate, order_id, whatsapp_number, referrerId]
+                `INSERT INTO users (full_name, email, telegram_handle, plan_name, subscription_status, registration_date, order_id, payment_attempts, last_payment_attempt, registration_source, whatsapp_number, referred_by, coupon_code)
+                 VALUES ($1, $2, $3, $4, 'pending', $5, $6, 1, NOW(), 'web', $7, $8, $9)`,
+                [fullname, emailForDb, telegram, planName, registrationDate, order_id, whatsapp_number, referrerId, appliedCoupon]
             );
         }
 
@@ -1245,10 +1253,20 @@ app.post('/api/payments/transfi/webhook', async (req, res) => {
             const today = new Date();
             let newExpiration = new Date(today);
             
-            if (plan.term.toLowerCase().includes('month')) newExpiration.setMonth(newExpiration.getMonth() + 1);
-            if (plan.term.toLowerCase().includes('quarter')) newExpiration.setMonth(newExpiration.getMonth() + 3);
-            if (plan.term.toLowerCase().includes('year')) newExpiration.setFullYear(newExpiration.getFullYear() + 1);
-            if (plan.term.toLowerCase().includes('bi-annually')) newExpiration.setMonth(newExpiration.getMonth() + 6);
+            let monthsToAdd = 1;
+            const trimmedPlanName = plan.plan_name.trim();
+            if (trimmedPlanName === 'Pro') monthsToAdd = 3;
+            else if (trimmedPlanName === 'Elite') monthsToAdd = 6;
+            else if (trimmedPlanName === 'Basic') monthsToAdd = 1;
+            else {
+                if (plan.term.toLowerCase().includes('month')) {
+                    const match = plan.term.match(/(\d+)\s*month/);
+                    monthsToAdd = match ? parseInt(match[1]) : 1;
+                } else if (plan.term.toLowerCase().includes('year')) {
+                    monthsToAdd = 12;
+                }
+            }
+            newExpiration.setMonth(newExpiration.getMonth() + monthsToAdd);
 
             await pool.query(
                 `UPDATE users SET subscription_status = 'active', subscription_expiration = $1 WHERE id = $2`,
@@ -1394,11 +1412,56 @@ async function getReferrerId(referralCode) {
     return null;
 }
 
+// --- NEW: Coupon Validation Endpoint ---
+app.post('/api/validate-coupon', async (req, res) => {
+    try {
+        const { couponCode, planId, planName } = req.body;
+        if (!couponCode) {
+            return res.status(400).json({ message: 'Coupon code is required.' });
+        }
+
+        const couponResult = await pool.query(
+            'SELECT * FROM coupons WHERE UPPER(code) = UPPER($1) AND is_active = true',
+            [couponCode]
+        );
+
+        if (couponResult.rows.length === 0) {
+            return res.status(404).json({ message: 'Invalid or expired coupon code.' });
+        }
+
+        const coupon = couponResult.rows[0];
+        const discountPercentage = parseFloat(coupon.discount_percentage);
+
+        let originalPrice = 0;
+        if (planId) {
+            const planResult = await pool.query('SELECT price FROM pricingplans WHERE id = $1', [planId]);
+            if (planResult.rows.length > 0) originalPrice = parseFloat(planResult.rows[0].price);
+        } else if (planName) {
+            const planResult = await pool.query('SELECT price FROM pricingplans WHERE plan_name = $1', [planName]);
+            if (planResult.rows.length > 0) originalPrice = parseFloat(planResult.rows[0].price);
+        }
+
+        const discountAmount = (originalPrice * discountPercentage) / 100;
+        const finalPrice = originalPrice - discountAmount;
+
+        res.status(200).json({
+            valid: true,
+            discountPercentage,
+            originalPrice,
+            finalPrice,
+            couponCode: coupon.code
+        });
+    } catch (err) {
+        console.error('Error validating coupon:', err);
+        res.status(500).json({ message: 'Server error while validating coupon.' });
+    }
+});
+
 
 // === Flow 1: User starts payment from the Website ===
 app.post('/api/payments/create-from-web', async (req, res) => {
     try {
-        const { fullname, email, telegram, planName, pay_currency, whatsapp_number, referral_code } = req.body;
+        const { fullname, email, telegram, planName, pay_currency, whatsapp_number, referral_code, couponCode } = req.body;
         
         if (!pay_currency || !fullname || !email || !telegram || !whatsapp_number || !planName) {
             return res.status(400).json({ message: 'Missing required fields for payment.' });
@@ -1409,10 +1472,25 @@ app.post('/api/payments/create-from-web', async (req, res) => {
             return res.status(404).json({ message: 'Selected plan not found.' });
         }
         const plan = planResult.rows[0];
+        let finalPrice = parseFloat(plan.price);
+        let appliedCoupon = null;
 
-        console.log('WEB: PLAN DETAILS FETCHED FOR PAYMENT:', plan);
-        if (!plan.price || typeof plan.price !== 'number' || plan.price <= 0) {
-            console.error(`WEB: Invalid price for plan ${planName}:`, plan.price);
+        if (couponCode) {
+            const couponResult = await pool.query(
+                'SELECT * FROM coupons WHERE UPPER(code) = UPPER($1) AND is_active = true',
+                [couponCode]
+            );
+            if (couponResult.rows.length > 0) {
+                const coupon = couponResult.rows[0];
+                const discount = (finalPrice * parseFloat(coupon.discount_percentage)) / 100;
+                finalPrice = finalPrice - discount;
+                appliedCoupon = coupon.code;
+            }
+        }
+
+        console.log('WEB: PLAN DETAILS FETCHED FOR PAYMENT:', plan, 'Final Price:', finalPrice);
+        if (!finalPrice || finalPrice <= 0) {
+            console.error(`WEB: Invalid price for plan ${planName}:`, finalPrice);
             return res.status(500).json({ message: `Payment processor error: The price for the selected plan is invalid. Please contact support.` });
         }
         
@@ -1441,8 +1519,8 @@ app.post('/api/payments/create-from-web', async (req, res) => {
             }
 
             await pool.query(
-                `UPDATE users SET full_name = $1, email = $2, whatsapp_number = $3, order_id = $4, subscription_status = 'pending', last_payment_attempt = NOW(), payment_attempts = payment_attempts + 1, registration_source = 'web', referred_by = $5 WHERE id = $6`,
-                [fullname, emailForDb, whatsapp_number, order_id, referrerId, userRecord.id]
+                `UPDATE users SET full_name = $1, email = $2, whatsapp_number = $3, order_id = $4, subscription_status = 'pending', last_payment_attempt = NOW(), payment_attempts = payment_attempts + 1, registration_source = 'web', referred_by = $5, coupon_code = $7 WHERE id = $6`,
+                [fullname, emailForDb, whatsapp_number, order_id, referrerId, userRecord.id, appliedCoupon]
             );
         } else {
             // New user registration for this plan. Check if the email is taken by anyone.
@@ -1456,9 +1534,9 @@ app.post('/api/payments/create-from-web', async (req, res) => {
             const registrationDate = new Date().toISOString().split('T')[0];
            // This is the CORRECTED code block
           await pool.query(
-          `INSERT INTO users (full_name, email, telegram_handle, plan_name, subscription_status, registration_date, order_id, payment_attempts, last_payment_attempt, registration_source, whatsapp_number, referred_by)
-           VALUES ($1, $2, $3, $4, 'pending', $5, $6, 1, NOW(), 'web', $7, $8)`,
-          [fullname, emailForDb, telegram, planName, registrationDate, order_id, whatsapp_number, referrerId]
+          `INSERT INTO users (full_name, email, telegram_handle, plan_name, subscription_status, registration_date, order_id, payment_attempts, last_payment_attempt, registration_source, whatsapp_number, referred_by, coupon_code)
+           VALUES ($1, $2, $3, $4, 'pending', $5, $6, 1, NOW(), 'web', $7, $8, $9)`,
+          [fullname, emailForDb, telegram, planName, registrationDate, order_id, whatsapp_number, referrerId, appliedCoupon]
             );
         }
 
@@ -1469,7 +1547,7 @@ app.post('/api/payments/create-from-web', async (req, res) => {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                price_amount: plan.price,
+                price_amount: finalPrice,
                 price_currency: 'usd',
                 pay_currency: pay_currency,
                 ipn_callback_url: `${process.env.APP_BASE_URL}/api/payments/nowpayments/webhook`,
@@ -1497,7 +1575,7 @@ app.post('/api/payments/create-from-web', async (req, res) => {
 // === Flow 2: User starts payment from the Telegram Bot ===
 app.post('/api/payments/create-from-bot', async (req, res) => {
     try {
-        const { telegram_handle, chat_id, plan_id, pay_currency, whatsapp_number, referral_code, telegram_user_id } = req.body;
+        const { telegram_handle, chat_id, plan_id, pay_currency, whatsapp_number, referral_code, telegram_user_id, couponCode, discounted_price } = req.body;
         if (!telegram_handle || !chat_id || !plan_id || !pay_currency || !whatsapp_number) {
             return res.status(400).json({ message: 'Missing required fields from bot.' });
         }
@@ -1507,9 +1585,25 @@ app.post('/api/payments/create-from-bot', async (req, res) => {
             return res.status(404).json({ message: 'Plan not found.' });
         }
         const plan = planResult.rows[0];
+        let finalPrice = parseFloat(plan.price);
+        let appliedCoupon = null;
 
-        console.log('BOT: PLAN DETAILS FETCHED FOR PAYMENT:', plan);
-        if (!plan.price || typeof plan.price !== 'number' || plan.price <= 0) {
+        if (couponCode) {
+            const couponResult = await pool.query(
+                'SELECT * FROM coupons WHERE UPPER(code) = UPPER($1) AND is_active = true',
+                [couponCode]
+            );
+            if (couponResult.rows.length > 0) {
+                const coupon = couponResult.rows[0];
+                const discount = (finalPrice * parseFloat(coupon.discount_percentage)) / 100;
+                finalPrice = finalPrice - discount;
+                appliedCoupon = coupon.code;
+            }
+        }
+
+        console.log('BOT: PLAN DETAILS FETCHED FOR PAYMENT:', plan, 'Final Price:', finalPrice);
+        const rawPrice = discounted_price ? parseFloat(discounted_price) : finalPrice;
+        if (!rawPrice || isNaN(rawPrice) || rawPrice <= 0) {
             console.error(`BOT: Invalid price for plan ID ${plan_id}:`, plan.price);
             return res.status(500).json({ message: `Payment processor error: The price for the selected plan is invalid. Please contact support.` });
         }
@@ -1528,8 +1622,8 @@ app.post('/api/payments/create-from-bot', async (req, res) => {
                 return res.status(409).json({ message: `You already have an active subscription for the ${plan.plan_name} plan.` });
             }
             await pool.query(
-                `UPDATE users SET whatsapp_number = $1, order_id = $2, subscription_status = 'pending', last_payment_attempt = NOW(), payment_attempts = payment_attempts + 1, telegram_chat_id = $3, registration_source = 'bot', referred_by = $4, telegram_user_id = $6 WHERE id = $5`,
-                [whatsapp_number, order_id, chat_id, referrerId, userRecord.id, telegram_user_id]
+                `UPDATE users SET whatsapp_number = $1, order_id = $2, subscription_status = 'pending', last_payment_attempt = NOW(), payment_attempts = payment_attempts + 1, telegram_chat_id = $3, registration_source = 'bot', referred_by = $4, telegram_user_id = $6, coupon_code = $7 WHERE id = $5`,
+                [whatsapp_number, order_id, chat_id, referrerId, userRecord.id, telegram_user_id, appliedCoupon]
             );
         } else {
             const temp_fullname = `User ${telegram_handle}`;
@@ -1546,9 +1640,9 @@ app.post('/api/payments/create-from-bot', async (req, res) => {
 
             const registrationDate = new Date().toISOString().split('T')[0];
             await pool.query(
-                `INSERT INTO users (full_name, email, telegram_handle, plan_name, subscription_status, registration_date, order_id, payment_attempts, last_payment_attempt, telegram_chat_id, registration_source, whatsapp_number, telegram_user_id, referred_by)
-                VALUES ($1, $2, $3, $4, 'pending', $5, $6, 1, NOW(), $7, 'bot', $8, $9, $10)`,
-                [temp_fullname, temp_email, telegram_handle, plan.plan_name, registrationDate, order_id, chat_id, whatsapp_number, telegram_user_id, referrerId]
+                `INSERT INTO users (full_name, email, telegram_handle, plan_name, subscription_status, registration_date, order_id, payment_attempts, last_payment_attempt, telegram_chat_id, registration_source, whatsapp_number, telegram_user_id, referred_by, coupon_code)
+                VALUES ($1, $2, $3, $4, 'pending', $5, $6, 1, NOW(), $7, 'bot', $8, $9, $10, $11)`,
+                [temp_fullname, temp_email, telegram_handle, plan.plan_name, registrationDate, order_id, chat_id, whatsapp_number, telegram_user_id, referrerId, appliedCoupon]
             );
         }
 
@@ -1559,7 +1653,7 @@ app.post('/api/payments/create-from-bot', async (req, res) => {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                price_amount: plan.price,
+                price_amount: rawPrice,
                 price_currency: 'usd',
                 pay_currency: pay_currency,
                 ipn_callback_url: `${process.env.APP_BASE_URL}/api/payments/nowpayments/webhook`,
@@ -1618,10 +1712,20 @@ app.post('/api/payments/nowpayments/webhook', async (req, res) => {
                 const today = new Date();
                 let newExpiration = new Date(today);
                 
-                if (plan.term.toLowerCase().includes('month')) newExpiration.setMonth(newExpiration.getMonth() + 1);
-                if (plan.term.toLowerCase().includes('quarter')) newExpiration.setMonth(newExpiration.getMonth() + 3);
-                if (plan.term.toLowerCase().includes('year')) newExpiration.setFullYear(newExpiration.getFullYear() + 1);
-                if (plan.term.toLowerCase().includes('bi-annually')) newExpiration.setMonth(newExpiration.getMonth() + 6);
+                let monthsToAdd = 1;
+                const trimmedPlanName = plan.plan_name.trim();
+                if (trimmedPlanName === 'Pro') monthsToAdd = 3;
+                else if (trimmedPlanName === 'Elite') monthsToAdd = 6;
+                else if (trimmedPlanName === 'Basic') monthsToAdd = 1;
+                else {
+                    if (plan.term.toLowerCase().includes('month')) {
+                        const match = plan.term.match(/(\d+)\s*month/);
+                        monthsToAdd = match ? parseInt(match[1]) : 1;
+                    } else if (plan.term.toLowerCase().includes('year')) {
+                        monthsToAdd = 12;
+                    }
+                }
+                newExpiration.setMonth(newExpiration.getMonth() + monthsToAdd);
 
 
                 await pool.query(
@@ -2145,8 +2249,57 @@ app.get('/*', (req, res) => {
 });
 
 
+
+async function runOneTimeAdjustment() {
+    console.log("Starting one-time subscription adjustment...");
+    const client = await pool.connect();
+    try {
+        // 1. Trim plan names
+        await client.query("UPDATE pricingplans SET plan_name = TRIM(plan_name)");
+        await client.query("UPDATE users SET plan_name = TRIM(plan_name)");
+
+        // 2. Fetch all active users
+        const { rows: users } = await client.query("SELECT * FROM users WHERE subscription_status = 'active'");
+
+        for (const user of users) {
+            // Fetch plan details
+            const planResult = await client.query("SELECT * FROM pricingplans WHERE plan_name = $1", [user.plan_name]);
+            if (planResult.rows.length === 0) continue;
+            const plan = planResult.rows[0];
+
+            // Determine correct duration
+            let months = 1;
+            if (plan.plan_name === 'Pro') months = 3;
+            else if (plan.plan_name === 'Elite') months = 6;
+
+            // Recalculate expiration date from registration_date
+            if (!user.registration_date) continue;
+            const regDate = new Date(user.registration_date);
+            const correctExpDate = new Date(regDate);
+            correctExpDate.setMonth(correctExpDate.getMonth() + months);
+
+            const currentExpDate = user.subscription_expiration ? new Date(user.subscription_expiration) : null;
+
+            if (!currentExpDate || correctExpDate.toISOString().split('T')[0] !== currentExpDate.toISOString().split('T')[0]) {
+                console.log(`Updating expiration for user ${user.id} (${user.telegram_handle}): ${currentExpDate ? currentExpDate.toISOString().split('T')[0] : 'NULL'} -> ${correctExpDate.toISOString().split('T')[0]}`);
+                await client.query("UPDATE users SET subscription_expiration = $1 WHERE id = $2", [correctExpDate.toISOString().split('T')[0], user.id]);
+            }
+        }
+
+        // 3. Run the expired subscription manager to handle anyone who is now expired
+        await manageExpiredSubscriptions();
+
+        console.log("One-time adjustment completed.");
+    } catch (err) {
+        console.error("Adjustment failed:", err);
+    } finally {
+        client.release();
+    }
+}
+
 // Start the server
 app.listen(port, async () => {
   console.log(`Server is running on http://localhost:${port}`);
   await setupWebhook();
+  await runOneTimeAdjustment();
 });

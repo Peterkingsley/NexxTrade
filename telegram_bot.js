@@ -389,6 +389,20 @@ const silentlyLinkTelegramId = async (telegramUser) => {
 
 
 // --- Main Message Handler for collecting user input ---
+
+async function showPaymentMethodSelection(chatId) {
+    const paymentKeyboard = {
+        reply_markup: {
+            inline_keyboard: [
+                [{ text: 'Pay with Crypto', callback_data: `select_payment_crypto` }],
+                [{ text: 'Pay with Fiat', callback_data: `select_payment_fiat` }],
+                [{ text: '⬅️ Back to Plans', callback_data: 'back_to_plans' }]
+            ]
+        }
+    };
+    return bot.sendMessage(chatId, `Please choose your payment method:`, paymentKeyboard);
+}
+
 bot.on('message', async (msg) => {
     const chatId = msg.chat.id;
     silentlyLinkTelegramId(msg.from);
@@ -401,6 +415,50 @@ bot.on('message', async (msg) => {
 
     try {
         switch (state.stage) {
+            case 'awaiting_coupon':
+                const couponInput = msg.text.trim().toUpperCase();
+
+                if (couponInput === 'SKIP') {
+                    state.discountedPrice = null; // No discount
+                    state.couponCode = null;
+                    state.stage = 'awaiting_payment_method';
+                    return showPaymentMethodSelection(chatId);
+                }
+
+                // Validate the coupon
+                bot.sendMessage(chatId, 'Validating coupon code...');
+                try {
+                    const couponRes = await fetch(`${serverUrl}/api/validate-coupon`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ couponCode: couponInput, planId: state.planId })
+                    });
+                    const couponData = await couponRes.json();
+
+                    if (couponRes.ok && couponData.valid) {
+                        state.discountedPrice = couponData.finalPrice;
+                        state.couponCode = couponData.couponCode;
+                        state.stage = 'awaiting_payment_method';
+                        await bot.sendMessage(chatId, `✅ Coupon applied! You get ${couponData.discountPercentage}% off your registration fee.
+
+New price: *$${state.discountedPrice.toFixed(2)}*`, { parse_mode: 'Markdown' });
+                        return showPaymentMethodSelection(chatId);
+                    } else {
+                        state.discountedPrice = null;
+                        state.couponCode = null;
+                        await bot.sendMessage(chatId, `❌ ${couponData.message || 'Invalid coupon code'}. Proceeding with full price.`);
+                        state.stage = 'awaiting_payment_method';
+                        return showPaymentMethodSelection(chatId);
+                    }
+                } catch (err) {
+                    console.error("Coupon validation error:", err);
+                    state.discountedPrice = null;
+                    state.couponCode = null;
+                    await bot.sendMessage(chatId, `❌ Server error while validating coupon. Proceeding with full price.`);
+                    state.stage = 'awaiting_payment_method';
+                    return showPaymentMethodSelection(chatId);
+                }
+                break;
             case 'awaiting_referral_code':
                 const referralCode = msg.text.trim();
                 const telegramHandle = msg.from.username ? `@${msg.from.username}` : null;
@@ -427,15 +485,7 @@ bot.on('message', async (msg) => {
                 if (response.ok) {
                     const websiteLink = `${serverUrl}/@${data.referral_code}`;
                     const botLink = `https://t.me/${botUsername}?start=${data.referral_code}`;
-                    const message = `
-✅ Success! Your new referral links are ready:
-
-*For Website Sign-ups:*
-\`${websiteLink}\`
-
-*For Direct Bot Sign-ups:*
-\`${botLink}\`
-                    `;
+                    const message = `\n✅ Success! Your new referral links are ready:\n\n*For Website Sign-ups:*\n\\\`${websiteLink}\\\`\n\n*For Direct Bot Sign-ups:*\n\\\`${botLink}\\\`\n                    `;
                     bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
                 } else {
                     bot.sendMessage(chatId, `⚠️ ${data.message}`);
@@ -443,8 +493,7 @@ bot.on('message', async (msg) => {
                 
                 delete userRegistrationState[chatId];
                 break;
-            
-            case 'awaiting_payout_amount':
+                case 'awaiting_payout_amount':
                 const amount = parseFloat(msg.text);
                 if (isNaN(amount) || amount <= 0) {
                     bot.sendMessage(chatId, "Please enter a valid positive number for the amount.");
@@ -509,9 +558,11 @@ bot.on('message', async (msg) => {
                         plan_id: state.planId,
                         pay_currency: state.network,
                         whatsapp_number: state.whatsapp,
-                        referral_code: state.referralCode, // Pass the referral code if it exists
-                        telegram_user_id: state.telegramUserId // <-- ADD THIS LINE
-                 }),
+                        referral_code: state.referralCode,
+                        couponCode: state.couponCode,
+                        telegram_user_id: state.telegramUserId,
+                        discounted_price: state.discountedPrice || null
+                    }),
                 });
                 
                 if (paymentResponse.status === 409) { 
@@ -675,20 +726,29 @@ bot.on('callback_query', async (callbackQuery) => {
         if (data.startsWith('select_plan_')) {
             const planId = parseInt(data.split('_')[2], 10);
             const telegramHandle = telegramUser.username ? `@${telegramUser.username}` : `user_${telegramUser.id}`;
-            // Preserve referral code if it exists
             const existingState = userRegistrationState[chatId] || {};
-            userRegistrationState[chatId] = { ...existingState, planId, telegramHandle, telegramUserId: telegramUser.id, stage: 'awaiting_payment_method' };
 
-            const paymentKeyboard = {
-                reply_markup: {
-                    inline_keyboard: [
-                        [{ text: 'Pay with Crypto', callback_data: `select_payment_crypto` }],
-                        [{ text: 'Pay with Fiat', callback_data: `select_payment_fiat` }],
-                        [{ text: '⬅️ Back to Plans', callback_data: 'back_to_plans' }]
-                    ]
-                }
-            };
-            return bot.sendMessage(chatId, `You have selected a plan. Please choose your payment method:`, paymentKeyboard);
+            // Fetch the plan price so we can apply discount later
+            try {
+                const planRes = await fetch(`${serverUrl}/api/pricing/${planId}`);
+                const planData = await planRes.json();
+                const planPrice = parseFloat(planData.price);
+
+                userRegistrationState[chatId] = {
+                    ...existingState,
+                    planId,
+                    planPrice,
+                    telegramHandle,
+                    telegramUserId: telegramUser.id,
+                    stage: 'awaiting_coupon'
+                };
+
+                return bot.sendMessage(chatId, `You have selected a plan. Do you have a coupon code? If yes, enter it now. Otherwise type *SKIP*.`, { parse_mode: 'Markdown' });
+            } catch (err) {
+                console.error("Error fetching plan price:", err);
+                userRegistrationState[chatId] = { ...existingState, planId, telegramHandle, telegramUserId: telegramUser.id, stage: 'awaiting_coupon' };
+                return bot.sendMessage(chatId, `You have selected a plan. Do you have a coupon code? If yes, enter it now. Otherwise type SKIP.`);
+            }
         }
 
         if (data === 'select_payment_fiat') {
