@@ -152,7 +152,6 @@ async function manageExpiredSubscriptions() {
 
         if (expiredUsers.length === 0) {
             console.log('Subscription job: No expired users found.');
-            client.release();
             return;
         }
 
