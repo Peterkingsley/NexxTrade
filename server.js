@@ -1131,8 +1131,8 @@ app.post('/api/transfi/deposit', async (req, res) => {
                  emailForDb = userRecord.email; 
             }
             await pool.query(
-                `UPDATE users SET full_name = $1, email = $2, whatsapp_number = $3, order_id = $4, subscription_status = 'pending', last_payment_attempt = NOW(), payment_attempts = payment_attempts + 1, registration_source = 'web', referred_by = $5 WHERE id = $6`,
-                [fullname, emailForDb, whatsapp_number, order_id, referrerId, userRecord.id]
+                `UPDATE users SET full_name = $1, email = $2, whatsapp_number = $3, order_id = $4, subscription_status = 'pending', last_payment_attempt = NOW(), payment_attempts = payment_attempts + 1, registration_source = 'web', referred_by = $5, coupon_code = $7 WHERE id = $6`,
+                [fullname, emailForDb, whatsapp_number, order_id, referrerId, userRecord.id, appliedCoupon]
             );
         } else {
             const emailConflictQuery = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
@@ -1142,9 +1142,9 @@ app.post('/api/transfi/deposit', async (req, res) => {
             }
             const registrationDate = new Date().toISOString().split('T')[0];
             await pool.query(
-                `INSERT INTO users (full_name, email, telegram_handle, plan_name, subscription_status, registration_date, order_id, payment_attempts, last_payment_attempt, registration_source, whatsapp_number, referred_by) 
-                 VALUES ($1, $2, $3, $4, 'pending', $5, $6, 1, NOW(), 'web', $7, $8)`,
-                [fullname, emailForDb, telegram, planName, registrationDate, order_id, whatsapp_number, referrerId]
+                `INSERT INTO users (full_name, email, telegram_handle, plan_name, subscription_status, registration_date, order_id, payment_attempts, last_payment_attempt, registration_source, whatsapp_number, referred_by, coupon_code)
+                 VALUES ($1, $2, $3, $4, 'pending', $5, $6, 1, NOW(), 'web', $7, $8, $9)`,
+                [fullname, emailForDb, telegram, planName, registrationDate, order_id, whatsapp_number, referrerId, appliedCoupon]
             );
         }
 
@@ -1413,11 +1413,56 @@ async function getReferrerId(referralCode) {
     return null;
 }
 
+// --- NEW: Coupon Validation Endpoint ---
+app.post('/api/validate-coupon', async (req, res) => {
+    try {
+        const { couponCode, planId, planName } = req.body;
+        if (!couponCode) {
+            return res.status(400).json({ message: 'Coupon code is required.' });
+        }
+
+        const couponResult = await pool.query(
+            'SELECT * FROM coupons WHERE UPPER(code) = UPPER($1) AND is_active = true',
+            [couponCode]
+        );
+
+        if (couponResult.rows.length === 0) {
+            return res.status(404).json({ message: 'Invalid or expired coupon code.' });
+        }
+
+        const coupon = couponResult.rows[0];
+        const discountPercentage = parseFloat(coupon.discount_percentage);
+
+        let originalPrice = 0;
+        if (planId) {
+            const planResult = await pool.query('SELECT price FROM pricingplans WHERE id = $1', [planId]);
+            if (planResult.rows.length > 0) originalPrice = parseFloat(planResult.rows[0].price);
+        } else if (planName) {
+            const planResult = await pool.query('SELECT price FROM pricingplans WHERE plan_name = $1', [planName]);
+            if (planResult.rows.length > 0) originalPrice = parseFloat(planResult.rows[0].price);
+        }
+
+        const discountAmount = (originalPrice * discountPercentage) / 100;
+        const finalPrice = originalPrice - discountAmount;
+
+        res.status(200).json({
+            valid: true,
+            discountPercentage,
+            originalPrice,
+            finalPrice,
+            couponCode: coupon.code
+        });
+    } catch (err) {
+        console.error('Error validating coupon:', err);
+        res.status(500).json({ message: 'Server error while validating coupon.' });
+    }
+});
+
 
 // === Flow 1: User starts payment from the Website ===
 app.post('/api/payments/create-from-web', async (req, res) => {
     try {
-        const { fullname, email, telegram, planName, pay_currency, whatsapp_number, referral_code } = req.body;
+        const { fullname, email, telegram, planName, pay_currency, whatsapp_number, referral_code, couponCode } = req.body;
         
         if (!pay_currency || !fullname || !email || !telegram || !whatsapp_number || !planName) {
             return res.status(400).json({ message: 'Missing required fields for payment.' });
@@ -1428,10 +1473,25 @@ app.post('/api/payments/create-from-web', async (req, res) => {
             return res.status(404).json({ message: 'Selected plan not found.' });
         }
         const plan = planResult.rows[0];
+        let finalPrice = parseFloat(plan.price);
+        let appliedCoupon = null;
 
-        console.log('WEB: PLAN DETAILS FETCHED FOR PAYMENT:', plan);
-        if (!plan.price || typeof plan.price !== 'number' || plan.price <= 0) {
-            console.error(`WEB: Invalid price for plan ${planName}:`, plan.price);
+        if (couponCode) {
+            const couponResult = await pool.query(
+                'SELECT * FROM coupons WHERE UPPER(code) = UPPER($1) AND is_active = true',
+                [couponCode]
+            );
+            if (couponResult.rows.length > 0) {
+                const coupon = couponResult.rows[0];
+                const discount = (finalPrice * parseFloat(coupon.discount_percentage)) / 100;
+                finalPrice = finalPrice - discount;
+                appliedCoupon = coupon.code;
+            }
+        }
+
+        console.log('WEB: PLAN DETAILS FETCHED FOR PAYMENT:', plan, 'Final Price:', finalPrice);
+        if (!finalPrice || finalPrice <= 0) {
+            console.error(`WEB: Invalid price for plan ${planName}:`, finalPrice);
             return res.status(500).json({ message: `Payment processor error: The price for the selected plan is invalid. Please contact support.` });
         }
         
@@ -1460,8 +1520,8 @@ app.post('/api/payments/create-from-web', async (req, res) => {
             }
 
             await pool.query(
-                `UPDATE users SET full_name = $1, email = $2, whatsapp_number = $3, order_id = $4, subscription_status = 'pending', last_payment_attempt = NOW(), payment_attempts = payment_attempts + 1, registration_source = 'web', referred_by = $5 WHERE id = $6`,
-                [fullname, emailForDb, whatsapp_number, order_id, referrerId, userRecord.id]
+                `UPDATE users SET full_name = $1, email = $2, whatsapp_number = $3, order_id = $4, subscription_status = 'pending', last_payment_attempt = NOW(), payment_attempts = payment_attempts + 1, registration_source = 'web', referred_by = $5, coupon_code = $7 WHERE id = $6`,
+                [fullname, emailForDb, whatsapp_number, order_id, referrerId, userRecord.id, appliedCoupon]
             );
         } else {
             // New user registration for this plan. Check if the email is taken by anyone.
@@ -1475,9 +1535,9 @@ app.post('/api/payments/create-from-web', async (req, res) => {
             const registrationDate = new Date().toISOString().split('T')[0];
            // This is the CORRECTED code block
           await pool.query(
-          `INSERT INTO users (full_name, email, telegram_handle, plan_name, subscription_status, registration_date, order_id, payment_attempts, last_payment_attempt, registration_source, whatsapp_number, referred_by)
-           VALUES ($1, $2, $3, $4, 'pending', $5, $6, 1, NOW(), 'web', $7, $8)`,
-          [fullname, emailForDb, telegram, planName, registrationDate, order_id, whatsapp_number, referrerId]
+          `INSERT INTO users (full_name, email, telegram_handle, plan_name, subscription_status, registration_date, order_id, payment_attempts, last_payment_attempt, registration_source, whatsapp_number, referred_by, coupon_code)
+           VALUES ($1, $2, $3, $4, 'pending', $5, $6, 1, NOW(), 'web', $7, $8, $9)`,
+          [fullname, emailForDb, telegram, planName, registrationDate, order_id, whatsapp_number, referrerId, appliedCoupon]
             );
         }
 
@@ -1488,7 +1548,7 @@ app.post('/api/payments/create-from-web', async (req, res) => {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                price_amount: plan.price,
+                price_amount: finalPrice,
                 price_currency: 'usd',
                 pay_currency: pay_currency,
                 ipn_callback_url: `${process.env.APP_BASE_URL}/api/payments/nowpayments/webhook`,
@@ -1516,7 +1576,7 @@ app.post('/api/payments/create-from-web', async (req, res) => {
 // === Flow 2: User starts payment from the Telegram Bot ===
 app.post('/api/payments/create-from-bot', async (req, res) => {
     try {
-        const { telegram_handle, chat_id, plan_id, pay_currency, whatsapp_number, referral_code, telegram_user_id } = req.body;
+        const { telegram_handle, chat_id, plan_id, pay_currency, whatsapp_number, referral_code, telegram_user_id, couponCode } = req.body;
         if (!telegram_handle || !chat_id || !plan_id || !pay_currency || !whatsapp_number) {
             return res.status(400).json({ message: 'Missing required fields from bot.' });
         }
@@ -1526,10 +1586,25 @@ app.post('/api/payments/create-from-bot', async (req, res) => {
             return res.status(404).json({ message: 'Plan not found.' });
         }
         const plan = planResult.rows[0];
+        let finalPrice = parseFloat(plan.price);
+        let appliedCoupon = null;
 
-        console.log('BOT: PLAN DETAILS FETCHED FOR PAYMENT:', plan);
-        if (!plan.price || typeof plan.price !== 'number' || plan.price <= 0) {
-            console.error(`BOT: Invalid price for plan ID ${plan_id}:`, plan.price);
+        if (couponCode) {
+            const couponResult = await pool.query(
+                'SELECT * FROM coupons WHERE UPPER(code) = UPPER($1) AND is_active = true',
+                [couponCode]
+            );
+            if (couponResult.rows.length > 0) {
+                const coupon = couponResult.rows[0];
+                const discount = (finalPrice * parseFloat(coupon.discount_percentage)) / 100;
+                finalPrice = finalPrice - discount;
+                appliedCoupon = coupon.code;
+            }
+        }
+
+        console.log('BOT: PLAN DETAILS FETCHED FOR PAYMENT:', plan, 'Final Price:', finalPrice);
+        if (!finalPrice || finalPrice <= 0) {
+            console.error(`BOT: Invalid price for plan ID ${plan_id}:`, finalPrice);
             return res.status(500).json({ message: `Payment processor error: The price for the selected plan is invalid. Please contact support.` });
         }
 
@@ -1547,8 +1622,8 @@ app.post('/api/payments/create-from-bot', async (req, res) => {
                 return res.status(409).json({ message: `You already have an active subscription for the ${plan.plan_name} plan.` });
             }
             await pool.query(
-                `UPDATE users SET whatsapp_number = $1, order_id = $2, subscription_status = 'pending', last_payment_attempt = NOW(), payment_attempts = payment_attempts + 1, telegram_chat_id = $3, registration_source = 'bot', referred_by = $4, telegram_user_id = $6 WHERE id = $5`,
-                [whatsapp_number, order_id, chat_id, referrerId, userRecord.id, telegram_user_id]
+                `UPDATE users SET whatsapp_number = $1, order_id = $2, subscription_status = 'pending', last_payment_attempt = NOW(), payment_attempts = payment_attempts + 1, telegram_chat_id = $3, registration_source = 'bot', referred_by = $4, telegram_user_id = $6, coupon_code = $7 WHERE id = $5`,
+                [whatsapp_number, order_id, chat_id, referrerId, userRecord.id, telegram_user_id, appliedCoupon]
             );
         } else {
             const temp_fullname = `User ${telegram_handle}`;
@@ -1565,9 +1640,9 @@ app.post('/api/payments/create-from-bot', async (req, res) => {
 
             const registrationDate = new Date().toISOString().split('T')[0];
             await pool.query(
-                `INSERT INTO users (full_name, email, telegram_handle, plan_name, subscription_status, registration_date, order_id, payment_attempts, last_payment_attempt, telegram_chat_id, registration_source, whatsapp_number, telegram_user_id, referred_by)
-                VALUES ($1, $2, $3, $4, 'pending', $5, $6, 1, NOW(), $7, 'bot', $8, $9, $10)`,
-                [temp_fullname, temp_email, telegram_handle, plan.plan_name, registrationDate, order_id, chat_id, whatsapp_number, telegram_user_id, referrerId]
+                `INSERT INTO users (full_name, email, telegram_handle, plan_name, subscription_status, registration_date, order_id, payment_attempts, last_payment_attempt, telegram_chat_id, registration_source, whatsapp_number, telegram_user_id, referred_by, coupon_code)
+                VALUES ($1, $2, $3, $4, 'pending', $5, $6, 1, NOW(), $7, 'bot', $8, $9, $10, $11)`,
+                [temp_fullname, temp_email, telegram_handle, plan.plan_name, registrationDate, order_id, chat_id, whatsapp_number, telegram_user_id, referrerId, appliedCoupon]
             );
         }
 
@@ -1578,7 +1653,7 @@ app.post('/api/payments/create-from-bot', async (req, res) => {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                price_amount: plan.price,
+                price_amount: finalPrice,
                 price_currency: 'usd',
                 pay_currency: pay_currency,
                 ipn_callback_url: `${process.env.APP_BASE_URL}/api/payments/nowpayments/webhook`,

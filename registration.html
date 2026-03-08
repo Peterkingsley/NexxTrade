@@ -33,7 +33,7 @@
       border-radius: var(--radius);
       box-shadow: var(--shadow);
     }
-    
+
     .btn {
       display: inline-flex;
       align-items: center;
@@ -95,7 +95,7 @@
 <body class="flex items-center justify-center min-h-screen p-4 md:p-8">
 
   <div class="w-full max-w-lg">
-    
+
     <div id="method-selection-container" class="card p-6 md:p-8 space-y-6">
         <div class="text-center">
             <h1 class="text-3xl font-bold">Checkout</h1>
@@ -157,12 +157,12 @@
 
     <div>
         <label for="fiat-state" class="block text-sm font-medium mb-1 text-muted">State / Region</label>
-        <input 
-            type="text" 
-            id="fiat-state" 
-            name="state" 
-            placeholder="State/Region (e.g., UP)" 
-            class="input-field" 
+        <input
+            type="text"
+            id="fiat-state"
+            name="state"
+            placeholder="State/Region (e.g., UP)"
+            class="input-field"
             required
         >
     </div>
@@ -212,16 +212,6 @@
             </div>
             <input type="hidden" id="fiat-quote-id" value="">
             <div class="flex flex-col gap-4">
-
-            <!-- Coupon Code Section (Fiat) -->
-            <div class="space-y-2">
-                <label for="fiat-coupon" class="block text-sm font-medium text-muted">Coupon Code (Optional)</label>
-                <div class="flex gap-2">
-                    <input type="text" id="fiat-coupon" class="input flex-1" placeholder="Enter coupon code">
-                    <button type="button" id="apply-fiat-coupon" class="btn btn-secondary px-4">Apply</button>
-                </div>
-                <div id="fiat-coupon-msg" class="text-xs mt-1"></div>
-            </div>
                 <button type="submit" id="fiat-pay-button" class="btn btn-primary mt-4">Proceed to Payment</button>
                 <button type="button" class="back-to-selection-btn text-center text-sm text-muted hover:underline">Back to Payment Selection</button>
             </div>
@@ -266,16 +256,6 @@
                 </div>
             </div>
             <div class="flex flex-col gap-4">
-
-            <!-- Coupon Code Section (Crypto) -->
-            <div class="space-y-2">
-                <label for="crypto-coupon" class="block text-sm font-medium text-muted">Coupon Code (Optional)</label>
-                <div class="flex gap-2">
-                    <input type="text" id="crypto-coupon" class="input flex-1" placeholder="Enter coupon code">
-                    <button type="button" id="apply-crypto-coupon" class="btn btn-secondary px-4">Apply</button>
-                </div>
-                <div id="crypto-coupon-msg" class="text-xs mt-1"></div>
-            </div>
                 <button type="submit" id="crypto-pay-button" class="btn btn-primary mt-4">Proceed to Payment</button>
                  <button type="button" class="back-to-selection-btn text-center text-sm text-muted hover:underline">Back to Payment Selection</button>
             </div>
@@ -304,11 +284,11 @@
         const fiatOptionBtn = document.getElementById('fiat-option-btn');
         const cryptoOptionBtn = document.getElementById('crypto-option-btn');
         const backToSelectionBtns = document.querySelectorAll('.back-to-selection-btn');
-        
+
         // --- Forms & Data ---
         const fiatCheckoutForm = document.getElementById('fiat-checkout-form');
         const cryptoCheckoutForm = document.getElementById('crypto-checkout-form');
-        
+
         const plans = {};
         let selectedPlanKey = null;
         let selectedNetwork = null;
@@ -323,7 +303,7 @@
             'GB': { currency: 'GBP', paymentCode: 'uk_sort_code', description: 'GBP | Faster Payments' },
             'AU': { currency: 'AUD', paymentCode: 'payid', description: 'AUD | PayID' },
             // Default fallback (can be US or removed if country selection is strictly required)
-            'DEFAULT': { currency: 'USD', paymentCode: 'ach_pull', description: 'USD | ACH' } 
+            'DEFAULT': { currency: 'USD', paymentCode: 'ach_pull', description: 'USD | ACH' }
         };
 
         // --- Referral Code Logic ---
@@ -386,16 +366,16 @@
             try {
                 const response = await fetch('/api/pricing');
                 const plansData = await response.json();
-                
+
                 const fiatPlanContainer = document.getElementById('fiat-plan-selection');
                 const cryptoPlanContainer = document.getElementById('crypto-plan-selection');
                 fiatPlanContainer.innerHTML = '';
                 cryptoPlanContainer.innerHTML = '';
-                
+
                 plansData.forEach((plan, index) => {
                     const planKey = plan.id;
                     plans[planKey] = { name: plan.plan_name, priceUSD: plan.price };
-                    
+
                     const buttonHTML = `<button type="button" data-plan="${planKey}" class="plan-button"><div class="font-semibold">${plan.plan_name}</div><div class="text-muted text-sm">$${plan.price}</div></button>`;
                     fiatPlanContainer.innerHTML += buttonHTML;
                     cryptoPlanContainer.innerHTML += buttonHTML;
@@ -408,7 +388,7 @@
                         selectedPlanKey = e.currentTarget.dataset.plan;
                         document.querySelectorAll('.plan-button').forEach(b => b.classList.remove('active'));
                         document.querySelectorAll(`.plan-button[data-plan="${selectedPlanKey}"]`).forEach(b => b.classList.add('active'));
-                        
+
                         // IMPORTANT: Reset fiat button state when a new plan is selected
                         const payButton = document.getElementById('fiat-pay-button');
                         payButton.setAttribute('data-step', 'rate');
@@ -418,7 +398,7 @@
                         showMessage('fiat-message-box', '', false);
                     });
                 });
-                
+
                 if (selectedPlanKey) {
                     document.querySelectorAll(`.plan-button[data-plan="${selectedPlanKey}"]`).forEach(b => b.classList.add('active'));
                 }
@@ -431,7 +411,7 @@
         }
 
         // --- Event Listeners ---
-        
+
         // MODIFICATION START: Changed Fiat button behavior
         fiatOptionBtn.addEventListener('click', () => {
             switchView(fiatContainer); // This shows the fiat form
@@ -439,11 +419,11 @@
         // MODIFICATION END
 
         cryptoOptionBtn.addEventListener('click', () => switchView(cryptoContainer));
-        
+
         backToSelectionBtns.forEach(btn => btn.addEventListener('click', () => {
             if (paymentCheckInterval) clearInterval(paymentCheckInterval);
             clearSessionState();
-            currentQuote = null; 
+            currentQuote = null;
             switchView(methodSelectionContainer);
         }));
 
@@ -488,11 +468,11 @@
             const fiatAmount = data.data.fiatAmount; // The amount in CENTS TransFi expects to be paid
             const totalFee = data.data.fees.totalFee;
             const totalPayable = parseFloat(fiatAmount) + parseFloat(totalFee);
-            
+
             // NOTE: The display currency is dynamic, using data.data.fiatTicker for currency symbol display
             const countryCode = document.getElementById('fiat-country').value || 'DEFAULT';
             const countryConfig = COUNTRY_PAYMENT_MAP[countryCode] || COUNTRY_PAYMENT_MAP['DEFAULT'];
-            const displayCurrency = countryConfig.currency; 
+            const displayCurrency = countryConfig.currency;
 
             fiatAmountElement.textContent = `${parseFloat(planPrice).toFixed(2)} ${displayCurrency}`; // Show original plan price
             totalFeeElement.textContent = `${(parseFloat(totalFee) / 100).toFixed(2)} ${displayCurrency}`; // Convert cents to dollars
@@ -505,7 +485,7 @@
             quoteIdInput.value = data.data.quoteId;
 
             summaryBox.classList.remove('hidden');
-            
+
             // Update button for Step 2
             payButton.textContent = `Proceed to Pay ${displayCurrency}${(totalPayable / 100).toFixed(2)}`;
             payButton.classList.add('btn-primary');
@@ -517,13 +497,7 @@
         async function fetchAndDisplayRate(data) {
             const payButton = document.getElementById('fiat-pay-button');
             const originalButtonText = payButton.textContent;
-            let planPrice = data.priceUSD;
-            if (appliedCouponCode) {
-                // We should ideally fetch the discounted price from the server again or use the one we got from validate-coupon
-                // For simplicity, let's assume we can use the data.priceUSD as a base if we store the discounted price
-                // Actually, the validate-coupon returns finalPrice. Let's use a global variable to store it.
-                if (window.discountedPrice) planPrice = window.discountedPrice;
-            }
+            const planPrice = data.priceUSD;
 
             // NEW: Get dynamic currency and payment code
             const countryCode = document.getElementById('fiat-country').value;
@@ -537,7 +511,7 @@
 
             payButton.disabled = true;
             payButton.textContent = 'Calculating Rate...';
-            showMessage('fiat-message-box', '', false); 
+            showMessage('fiat-message-box', '', false);
 
             try {
                 const response = await fetch(`/api/transfi/rate?amount=${planPrice}&currency=${currency}&paymentCode=${paymentCode}`, {
@@ -545,7 +519,7 @@
                 });
                 const result = await response.json();
 
-                if (response.ok && result.status && result.status.toUpperCase() === 'SUCCESS') { 
+                if (response.ok && result.status && result.status.toUpperCase() === 'SUCCESS') {
                     updateRateSummary(result, planPrice);
                     showMessage('fiat-message-box', 'Rate calculated. Click "Proceed to Pay" to continue.', true);
                 } else {
@@ -565,7 +539,7 @@
             const payButton = document.getElementById('fiat-pay-button');
             payButton.disabled = true;
             payButton.textContent = 'Creating Order...';
-            showMessage('fiat-message-box', '', false); 
+            showMessage('fiat-message-box', '', false);
 
             if (!currentQuote) {
                 showMessage('fiat-message-box', 'Error: Exchange rate quote is missing. Please click the button to recalculate.');
@@ -590,16 +564,16 @@
             // Ensure date_of_birth is read and formatted here as well.
             const payload = {
                 // --- User/Contact Details ---
-                fullname: fullName, 
-                firstName: firstName, 
+                fullname: fullName,
+                firstName: firstName,
                 lastName: lastName,
                 email: document.getElementById('fiat-email').value,
                 telegram: document.getElementById('fiat-telegram').value,
                 whatsapp_number: document.getElementById('fiat-whatsapp').value,
-                
+
                 // --- Address and DOB (FLAT FIELDS for the server to process) ---
                 // CRITICAL: Ensure date is correctly formatted here for the server/TransFi
-                date_of_birth: formatDateForTransFi(document.getElementById('fiat-dob').value), 
+                date_of_birth: formatDateForTransFi(document.getElementById('fiat-dob').value),
                 addressLine1: document.getElementById('fiat-address1').value, // <--- FLAT
                 city: document.getElementById('fiat-city').value,             // <--- FLAT
                 state: document.getElementById('fiat-state').value,           // <--- FLAT
@@ -613,7 +587,6 @@
                 quoteId: currentQuote.quoteId,
                 paymentCode: countryConfig.paymentCode,
                 referral_code: referralCode,
-                couponCode: appliedCouponCode,
             };
 
             try {
@@ -651,7 +624,7 @@
                 showMessage('fiat-message-box', 'Please select a valid plan.');
                 return;
             }
-            
+
             // ==========================================================
             // Gather all data required for both steps
             // ==========================================================
@@ -659,20 +632,19 @@
                 fullname: document.getElementById('fiat-fullname').value,
                 email: document.getElementById('fiat-email').value,
                 // CRITICAL FIX: Ensure date is formatted DD-MM-YYYY here for the rate call
-                date_of_birth: formatDateForTransFi(document.getElementById('fiat-dob').value), 
+                date_of_birth: formatDateForTransFi(document.getElementById('fiat-dob').value),
                 telegram: document.getElementById('fiat-telegram').value,
                 whatsapp_number: document.getElementById('fiat-whatsapp').value,
                 planName: plans[selectedPlanKey].name,
                 priceUSD: plans[selectedPlanKey].priceUSD, // Used for rate calculation call
                 referral_code: referralCode,
-                couponCode: appliedCouponCode,
                 // FIX: Correctly mapped address fields
                 addressLine1: document.getElementById('fiat-address1').value,
                 city: document.getElementById('fiat-city').value,
-                state: document.getElementById('fiat-state').value,           
-                zipCode: document.getElementById('fiat-zipcode').value, 
+                state: document.getElementById('fiat-state').value,
+                zipCode: document.getElementById('fiat-zipcode').value,
                 // NEW: Include country in the initial data object
-                country: document.getElementById('fiat-country').value 
+                country: document.getElementById('fiat-country').value
             };
             // ==========================================================
 
@@ -692,7 +664,7 @@
             }
         });
 
-        // IMPORTANT: Add this logic to ensure the button is initialized correctly 
+        // IMPORTANT: Add this logic to ensure the button is initialized correctly
         // for the new two-step flow when a plan is selected.
         const fiatPayButton = document.getElementById('fiat-pay-button');
         fiatPayButton.setAttribute('data-step', 'rate');
@@ -702,10 +674,10 @@
         document.getElementById('fiat-country').addEventListener('change', (e) => {
             const countryCode = e.target.value;
             const config = COUNTRY_PAYMENT_MAP[countryCode] || COUNTRY_PAYMENT_MAP['DEFAULT'];
-            
+
             // Update the currency info label
             document.getElementById('fiat-currency-info').textContent = `Currency: ${config.currency} | Payment Rail: ${config.paymentCode.replace('_', ' ').toUpperCase()}`;
-            
+
             // Reset the rate/deposit state so the user must re-calculate the rate
             const payButton = document.getElementById('fiat-pay-button');
             payButton.setAttribute('data-step', 'rate');
@@ -731,7 +703,7 @@
             window.location.href = "https://t.me/NexxTrade_bot"; // replace with your bot link
             return;
 
-            
+
             if (!selectedPlanKey || !selectedNetwork) {
                 showMessage('crypto-message-box', 'Please select a plan and a payment network.');
                 return;
@@ -744,13 +716,11 @@
                 fullname: document.getElementById('crypto-fullname').value,
                 email: document.getElementById('crypto-email').value,
                 telegram: document.getElementById('crypto-telegram').value,
-                whatsapp_number: document.getElementById('crypto-whatsapp').value, 
+                whatsapp_number: document.getElementById('crypto-whatsapp').value,
                 planName: plans[selectedPlanKey].name,
                 priceUSD: plans[selectedPlanKey].priceUSD,
                 pay_currency: selectedNetwork,
-                referral_code: referralCode,
-                couponCode: appliedCouponCode, // Pass referral code
-                couponCode: appliedCouponCode
+                referral_code: referralCode // Pass referral code
             };
 
             try {
@@ -764,7 +734,7 @@
                     throw new Error(error.message || 'Failed to create payment.');
                 }
                 const paymentData = await response.json();
-                
+
                 sessionStorage.setItem('activeCryptoPayment', JSON.stringify(paymentData));
 
                 displayCryptoPaymentInfo(paymentData);
@@ -809,7 +779,7 @@
                 <h2 class="text-2xl font-bold">Payment Confirmed!</h2>
                 <p class="text-muted">Your access has been granted. Use the button below to join the exclusive Telegram channel.</p>
                 <a id="join-link" href="#" target="_blank" class="btn btn-primary w-full">Click Here to Join VIP</a>`;
-            
+
             switchView(paymentContainer);
             document.getElementById('payment-amount').textContent = `${data.pay_amount} ${data.pay_currency.toUpperCase()}`;
             document.getElementById('payment-address').textContent = data.pay_address;
@@ -842,7 +812,7 @@
                     switchView(methodSelectionContainer);
                 });
             }
-            
+
             new QRCode(document.getElementById('qrcode'), {
                 text: data.pay_address, width: 180, height: 180,
                 colorDark: '#e9edf3', colorLight: '#0f141b'
@@ -895,67 +865,6 @@
 
         // --- Initialization ---
         captureReferralCode();
-
-        let appliedCouponCode = null;
-
-        async function validateCoupon(code, planName, msgElementId, priceElementId, priceUSD) {
-            const msgElement = document.getElementById(msgElementId);
-            msgElement.textContent = 'Validating...';
-            msgElement.className = 'text-xs mt-1 text-muted';
-
-            try {
-                const response = await fetch('/api/validate-coupon', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ couponCode: code, planName: planName })
-                });
-
-                const data = await response.json();
-                if (data.valid) {
-                    msgElement.textContent = `Coupon applied! You get ${data.discountPercentage}% off.`;
-                    msgElement.className = 'text-xs mt-1 text-accent';
-                    appliedCouponCode = data.couponCode;
-                    window.discountedPrice = data.finalPrice;
-
-                    // Update the displayed price
-                    if (priceElementId) {
-                        const priceElement = document.getElementById(priceElementId);
-                        if (priceElement) {
-                             priceElement.textContent = `$${data.finalPrice.toFixed(2)}`;
-                             // If it's the fiat summary, we need to update other fields too
-                             if (priceElementId === 'summary-fiat-amount') {
-                                 // Update crypto amount as well
-                                 const cryptoAmount = data.finalPrice * 0.999; // Simple placeholder rate from HTML
-                                 document.getElementById('summary-crypto-amount').textContent = `${cryptoAmount.toFixed(2)} USDT`;
-                             }
-                        }
-                    }
-                } else {
-                    msgElement.textContent = data.message || 'Invalid coupon code.';
-                    msgElement.className = 'text-xs mt-1 text-danger';
-                    appliedCouponCode = null;
-                    // Reset price if needed (optional)
-                }
-            } catch (err) {
-                console.error('Error validating coupon:', err);
-                msgElement.textContent = 'Error validating coupon.';
-                msgElement.className = 'text-xs mt-1 text-danger';
-                appliedCouponCode = null;
-            }
-        }
-
-        document.getElementById('apply-fiat-coupon').addEventListener('click', () => {
-            const code = document.getElementById('fiat-coupon').value;
-            const planName = plans[selectedPlanKey].name;
-            validateCoupon(code, planName, 'fiat-coupon-msg', 'summary-fiat-amount');
-        });
-
-        document.getElementById('apply-crypto-coupon').addEventListener('click', () => {
-            const code = document.getElementById('crypto-coupon').value;
-            const planName = plans[selectedPlanKey].name;
-            validateCoupon(code, planName, 'crypto-coupon-msg');
-        });
-
         fetchAndPopulatePlans();
         checkForExistingState();
     });
