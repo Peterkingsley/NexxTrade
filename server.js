@@ -1575,7 +1575,7 @@ app.post('/api/payments/create-from-web', async (req, res) => {
 // === Flow 2: User starts payment from the Telegram Bot ===
 app.post('/api/payments/create-from-bot', async (req, res) => {
     try {
-        const { telegram_handle, chat_id, plan_id, pay_currency, whatsapp_number, referral_code, telegram_user_id, couponCode } = req.body;
+        const { telegram_handle, chat_id, plan_id, pay_currency, whatsapp_number, referral_code, telegram_user_id, couponCode, discounted_price } = req.body;
         if (!telegram_handle || !chat_id || !plan_id || !pay_currency || !whatsapp_number) {
             return res.status(400).json({ message: 'Missing required fields from bot.' });
         }
@@ -1602,8 +1602,9 @@ app.post('/api/payments/create-from-bot', async (req, res) => {
         }
 
         console.log('BOT: PLAN DETAILS FETCHED FOR PAYMENT:', plan, 'Final Price:', finalPrice);
-        if (!finalPrice || finalPrice <= 0) {
-            console.error(`BOT: Invalid price for plan ID ${plan_id}:`, finalPrice);
+        const rawPrice = discounted_price ? parseFloat(discounted_price) : finalPrice;
+        if (!rawPrice || isNaN(rawPrice) || rawPrice <= 0) {
+            console.error(`BOT: Invalid price for plan ID ${plan_id}:`, plan.price);
             return res.status(500).json({ message: `Payment processor error: The price for the selected plan is invalid. Please contact support.` });
         }
 
@@ -1652,7 +1653,7 @@ app.post('/api/payments/create-from-bot', async (req, res) => {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                price_amount: finalPrice,
+                price_amount: rawPrice,
                 price_currency: 'usd',
                 pay_currency: pay_currency,
                 ipn_callback_url: `${process.env.APP_BASE_URL}/api/payments/nowpayments/webhook`,
