@@ -3,128 +3,308 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin - Manage Affiliates</title>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="icon" href="https://www.nexxtrade.io/images/Nexxtradeai.svg" type="image/svg+xml">
+    <title>NexxTrade Admin Panel - Manage Affiliates</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        /* Custom CSS to match the original site's theme and styles */
+        :root {
+            --bg: #0b0f14;
+            --bg-2: #0f141b;
+            --text: #e9edf3;
+            --muted: #a8b3c7;
+            --accent: #2ad678;
+            --accent-2: #f0c75e;
+            --danger: #ff5d5d;
+            --line: #1b2330;
+            --shadow: 0 8px 24px rgba(0,0,0,.35);
+            --radius: 16px;
+            --radius-lg: 20px;
+        }
+
+        /* Apply a consistent font and background */
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, "Helvetica Neue", Arial, sans-serif;
+            overflow-x: hidden;
+        }
+
+        /* Reusable card style */
+        .card {
+            background: var(--bg-2);
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+        }
+
+        /* Input field styling */
+        .input-field {
+            width: 100%;
+            padding: 12px 16px;
+            border-radius: 12px;
+            background: #0d1219;
+            border: 1px solid var(--line);
+            color: var(--text);
+            transition: border-color 0.2s ease;
+        }
+
+        .input-field:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        /* Button styles */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: .6rem;
+            padding: .9rem 1.4rem;
+            border-radius: 999px;
+            border: 1px solid transparent;
+            cursor: pointer;
+            transition: .2s ease;
+            white-space: nowrap;
+            font-weight: 600;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: #04140a;
+        }
+
+        .btn-primary:hover {
+            filter: brightness(1.1);
+            transform: translateY(-1px);
+        }
+
+        .btn-ghost {
+            background: transparent;
+            border-color: var(--line);
+            color: var(--text);
+        }
+
+        .btn-ghost:hover {
+            background: #0f151d;
+        }
+
+        /* Utility for spacing and layout */
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            margin-inline: auto;
+            padding-inline: 20px;
+        }
+
+        /* Custom styles for admin panel tabs */
+        .tab-btn {
+            padding: 12px 20px;
+            border-bottom: 2px solid transparent;
+            color: var(--muted);
+            font-weight: 500;
+            cursor: pointer;
+            transition: color 0.2s, border-color 0.2s;
+        }
+
+        .tab-btn:hover {
+            color: var(--text);
+        }
+
+        .tab-btn.active {
+            color: var(--accent);
+            border-color: var(--accent);
+        }
+
+        /* Table styling for a more admin-like feel */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--line);
+        }
+
+        th {
+            color: var(--muted);
+            font-weight: 600;
+            background: #0d1219;
+        }
+
+        /* Modal specific styles */
+        #edit-affiliate-modal {
+            background-color: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(4px);
+        }
+
+        /* Styles for the brand logo */
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: .6rem;
+        }
+
+        .logo {
+            width: 44px;
+            height: auto;
+            border-radius: 8px;
+            display: block;
+        }
+
+        /* Responsive-specific styles for mobile */
+        @media (max-width: 768px) {
+            .container {
+                padding-inline: 16px;
+            }
+
+            .admin-header {
+                flex-direction: column;
+                gap: 1rem;
+                text-align: center;
+            }
+
+            .tab-nav {
+                flex-wrap: wrap;
+                justify-content: center;
+                border-bottom: none;
+                gap: 8px;
+            }
+
+            .tab-nav .tab-btn {
+                flex: 1 1 auto;
+                border-bottom: 2px solid transparent;
+                border-radius: 999px;
+                padding: 8px 16px;
+                text-align: center;
+            }
+
+            .tab-nav .tab-btn.active {
+                background-color: var(--line);
+            }
+
+            table {
+                display: block;
+                width: 100%;
+                white-space: nowrap;
+                overflow-x: auto;
+            }
+        }
+    </style>
 </head>
-<body class="bg-gray-100 font-sans leading-normal tracking-normal">
-
-    <div class="flex md:flex-row-reverse flex-wrap">
-
-        <div class="w-full md:w-4/5 bg-gray-100">
-            <div class="container bg-white rounded-lg shadow-lg p-5 lg:p-10 my-10">
-                <h1 class="text-2xl font-bold mb-6">Manage Affiliates</h1>
-                <div class="mb-6">
-    <div class="flex">
-        <input type="text" id="search-input" placeholder="Search by Telegram handle..." class="w-full px-3 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
-        <button id="search-button" class="bg-blue-500 text-white font-bold py-2 px-4 rounded-r-md hover:bg-blue-700">Search</button>
-    </div>
-</div>
-
-                <div class="mt-8">
-                    <h2 class="text-xl font-semibold mb-4">Affiliate Users</h2>
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full bg-white">
-                            <thead class="bg-gray-800 text-white">
-                                <tr>
-                                    <th class="text-left py-3 px-4 uppercase font-semibold text-sm">Telegram Handle</th>
-                                    <th class="text-left py-3 px-4 uppercase font-semibold text-sm">Status</th>
-                                    <th class="text-left py-3 px-4 uppercase font-semibold text-sm">Basic Rate</th>
-                                    <th class="text-left py-3 px-4 uppercase font-semibold text-sm">Pro Rate</th>
-                                    <th class="text-left py-3 px-4 uppercase font-semibold text-sm">Elite Rate</th>
-                                    <th class="text-left py-3 px-4 uppercase font-semibold text-sm">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody class="text-gray-700" id="affiliates-table-body">
-                                </tbody>
-                        </table>
-                    </div>
-                </div>
+<body class="p-4 md:p-8">
+    <div id="admin-panel" class="container space-y-8">
+        <!-- Header Section -->
+        <div class="card p-4 md:p-6 flex justify-between items-center admin-header">
+            <div class="flex items-center gap-4">
+                <a class="brand" href="/" aria-label="NexxTrade home">
+                    <img src="/images/Nexxtrade (1).svg" alt="NexxTrade Logo" class="logo">
+                    <h1 class="text-xl md:text-2xl font-bold">NexxTrade Admin Panel</h1>
+                </a>
             </div>
+            <a href="/admin" id="logout-btn" class="btn btn-ghost">
+                <i data-lucide="log-out" class="w-5 h-5"></i>
+                Log Out
+            </a>
         </div>
 
-        <div class="w-full md:w-1/5 bg-gray-900 md:bg-gray-900 px-2 text-center md:min-h-screen">
-            <div class="md:relative mx-auto lg:float-right lg:px-6">
-                <ul class="list-reset flex flex-row md:flex-col text-center md:text-left">
-                    <li class="mr-3 flex-1">
-                        <a href="/admin/dashboard" class="block py-1 md:py-3 pl-1 align-middle text-gray-800 no-underline hover:text-pink-500 border-b-2 border-gray-800 md:border-gray-900 hover:border-pink-500">
-                            <i class="fas fa-chart-area pr-0 md:pr-3"></i><span class="pb-1 md:pb-0 text-xs md:text-base text-gray-600 md:text-gray-400 block md:inline-block">Dashboard</span>
-                        </a>
-                    </li>
-                    <li class="mr-3 flex-1">
-                        <a href="/admin/affiliates" class="block py-1 md:py-3 pl-1 align-middle text-white no-underline hover:text-white border-b-2 border-pink-500">
-                            <i class="fas fa-users pr-0 md:pr-3"></i><span class="pb-1 md:pb-0 text-xs md:text-base text-white md:font-bold block md:inline-block">Affiliates</span>
-                        </a>
-                    </li>
-                    <li class="mr-3 flex-1">
-                        <a href="/admin/payouts" class="block py-1 md:py-3 pl-1 align-middle text-gray-800 no-underline hover:text-pink-500 border-b-2 border-gray-800 md:border-gray-900 hover:border-pink-500">
-                            <i class="fas fa-wallet pr-0 md:pr-3"></i><span class="pb-1 md:pb-0 text-xs md:text-base text-gray-600 md:text-gray-400 block md:inline-block">Payouts</span>
-                        </a>
-                    </li>
-                </ul>
-            </div>
+        <!-- Tab Navigation -->
+                <div class="flex flex-wrap border-b border-line gap-2 tab-nav">
+            <a href="/admin/dashboard" class="tab-btn">Dashboard</a>
+            <a href="/admin/blogs" class="tab-btn">Manage Blogs</a>
+            <a href="/admin/performance" class="tab-btn">Performance</a>
+            <a href="/admin/pricing" class="tab-btn">Update Pricing</a>
+            <a href="/admin/roles" class="tab-btn">Delegate Roles</a>
+            <a href="/admin/notifications" class="tab-btn">Manage Notifications</a>
+            <a href="/admin/payouts" class="tab-btn">Manage Payouts</a>
+            <a href="/admin/affiliates" class="tab-btn active">Manage Affiliates</a>
         </div>
-    </div>
 
-    <div id="edit-affiliate-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden">
-        <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-            <div class="mt-3 text-center">
-                <h3 class="text-lg leading-6 font-medium text-gray-900">Edit Affiliate Settings</h3>
-                <div class="mt-2 px-7 py-3">
-                    <form id="edit-affiliate-form">
-                        <input type="hidden" id="edit-user-id">
-                        <div class="mb-4">
-                            <label for="edit-is-active" class="block text-sm font-medium text-gray-700">Affiliate Status</label>
-                            <select id="edit-is-active" class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-                                <option value="true">Active</option>
-                                <option value="false">Inactive</option>
-                            </select>
-                        </div>
-                        <div class="mb-4">
-                            <label for="edit-basic-rate" class="block text-sm font-medium text-gray-700">Basic Commission Rate</label>
-                            <input type="number" id="edit-basic-rate" step="0.01" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
-                        </div>
-                        <div class="mb-4">
-                            <label for="edit-pro-rate" class="block text-sm font-medium text-gray-700">Pro Commission Rate</label>
-                            <input type="number" id="edit-pro-rate" step="0.01" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
-                        </div>
-                        <div class="mb-4">
-                            <label for="edit-elite-rate" class="block text-sm font-medium text-gray-700">Elite Commission Rate</label>
-                            <input type="number" id="edit-elite-rate" step="0.01" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
-                        </div>
-                        <div class="items-center px-4 py-3">
-                            <button id="save-affiliate-changes" class="px-4 py-2 bg-green-500 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-300">
-                                Save Changes
-                            </button>
-                        </div>
-                    </form>
+        <div class="space-y-8">
+            <h2 class="text-2xl font-semibold">Manage Affiliates</h2>
+
+            <!-- Search Section -->
+            <div class="card p-6">
+                <div class="flex gap-2">
+                    <input type="text" id="search-input" placeholder="Search by Telegram handle..." class="input-field">
+                    <button id="search-button" class="btn btn-primary">Search</button>
                 </div>
-                <div class="items-center px-4 py-3">
-                    <button id="close-modal" class="px-4 py-2 bg-gray-500 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-300">
-                        Cancel
-                    </button>
-                </div>
+            </div>
+
+            <!-- Affiliates Table -->
+            <div class="card overflow-hidden">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Telegram Handle</th>
+                            <th>Status</th>
+                            <th>Basic Rate</th>
+                            <th>Pro Rate</th>
+                            <th>Elite Rate</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="affiliates-table-body">
+                        <!-- Content will be injected by JavaScript -->
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
 
-<script>
+    <!-- Edit Affiliate Modal -->
+    <div id="edit-affiliate-modal" class="fixed inset-0 flex items-center justify-center hidden z-50">
+        <div class="card w-full max-w-md p-6 space-y-6 m-4">
+            <h3 class="text-xl font-bold text-center">Edit Affiliate Settings</h3>
+            <form id="edit-affiliate-form" class="space-y-4">
+                <input type="hidden" id="edit-user-id">
+                <div>
+                    <label for="edit-is-active" class="block text-sm font-medium mb-1 text-muted">Affiliate Status</label>
+                    <select id="edit-is-active" class="input-field">
+                        <option value="true">Active</option>
+                        <option value="false">Inactive</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="edit-basic-rate" class="block text-sm font-medium mb-1 text-muted">Basic Commission Rate</label>
+                    <input type="number" id="edit-basic-rate" step="0.01" class="input-field">
+                </div>
+                <div>
+                    <label for="edit-pro-rate" class="block text-sm font-medium mb-1 text-muted">Pro Commission Rate</label>
+                    <input type="number" id="edit-pro-rate" step="0.01" class="input-field">
+                </div>
+                <div>
+                    <label for="edit-elite-rate" class="block text-sm font-medium mb-1 text-muted">Elite Commission Rate</label>
+                    <input type="number" id="edit-elite-rate" step="0.01" class="input-field">
+                </div>
+                <div class="flex flex-col gap-2 pt-4">
+                    <button type="submit" id="save-affiliate-changes" class="btn btn-primary w-full">Save Changes</button>
+                    <button type="button" id="close-modal" class="btn btn-ghost w-full">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
         document.addEventListener('DOMContentLoaded', function() {
+            lucide.createIcons();
+
             const tableBody = document.getElementById('affiliates-table-body');
             const modal = document.getElementById('edit-affiliate-modal');
             const closeModalBtn = document.getElementById('close-modal');
             const saveChangesBtn = document.getElementById('save-affiliate-changes');
+            const editAffiliateForm = document.getElementById('edit-affiliate-form');
             
-            // New elements for search
             const searchInput = document.getElementById('search-input');
             const searchButton = document.getElementById('search-button');
 
-            // Modified fetchAffiliates to handle search queries
             function fetchAffiliates(searchQuery = '') {
-                // Base URL for the API endpoint
                 let url = '/api/admin/affiliates';
-
-                // If a search query is provided, append it to the URL
                 if (searchQuery) {
                     url += `?search=${encodeURIComponent(searchQuery)}`;
                 }
@@ -134,52 +314,52 @@
                     .then(data => {
                         tableBody.innerHTML = '';
                         if (data.length === 0) {
-                            tableBody.innerHTML = `<tr><td colspan="6" class="text-center py-4">No affiliates found.</td></tr>`;
+                            tableBody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-muted">No affiliates found.</td></tr>`;
                             return;
                         }
                         data.forEach(affiliate => {
-                            const row = `
-                                <tr>
-                                    <td class="text-left py-3 px-4">${affiliate.telegram_handle}</td>
-                                    <td class="text-left py-3 px-4">${affiliate.is_active ? '<span class="bg-green-200 text-green-800 py-1 px-3 rounded-full text-xs">Active</span>' : '<span class="bg-red-200 text-red-800 py-1 px-3 rounded-full text-xs">Inactive</span>'}</td>
-                                    <td class="text-left py-3 px-4">${affiliate.basic_commission_rate || 'N/A'}</td>
-                                    <td class="text-left py-3 px-4">${affiliate.pro_commission_rate || 'N/A'}</td>
-                                    <td class="text-left py-3 px-4">${affiliate.elite_commission_rate || 'N/A'}</td>
-                                    <td class="text-left py-3 px-4">
-                                        <button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded" onclick="openEditModal(${affiliate.id}, ${affiliate.is_active}, ${affiliate.basic_commission_rate}, ${affiliate.pro_commission_rate}, ${affiliate.elite_commission_rate})">Edit</button>
-                                    </td>
-                                </tr>
+                            const statusBadge = affiliate.is_active
+                                ? `<span class="bg-green-900/30 text-accent py-1 px-3 rounded-full text-xs font-semibold border border-green-800/50">Active</span>`
+                                : `<span class="bg-red-900/30 text-danger py-1 px-3 rounded-full text-xs font-semibold border border-red-800/50">Inactive</span>`;
+
+                            const row = document.createElement('tr');
+                            row.innerHTML = `
+                                <td>${affiliate.telegram_handle}</td>
+                                <td>${statusBadge}</td>
+                                <td>${affiliate.basic_commission_rate || '0.00'}</td>
+                                <td>${affiliate.pro_commission_rate || '0.00'}</td>
+                                <td>${affiliate.elite_commission_rate || '0.00'}</td>
+                                <td>
+                                    <button class="btn btn-ghost py-1 px-3 text-sm" onclick="openEditModal(${affiliate.id}, ${affiliate.is_active}, ${affiliate.basic_commission_rate}, ${affiliate.pro_commission_rate}, ${affiliate.elite_commission_rate})">
+                                        Edit
+                                    </button>
+                                </td>
                             `;
-                            tableBody.innerHTML += row;
+                            tableBody.appendChild(row);
                         });
                     })
                     .catch(error => {
                         console.error('Error fetching affiliates:', error);
-                        tableBody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-red-500">Failed to load data.</td></tr>`;
+                        tableBody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-danger">Failed to load data.</td></tr>`;
                     });
             }
 
-            // Event listener for the search button
             searchButton.addEventListener('click', function() {
-                const query = searchInput.value.trim();
-                fetchAffiliates(query);
+                fetchAffiliates(searchInput.value.trim());
             });
 
-            // Optional: Allow searching by pressing "Enter" in the input field
             searchInput.addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') {
-                    const query = searchInput.value.trim();
-                    fetchAffiliates(query);
+                    fetchAffiliates(searchInput.value.trim());
                 }
             });
-
 
             window.openEditModal = function(id, isActive, basicRate, proRate, eliteRate) {
                 document.getElementById('edit-user-id').value = id;
                 document.getElementById('edit-is-active').value = isActive ? 'true' : 'false';
-                document.getElementById('edit-basic-rate').value = basicRate;
-                document.getElementById('edit-pro-rate').value = proRate;
-                document.getElementById('edit-elite-rate').value = eliteRate;
+                document.getElementById('edit-basic-rate').value = basicRate || 0;
+                document.getElementById('edit-pro-rate').value = proRate || 0;
+                document.getElementById('edit-elite-rate').value = eliteRate || 0;
                 modal.classList.remove('hidden');
             }
 
@@ -187,7 +367,7 @@
                 modal.classList.add('hidden');
             });
 
-            saveChangesBtn.addEventListener('click', function(e) {
+            editAffiliateForm.addEventListener('submit', function(e) {
                 e.preventDefault();
                 const userId = document.getElementById('edit-user-id').value;
                 const isActive = document.getElementById('edit-is-active').value;
@@ -211,20 +391,45 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data) {
-                        Swal.fire('Success!', 'Affiliate settings updated successfully.', 'success');
+                        Swal.fire({
+                            title: 'Success!',
+                            text: 'Affiliate settings updated successfully.',
+                            icon: 'success',
+                            background: '#0f141b',
+                            color: '#e9edf3',
+                            confirmButtonColor: '#2ad678'
+                        });
                         modal.classList.add('hidden');
-                        fetchAffiliates(searchInput.value.trim()); // Re-fetch with current search to maintain view
+                        fetchAffiliates(searchInput.value.trim());
                     } else {
-                        Swal.fire('Error!', 'Failed to update affiliate settings.', 'error');
+                        Swal.fire({
+                            title: 'Error!',
+                            text: 'Failed to update affiliate settings.',
+                            icon: 'error',
+                            background: '#0f141b',
+                            color: '#e9edf3'
+                        });
                     }
                 })
                 .catch(error => {
                     console.error('Error updating affiliate:', error);
-                    Swal.fire('Error!', 'An error occurred while updating.', 'error');
+                    Swal.fire({
+                        title: 'Error!',
+                        text: 'An error occurred while updating.',
+                        icon: 'error',
+                        background: '#0f141b',
+                        color: '#e9edf3'
+                    });
                 });
             });
 
-            // Initial fetch to load all affiliates
+            // Logout handling
+            document.getElementById('logout-btn').addEventListener('click', (e) => {
+                e.preventDefault();
+                sessionStorage.removeItem('isAdminLoggedIn');
+                window.location.href = '/admin';
+            });
+
             fetchAffiliates();
         });
     </script>
